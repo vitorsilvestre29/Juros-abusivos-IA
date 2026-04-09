@@ -1,6 +1,21 @@
 import axios from 'axios'
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api'
+function normalizeApiBase(rawValue) {
+  const raw = String(rawValue || '').trim()
+  if (!raw) return '/api'
+  if (raw.startsWith('/')) return raw
+
+  let normalized = raw
+  if (!/^https?:\/\//i.test(normalized)) {
+    normalized = `https://${normalized}`
+  }
+  if (!/\/api\/?$/i.test(normalized)) {
+    normalized = `${normalized.replace(/\/+$/, '')}/api`
+  }
+  return normalized.replace(/\/+$/, '')
+}
+
+const API_BASE = normalizeApiBase(import.meta.env.VITE_API_URL)
 
 const api = axios.create({
   baseURL: API_BASE,
