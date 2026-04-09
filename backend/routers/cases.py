@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from pydantic import BaseModel
 from typing import Optional
+import base64
 import os
 import json as json_module
 
@@ -13,6 +14,8 @@ from routers.auth import get_current_user
 from models import User
 from services.pdf_service import extract_text_from_pdf, extract_pages_as_images, needs_vision, get_pdf_info
 from services.ai_service import analyze_contract
+from services.bcb_service import get_bcb_reference_rate
+from services.impact_service import calculate_financial_impact
 from services.plan_service import check_and_consume, accrue_cost
 
 router = APIRouter()
@@ -189,30 +192,55 @@ async def upload_contract(
                 )
             )
 
-        if not file.filename.lower().endswith('.pdf'):
-            raise HTTPException(status_code=400, detail="Apenas arquivos PDF são aceitos")
+        lower_name = (file.filename or "").lower()
+        is_pdf = lower_name.endswith('.pdf')
+        is_image = lower_name.endswith(('.png', '.jpg', '.jpeg', '.webp'))
+        if not is_pdf and not is_image:
+            raise HTTPException(status_code=400, detail="Envie um arquivo PDF ou imagem (JPG/PNG/WEBP)")
 
         # Lê o arquivo
         file_bytes = await file.read()
 
-        # Informações básicas do PDF
-        pdf_info = await run_in_threadpool(get_pdf_info, file_bytes)
-        total_pages = pdf_info.get("pages", 0)
-        print(f"📄 PDF recebido: {file.filename} — {total_pages} página(s)")
-
-        # Extrai texto de TODAS as páginas
-        extracted_text = await run_in_threadpool(extract_text_from_pdf, file_bytes)
-        print(f"📝 Texto extraído: {len(extracted_text)} caracteres")
-
-        # Se texto insuficiente (PDF escaneado), usa visão
+        extracted_text = ""
         image_pages = []
-        if needs_vision(extracted_text):
-            print(f"🖼️  Texto insuficiente — usando visão para {total_pages} página(s)")
-            image_pages = await run_in_threadpool(extract_pages_as_images, file_bytes, 8, 90)
-            print(f"🖼️  {len(image_pages)} imagem(ns) extraída(s)")
+
+        if is_pdf:
+            # Informações básicas do PDF
+            pdf_info = await run_in_threadpool(get_pdf_info, file_bytes)
+            total_pages = pdf_info.get("pages", 0)
+            print(f"📄 PDF recebido: {file.filename} — {total_pages} página(s)")
+
+            # Extrai texto de TODAS as páginas
+            extracted_text = await run_in_threadpool(extract_text_from_pdf, file_bytes)
+            print(f"📝 Texto extraído: {len(extracted_text)} caracteres")
+
+            # Se texto insuficiente (PDF escaneado), usa visão
+            if needs_vision(extracted_text):
+                print(f"🖼️  Texto insuficiente — usando visão para {total_pages} página(s)")
+                image_pages = await run_in_threadpool(extract_pages_as_images, file_bytes, 8, 90)
+                print(f"🖼️  {len(image_pages)} imagem(ns) extraída(s)")
+        else:
+            image_pages = [base64.standard_b64encode(file_bytes).decode("utf-8")]
+            print(f"🖼️ Imagem recebida: {file.filename} — análise por visão")
 
         # Analisa o contrato com IA (texto + imagens se necessário)
         analysis, contract_cost = await analyze_contract(extracted_text, bank_name, image_pages=image_pages)
+
+        # Enriquecimento: referência Bacen + cálculo de impacto financeiro
+        bcb_ref = await get_bcb_reference_rate(case.case_type)
+        impact = calculate_financial_impact(analysis, bcb_ref.get("monthly_rate_pct", 0.0))
+        analysis["benchmark_bcb"] = bcb_ref
+        analysis["impacto_financeiro"] = impact
+        analysis["aviso_legal"] = (
+            "Este resultado é um laudo técnico com apontamentos matemáticos e contratuais. "
+            "A interpretação jurídica final e o ajuizamento de ação revisional devem ser realizados por advogado regularmente inscrito na OAB."
+        )
+        analysis["lgpd"] = {
+            "base_legal": "execução de contrato e exercício regular de direitos",
+            "finalidade": "análise técnica de contrato e suporte documental",
+            "retencao_recomendada_dias": 180,
+            "direitos_titular": ["acesso", "correção", "eliminação", "portabilidade"]
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -314,6 +342,25 @@ async def upload_contract(
     if resumo and isinstance(resumo, str) and not resumo.strip().startswith("{") and len(resumo) < 1000:
         analysis_msg += f"---\n📋 **Resumo:** {resumo}\n"
 
+    bcb_ref = analysis.get("benchmark_bcb", {})
+    if bcb_ref:
+        analysis_msg += (
+            f"\n📉 **Referência de mercado (Bacen):** {bcb_ref.get('monthly_rate_pct', 'N/I')}% a.m. "
+            f"({bcb_ref.get('source', 'fonte não informada')})\n"
+        )
+
+    impacto = analysis.get("impacto_financeiro", {})
+    if impacto.get("status") == "ok":
+        analysis_msg += (
+            f"💵 **Impacto financeiro estimado:** R$ {impacto.get('estimated_overcharge_brl', 0):,.2f}\n"
+            .replace(",", "X").replace(".", ",").replace("X", ".")
+        )
+
+    analysis_msg += (
+        "\n⚖️ **Limite legal da plataforma:** este resultado é um laudo técnico. "
+        "A estratégia processual e eventual ação revisional devem ser conduzidas por advogado.\n"
+    )
+
     ai_chat_msg = ChatMessage(
         case_id=case_id,
         role="assistant",
@@ -351,6 +398,11 @@ async def upload_contract(
             "- Nome completo\n- CPF\n- Endereço completo\n\n"
             "Ou use os botões abaixo para gerar os documentos com os dados disponíveis."
         )
+
+    orientacao += (
+        "\n\nSe desejar, posso preparar agora um relatório preliminar para envio e, ao final, "
+        "te indicar o encaminhamento para advogado parceiro para avaliação judicial."
+    )
 
     orientacao_msg = ChatMessage(case_id=case_id, role="assistant", content=orientacao)
     db.add(orientacao_msg)

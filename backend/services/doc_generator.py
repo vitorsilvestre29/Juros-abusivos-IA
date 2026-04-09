@@ -101,6 +101,73 @@ def generate_peticao_docx(case_data: dict, peticao_text: str) -> bytes:
     return _fallback_peticao(case_data, peticao_text)
 
 
+def generate_relatorio_preliminar_pdf(case_data: dict, contracts_analysis: list[dict]) -> bytes:
+    """Gera relatório preliminar em PDF com achados técnicos e aviso legal."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import cm
+    from reportlab.pdfgen import canvas
+
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+
+    y = height - 2 * cm
+
+    def draw_line(text: str, step: float = 0.6 * cm, bold: bool = False):
+        nonlocal y
+        if y < 2 * cm:
+            c.showPage()
+            y = height - 2 * cm
+        c.setFont("Helvetica-Bold" if bold else "Helvetica", 10)
+        c.drawString(2 * cm, y, text[:115])
+        y -= step
+
+    c.setTitle("Relatorio Preliminar")
+    draw_line("RELATORIO PRELIMINAR DE ANALISE TECNICA", bold=True)
+    draw_line(f"Data: {datetime.now().strftime('%d/%m/%Y')}")
+    draw_line(f"Cliente: {case_data.get('client_name', 'Nao informado')}")
+    draw_line(f"CPF: {case_data.get('client_cpf', 'Nao informado')}")
+    draw_line(f"Tipo do caso: {case_data.get('case_type', 'Nao informado')}")
+    draw_line("", step=0.3 * cm)
+
+    total_estimated = 0.0
+    for idx, analysis in enumerate(contracts_analysis, start=1):
+        draw_line(f"Contrato {idx}: {analysis.get('banco_identificado', 'Banco nao identificado')}", bold=True)
+        draw_line(f"Numero: {analysis.get('numero_contrato', 'N/I')}")
+        draw_line(f"Taxa mensal: {analysis.get('taxa_mensal', 'N/I')} | CET anual: {analysis.get('cet_anual', 'N/I')}")
+
+        irregularidades = analysis.get("irregularidades", []) or []
+        draw_line(f"Irregularidades encontradas: {len(irregularidades)}")
+        for irr in irregularidades[:8]:
+            draw_line(f"- {irr.get('tipo', 'Irregularidade')} ({irr.get('fundamento_legal', 'base legal nao informada')})")
+
+        impacto = analysis.get("impacto_financeiro", {}) or {}
+        estimated = impacto.get("estimated_overcharge_brl")
+        if isinstance(estimated, (int, float)):
+            total_estimated += float(estimated)
+            draw_line(f"Impacto estimado: R$ {estimated:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        draw_line("", step=0.3 * cm)
+
+    draw_line("CONCLUSAO PRELIMINAR", bold=True)
+    draw_line(
+        f"Impacto financeiro estimado total: R$ {total_estimated:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    )
+    draw_line("Ha viabilidade tecnica para analise juridica especializada, conforme achados acima.")
+    draw_line("", step=0.3 * cm)
+    draw_line("AVISO LEGAL", bold=True)
+    draw_line(
+        "Este documento e um laudo tecnico. A interpretacao juridica final e eventual acao revisional "
+    )
+    draw_line("devem ser realizadas por advogado regularmente inscrito na OAB.")
+    draw_line("")
+    draw_line("LGPD: tratamento de dados para execucao do servico e exercicio regular de direitos.")
+
+    c.showPage()
+    c.save()
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # FALLBACKS python-docx (caso Node.js não esteja disponível no servidor)
 # ─────────────────────────────────────────────────────────────────────────────

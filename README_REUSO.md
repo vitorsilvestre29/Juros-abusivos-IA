@@ -31,6 +31,13 @@ Variáveis de ambiente obrigatórias no Railway:
 - `DATABASE_URL` = URL PostgreSQL (recomendado) ou SQLite apenas para teste
 - `ALLOWED_ORIGINS` = URL do frontend na Vercel (ex: `https://seu-app.vercel.app`)
 
+Variáveis opcionais para integração Bacen (SGS):
+
+- `BCB_SGS_SERIES_CLT` = código da série SGS para taxa média CLT
+- `BCB_SGS_SERIES_BANCARIO_DIRETO` = código da série SGS para crédito pessoal
+- `BCB_SGS_SERIES_SAUDE` = código da série SGS para linha de saúde
+- `BCB_CACHE_FILE` = caminho do cache local (default: `/tmp/bcb_rates_cache.json`, atualização a cada 12h)
+
 Variáveis opcionais úteis:
 
 - `MOCK_MODE=true` para testes sem consumir tokens da IA
@@ -58,7 +65,7 @@ Variável de ambiente no Vercel:
 1. Backend responde em `/health` com status saudável.
 2. Frontend abre e autentica com sucesso.
 3. Upload de contrato funciona.
-4. Geração de documentos funciona.
+4. Geração de documentos funciona (incluindo `relatorio_preliminar_pdf`).
 5. CORS está liberado apenas para domínio do frontend.
 
 ## Deploy

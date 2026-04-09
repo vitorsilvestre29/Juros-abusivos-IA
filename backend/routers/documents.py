@@ -13,7 +13,12 @@ from models import Case, Contract, Document, ChatMessage
 from routers.auth import get_current_user
 from models import User
 from services.ai_service import generate_parecer_tecnico, generate_peticao_inicial, generate_procuracao_text
-from services.doc_generator import generate_parecer_docx, generate_procuracao_docx, generate_peticao_docx
+from services.doc_generator import (
+    generate_parecer_docx,
+    generate_procuracao_docx,
+    generate_peticao_docx,
+    generate_relatorio_preliminar_pdf,
+)
 from services.plan_service import accrue_cost
 
 router = APIRouter()
@@ -28,7 +33,7 @@ def _write_bytes_to_file(path: str, data: bytes) -> None:
 
 
 class GenerateDocRequest(BaseModel):
-    doc_type: str  # parecer, procuracao, peticao
+    doc_type: str  # parecer, procuracao, peticao, relatorio_preliminar_pdf
     additional_data: Optional[dict] = None
 
 
@@ -90,8 +95,15 @@ async def generate_document(
         doc_bytes = await run_in_threadpool(generate_peticao_docx, case_data, peticao_text)
         filename = f"Peticao_Inicial_{case_data['client_name'].replace(' ', '_')}.docx"
 
+    elif request.doc_type == "relatorio_preliminar_pdf":
+        doc_bytes = await run_in_threadpool(generate_relatorio_preliminar_pdf, case_data, contracts_analysis)
+        filename = f"Relatorio_Preliminar_{case_data['client_name'].replace(' ', '_')}.pdf"
+
     else:
-        raise HTTPException(status_code=400, detail="Tipo de documento inválido. Use: parecer, procuracao ou peticao")
+        raise HTTPException(
+            status_code=400,
+            detail="Tipo de documento inválido. Use: parecer, procuracao, peticao ou relatorio_preliminar_pdf"
+        )
 
     # Salva o arquivo
     file_path = os.path.join(DOCS_DIR, f"case_{case_id}_{filename}")
@@ -107,7 +119,12 @@ async def generate_document(
     db.add(doc_record)
 
     # Persiste mensagem de geração no chat
-    doc_labels = {"parecer": "Parecer Técnico", "procuracao": "Procuração Ad Judicia", "peticao": "Petição Inicial"}
+    doc_labels = {
+        "parecer": "Parecer Técnico",
+        "procuracao": "Procuração Ad Judicia",
+        "peticao": "Petição Inicial",
+        "relatorio_preliminar_pdf": "Relatório Preliminar"
+    }
     label = doc_labels.get(request.doc_type, request.doc_type)
     gen_msg = ChatMessage(
         case_id=case_id,
@@ -157,11 +174,11 @@ async def download_document(
     if not os.path.exists(doc.file_path):
         raise HTTPException(status_code=404, detail="Arquivo não encontrado no servidor")
 
-    return FileResponse(
-        path=doc.file_path,
-        filename=doc.filename,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
+    media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    if doc.filename.lower().endswith(".pdf"):
+        media_type = "application/pdf"
+
+    return FileResponse(path=doc.file_path, filename=doc.filename, media_type=media_type)
 
 
 @router.get("/{case_id}/list")
@@ -184,7 +201,8 @@ async def list_documents(
     doc_type_labels = {
         "parecer": "Parecer Técnico",
         "procuracao": "Procuração Ad Judicia",
-        "peticao": "Petição Inicial"
+        "peticao": "Petição Inicial",
+        "relatorio_preliminar_pdf": "Relatório Preliminar"
     }
 
     return [

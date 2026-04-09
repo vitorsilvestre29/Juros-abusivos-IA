@@ -498,7 +498,7 @@ async def analyze_contract(contract_text: str, bank_name: str = "", image_pages:
     Se image_pages (lista de base64 PNG) for fornecida, usa visão para PDFs escaneados.
     """
     if MOCK_MODE:
-        return MOCK_ANALYSIS
+        return MOCK_ANALYSIS, 0.0
 
     # Instrução precisa de extração de dados
     extraction_instruction = """
@@ -625,7 +625,7 @@ Retorne SOMENTE um objeto JSON válido com esta estrutura exata (sem markdown, s
             "irregularidades": [],
             "resumo_para_cliente": "Não foi possível ler o documento. Verifique se o PDF está correto.",
             "recomendacao": "Tente enviar o PDF novamente ou em outro formato."
-        }
+        }, 0.0
 
     response, cost = await _anthropic_create(
         model="claude-sonnet-4-6",
