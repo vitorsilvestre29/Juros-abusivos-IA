@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+dist/
+build/
+
+# OS/Editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Env files
+.env
+.env.*
+!.env.example
