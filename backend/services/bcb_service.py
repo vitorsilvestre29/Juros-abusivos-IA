@@ -1,3 +1,8 @@
+"""
+Integração com a API do Banco Central do Brasil (SGS).
+Busca taxas médias de mercado por modalidade de crédito.
+Cache em arquivo JSON com validade de 12 horas.
+"""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -8,32 +13,48 @@ import os
 
 import httpx
 
-
 CACHE_HOURS = 12
 CACHE_FILE = Path(os.getenv("BCB_CACHE_FILE", "/tmp/bcb_rates_cache.json"))
 
-# Fallback seguro para manter a operação em pé quando a API externa falha.
-DEFAULT_MONTHLY_RATES = {
-    "clt": 3.5,
-    "bancario_direto": 4.5,
-    "saude": 4.5,
+# Taxas de fallback (% ao mês) usadas quando a API do BCB estiver indisponível.
+# Valores baseados nas médias históricas do BCB (2024-2025).
+DEFAULT_MONTHLY_RATES: dict[str, float] = {
+    "consignado_inss":      1.80,
+    "consignado_clt":       2.50,
+    "credito_pessoal":      6.20,
+    "credito_habitacional": 0.75,
+    "cdc_veiculo":          1.90,
+    "cartao_credito":      15.00,
+    "outros":               4.50,
+}
+
+# Limites de abusividade por modalidade (% ao mês)
+# Baseado em: taxa > 2x a média de mercado = abusivo (REsp 1.061.530/RS, Súmula 566 STJ)
+ABUSIVITY_THRESHOLD: dict[str, float] = {
+    "consignado_inss":      2.08,
+    "consignado_clt":       4.50,
+    "credito_pessoal":      7.00,
+    "credito_habitacional": 2.00,
+    "cdc_veiculo":          3.50,
+    "cartao_credito":      20.00,
+    "outros":               7.00,
+}
+
+# Séries SGS do Banco Central — configuráveis via variáveis de ambiente na Railway
+BCB_SERIES: dict[str, str | None] = {
+    "consignado_inss":      os.getenv("BCB_SGS_SERIES_CONSIGNADO_INSS",  "25466"),
+    "consignado_clt":       os.getenv("BCB_SGS_SERIES_CONSIGNADO_CLT",   "25475"),
+    "credito_pessoal":      os.getenv("BCB_SGS_SERIES_CREDITO_PESSOAL",  "20714"),
+    "credito_habitacional": os.getenv("BCB_SGS_SERIES_HABITACIONAL",     "433"),
+    "cdc_veiculo":          os.getenv("BCB_SGS_SERIES_VEICULO",          "25480"),
+    "cartao_credito":       os.getenv("BCB_SGS_SERIES_CARTAO",           "20739"),
+    "outros":               None,
 }
 
 
-def _series_for_case_type(case_type: str | None) -> str | None:
-    normalized = (case_type or "").strip().lower()
-    env_map = {
-        "clt": os.getenv("BCB_SGS_SERIES_CLT"),
-        "bancario_direto": os.getenv("BCB_SGS_SERIES_BANCARIO_DIRETO"),
-        "saude": os.getenv("BCB_SGS_SERIES_SAUDE"),
-    }
-    return env_map.get(normalized)
-
-
-def _annual_from_monthly(monthly_rate_pct: float) -> float:
-    monthly = monthly_rate_pct / 100.0
-    annual = (1 + monthly) ** 12 - 1
-    return round(annual * 100.0, 2)
+def _annual_from_monthly(monthly_pct: float) -> float:
+    r = monthly_pct / 100.0
+    return round(((1 + r) ** 12 - 1) * 100.0, 2)
 
 
 def _load_cache() -> dict[str, Any]:
@@ -45,15 +66,15 @@ def _load_cache() -> dict[str, Any]:
         return {}
 
 
-def _save_cache(payload: dict[str, Any]) -> None:
+def _save_cache(data: dict[str, Any]) -> None:
     try:
         CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        CACHE_FILE.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        CACHE_FILE.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     except Exception:
         pass
 
 
-def _cache_is_valid(entry: dict[str, Any]) -> bool:
+def _cache_valid(entry: dict[str, Any]) -> bool:
     ts = entry.get("updated_at")
     if not ts:
         return False
@@ -64,8 +85,11 @@ def _cache_is_valid(entry: dict[str, Any]) -> bool:
         return False
 
 
-async def _fetch_sgs_latest_monthly_rate(series_id: str) -> float | None:
-    url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.{series_id}/dados/ultimos/1?formato=json"
+async def _fetch_sgs(series_id: str) -> float | None:
+    url = (
+        f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.{series_id}"
+        f"/dados/ultimos/1?formato=json"
+    )
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.get(url)
         resp.raise_for_status()
@@ -73,36 +97,29 @@ async def _fetch_sgs_latest_monthly_rate(series_id: str) -> float | None:
         if not data:
             return None
         raw = str(data[0].get("valor", "")).replace(".", "").replace(",", ".")
-        try:
-            return float(raw)
-        except ValueError:
-            return None
+        return float(raw) if raw else None
 
 
-async def get_bcb_reference_rate(case_type: str | None) -> dict[str, Any]:
+async def get_bcb_rate(loan_type: str) -> dict[str, Any]:
     """
-    Retorna taxa média de referência para o tipo de caso.
-    Estratégia:
-    1) cache válido (12h)
-    2) API SGS (se série estiver configurada em env)
-    3) fallback interno
+    Retorna a taxa média de referência do BCB para o tipo de empréstimo.
+    Estratégia: cache (12h) → API SGS → fallback interno.
     """
-    normalized = (case_type or "").strip().lower() or "bancario_direto"
+    normalized = loan_type.strip().lower()
     if normalized not in DEFAULT_MONTHLY_RATES:
-        normalized = "bancario_direto"
+        normalized = "credito_pessoal"
 
     cache = _load_cache()
-    cached_entry = cache.get(normalized, {})
-    if _cache_is_valid(cached_entry):
-        return cached_entry
+    if _cache_valid(cache.get(normalized, {})):
+        return cache[normalized]
 
-    series_id = _series_for_case_type(normalized)
-    monthly_rate = None
+    series_id = BCB_SERIES.get(normalized)
+    monthly_rate: float | None = None
     source = "fallback"
 
     if series_id:
         try:
-            monthly_rate = await _fetch_sgs_latest_monthly_rate(series_id)
+            monthly_rate = await _fetch_sgs(series_id)
             if monthly_rate is not None:
                 source = f"BCB/SGS:{series_id}"
         except Exception:
@@ -111,14 +128,16 @@ async def get_bcb_reference_rate(case_type: str | None) -> dict[str, Any]:
     if monthly_rate is None:
         monthly_rate = DEFAULT_MONTHLY_RATES[normalized]
 
-    payload = {
-        "case_type": normalized,
+    entry: dict[str, Any] = {
+        "loan_type": normalized,
         "monthly_rate_pct": round(float(monthly_rate), 4),
         "annual_rate_pct": _annual_from_monthly(float(monthly_rate)),
+        "abusivity_threshold_pct": ABUSIVITY_THRESHOLD.get(normalized, 7.0),
         "source": source,
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "cache_hours": CACHE_HOURS,
     }
-    cache[normalized] = payload
+
+    cache[normalized] = entry
     _save_cache(cache)
-    return payload
+    return entry

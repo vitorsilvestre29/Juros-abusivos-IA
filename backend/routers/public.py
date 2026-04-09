@@ -1,35 +1,34 @@
 from fastapi import APIRouter
-
-from models import (
-    PLAN_PUBLIC_IDS,
-    PLAN_LABELS,
-    PLAN_LIMITS,
-    PLAN_BUDGET_USD,
-    PLAN_PRICE_BRL,
-    PLAN_TAGLINES,
-    PLAN_FOR_WHOM,
-)
-
+from models import LOAN_TYPES
+import os
 
 router = APIRouter()
 
 
-@router.get("/plans")
-async def list_public_plans():
-    """
-    Lista pública de planos para a landing/tela de preços.
-    Não exige autenticação.
-    """
-    return [
-        {
-            "id": pid,
-            "label": PLAN_LABELS.get(pid, pid),
-            "tagline": PLAN_TAGLINES.get(pid, ""),
-            "for_whom": PLAN_FOR_WHOM.get(pid, ""),
-            "limit_cases": PLAN_LIMITS.get(pid, 0),
-            "budget_usd": PLAN_BUDGET_USD.get(pid, 0.0),
-            "price_brl": PLAN_PRICE_BRL.get(pid, 0),
-        }
-        for pid in PLAN_PUBLIC_IDS
-    ]
+@router.get("/health")
+async def health():
+    return {"status": "ok"}
 
+
+@router.get("/loan-types")
+async def list_loan_types():
+    """Retorna os tipos de emprestimo disponiveis para analise."""
+    return [{"id": k, "label": v} for k, v in LOAN_TYPES.items()]
+
+
+@router.get("/pricing")
+async def pricing():
+    """Retorna o preco do laudo."""
+    price = float(os.getenv("REPORT_PRICE", "97.00"))
+    return {
+        "price_brl": price,
+        "description": "Laudo Tecnico Completo de Analise de Abusividades",
+        "includes": [
+            "Analise completa de todas as clausulas do contrato",
+            "Comparacao com taxas medias do Banco Central",
+            "Identificacao de irregularidades com fundamento legal",
+            "Calculo do impacto financeiro",
+            "Laudo em PDF pronto para advogado",
+            "Indicacao de acao revisional quando aplicavel",
+        ],
+    }
