@@ -22,12 +22,26 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
-origins = [o.strip() for o in origins if o.strip()]
+def _normalize_origin(origin: str) -> str:
+    value = (origin or "").strip().rstrip("/")
+    if not value:
+        return ""
+    if value.startswith("http://") or value.startswith("https://"):
+        return value
+    if value.startswith("localhost") or value.startswith("127.0.0.1"):
+        return f"http://{value}"
+    return f"https://{value}"
+
+
+raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+origins = [_normalize_origin(o) for o in raw_origins]
+origins = [o for o in origins if o]
+origin_regex = os.getenv("ALLOWED_ORIGIN_REGEX", r"^https://.*\.vercel\.app$")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
