@@ -1,0 +1,27 @@
+# VCS
+.git
+.gitignore
+
+# Python cache/venv
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# Runtime/generated files
+uploads/
+documents/
+*.db
+*.sqlite
+*.sqlite3
+
+# Node local deps (docx_scripts are installed inside image)
+docx_scripts/node_modules/
+
+# Local IDE/OS
+.vscode/
+.DS_Store
+Thumbs.db
