@@ -2,9 +2,19 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from database import init_db
-from routers import auth, cases, chat, documents, admin, client as client_router
+from routers import auth, cases, chat, documents
 from routers import public as public_router
 import os
+
+try:
+    from routers import admin
+except ImportError:
+    admin = None
+
+try:
+    from routers import client as client_router
+except ImportError:
+    client_router = None
 
 
 @asynccontextmanager
@@ -56,11 +66,13 @@ app.add_middleware(
 # Rotas
 app.include_router(auth.router, prefix="/api/auth", tags=["Autenticação"])
 app.include_router(public_router.router, prefix="/api/public", tags=["Público"])
-app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(cases.router, prefix="/api/cases", tags=["Casos"])
 app.include_router(chat.router, prefix="/api/chat", tags=["Chat IA"])
 app.include_router(documents.router, prefix="/api/documents", tags=["Documentos"])
-app.include_router(client_router.router, prefix="/api/client", tags=["Portal Cliente"])
+if admin is not None:
+    app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
+if client_router is not None:
+    app.include_router(client_router.router, prefix="/api/client", tags=["Portal Cliente"])
 
 
 @app.get("/")
