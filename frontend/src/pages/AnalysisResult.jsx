@@ -55,6 +55,7 @@ export default function AnalysisResult() {
   const isProcessing = status.status === 'pending' || status.status === 'processing'
   const isFailed = status.status === 'failed'
   const isDone = status.status === 'completed'
+  const hasIssues = status.has_issues === true
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -76,10 +77,10 @@ export default function AnalysisResult() {
               Nossa IA esta lendo as clausulas e comparando com as normas do Banco Central. Aguarde.
             </p>
             <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-700 text-left space-y-2">
-              <p>Extracao do texto do contrato</p>
-              <p>Consulta as taxas do Banco Central (BCB)</p>
-              <p className="opacity-60">Identificando irregularidades...</p>
-              <p className="opacity-30">Calculando impacto financeiro...</p>
+              <p>&#10003; Extracao do texto do contrato</p>
+              <p>&#10003; Consulta as taxas do Banco Central (BCB)</p>
+              <p className="opacity-60">&#8987; Identificando irregularidades...</p>
+              <p className="opacity-30">&#8987; Calculando impacto financeiro...</p>
             </div>
           </div>
         )}
@@ -96,26 +97,49 @@ export default function AnalysisResult() {
 
         {isDone && status.paid === false && (
           <div className="space-y-4">
-            <div className="bg-blue-900 rounded-2xl p-6 text-white text-center shadow-md">
-              <div className="text-4xl mb-3">&#128203;</div>
-              <h1 className="text-2xl font-bold mb-2">Analise concluida.</h1>
-              <p className="text-blue-200 text-sm">
-                Verificamos seu contrato de <strong className="text-white">{status.loan_type_label}</strong> contra as normas do Banco Central.
-              </p>
-            </div>
+
+            {hasIssues ? (
+              <div className="bg-red-700 rounded-2xl p-6 text-white text-center shadow-md">
+                <div className="text-4xl mb-3">&#9888;</div>
+                <h1 className="text-2xl font-bold mb-2">Irregularidades identificadas</h1>
+                <p className="text-red-100 text-sm">
+                  Nossa analise identificou <strong className="text-white">irregularidades no seu contrato</strong> de {status.loan_type_label}.
+                  Acesse o laudo para saber quais sao, o impacto financeiro e como agir.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-green-700 rounded-2xl p-6 text-white text-center shadow-md">
+                <div className="text-4xl mb-3">&#128203;</div>
+                <h1 className="text-2xl font-bold mb-2">Analise concluida</h1>
+                <p className="text-green-100 text-sm">
+                  Finalizamos a analise do seu contrato de {status.loan_type_label}.
+                  Acesse o laudo tecnico para ver o resultado completo com a confirmacao tecnica por escrito.
+                </p>
+              </div>
+            )}
 
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <h2 className="text-xl font-bold text-gray-800 mb-1">Acesse o Laudo Tecnico Completo</h2>
+              <h2 className="text-xl font-bold text-gray-800 mb-1">
+                {hasIssues ? 'Veja o que encontramos no seu contrato' : 'Obtenha o Laudo Tecnico Completo'}
+              </h2>
               <p className="text-gray-500 text-sm mb-5">
-                O laudo detalha cada ponto encontrado com fundamento legal, calculo do impacto financeiro e orientacoes para acao revisional.
+                {hasIssues
+                  ? 'O laudo detalha cada irregularidade com fundamento legal, calculo do valor cobrado a mais e orientacoes para acao revisional.'
+                  : 'O laudo e um documento tecnico que comprova a situacao do seu contrato perante as normas do BCB. Util para comprovacao e seguranca juridica.'}
               </p>
               <ul className="space-y-2 mb-6">
-                {(pricing.includes && pricing.includes.length > 0 ? pricing.includes : [
-                  'Irregularidades com fundamento legal',
-                  'Calculo do valor cobrado a mais',
-                  'Comparacao com taxas do Banco Central',
+                {(hasIssues ? [
+                  'Irregularidades detalhadas com fundamento legal',
+                  'Calculo preciso do valor cobrado a mais',
+                  'Comparacao com taxas medias do Banco Central',
                   'PDF pronto para o advogado',
                   'Orientacao para acao revisional',
+                ] : [
+                  'Resultado completo e detalhado da analise',
+                  'Confirmacao tecnica das clausulas do contrato',
+                  'Comparacao com taxas medias do Banco Central',
+                  'Documento PDF com validade tecnica',
+                  'Parecer sobre conformidade com normas BCB',
                 ]).map((item, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
                     <span className="text-green-500">&#10003;</span>
@@ -137,10 +161,13 @@ export default function AnalysisResult() {
                 onClick={() => nav('/pagamento/' + status.analysis_id)}
                 className="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-4 rounded-xl transition text-lg"
               >
-                Pagar com PIX e acessar laudo
+                {hasIssues ? 'Ver irregularidades e pagar com PIX' : 'Acessar laudo e pagar com PIX'}
               </button>
-              <p className="text-center text-xs text-gray-400 mt-3">Pagamento seguro via PIX - Acesso imediato apos confirmacao</p>
+              <p className="text-center text-xs text-gray-400 mt-3">
+                Pagamento seguro via PIX - Acesso imediato apos confirmacao
+              </p>
             </div>
+
           </div>
         )}
 
