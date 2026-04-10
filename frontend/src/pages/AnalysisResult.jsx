@@ -150,6 +150,17 @@ export default function AnalysisResult() {
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-5 text-xs text-amber-800">
                 <strong>Nota legal:</strong> Este laudo e uma analise tecnica e matematica, nao assessoria juridica. Para acao revisional, consulte um advogado.
               </div>
+
+              <div className="bg-[#FFF4E5] border-2 border-[#FFB347] rounded-xl p-4 mb-5 text-[#7A4300]">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-base">⚠️</span>
+                  <strong className="text-xs uppercase tracking-wide">Aviso legal importante antes do pagamento</strong>
+                </div>
+                <p className="text-xs leading-relaxed">
+                  Os laudos gerados por esta plataforma sao de natureza tecnico-matematica e tem carater meramente informativo. A interpretacao juridica e o ajuizamento de qualquer acao revisional devem ser realizados exclusivamente por advogado habilitado, conforme o Estatuto da OAB (Lei 8.906/94). A plataforma nao presta consultoria juridica.
+                </p>
+              </div>
+
               <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4 mb-4 border border-gray-100">
                 <div>
                   <p className="text-sm font-semibold text-gray-700">Laudo Tecnico Completo</p>

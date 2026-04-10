@@ -6,6 +6,13 @@
   html {
     font-family: 'Manrope', 'Segoe UI', system-ui, sans-serif;
   }
+
+  body {
+    background: linear-gradient(180deg, #eef4ff 0%, #f3f8ff 45%, #f7f9ff 100%);
+    color: #1f2a3d;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
 }
 
 @layer components {
