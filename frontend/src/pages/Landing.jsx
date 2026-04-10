@@ -67,7 +67,7 @@ export default function Landing() {
           >
             🔍 Analisar meu contrato
           </button>
-          <p className="text-blue-300 text-sm mt-4">Cadastro gratuito • Análise em minutos • Laudo por R$ 97</p>
+          <p className="text-blue-300 text-sm mt-4">Cadastro gratuito • Análise em minutos • Laudo por R$ 20</p>
         </div>
       </section>
 
@@ -135,7 +135,7 @@ export default function Landing() {
       <section className="py-16 px-4 bg-blue-900 text-white text-center">
         <h2 className="text-3xl font-bold mb-4">Pronto para verificar seu contrato?</h2>
         <p className="text-blue-200 mb-8 max-w-xl mx-auto">
-          Faça o cadastro gratuito, envie o contrato e receba o resultado em minutos. O laudo completo custa apenas R$ 97.
+          Faça o cadastro gratuito, envie o contrato e receba o resultado em minutos. O laudo completo custa apenas R$ 20.
         </p>
         <button
           onClick={() => nav(isLogged ? '/upload' : '/cadastro')}
