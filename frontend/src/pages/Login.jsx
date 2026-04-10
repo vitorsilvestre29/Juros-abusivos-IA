@@ -25,90 +25,51 @@ export default function Login() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9F7F2', display: 'flex' }}>
-
-      {/* Lado esquerdo - decorativo */}
-      <div style={{ flex: 1, background: 'linear-gradient(160deg, #0C1A2E, #1A3456)', display: 'none', alignItems: 'center', justifyContent: 'center', padding: 60, flexDirection: 'column' }} className="hidden md:flex">
-        <div style={{ maxWidth: 380 }}>
-          <div style={{ fontFamily: "'Playfair Display', serif", color: '#C9952A', fontSize: 28, fontWeight: 700, marginBottom: 40 }}>
-            Juros Abusivos
-          </div>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", color: '#FFFFFF', fontSize: 36, fontWeight: 700, lineHeight: 1.25, marginBottom: 20 }}>
-            Analise tecnica especializada de contratos
-          </h2>
-          <p style={{ color: '#64748B', fontSize: 15, lineHeight: 1.7 }}>
-            Identifique irregularidades e descubra se voce esta pagando a mais no seu emprestimo ou financiamento.
-          </p>
-          <div style={{ marginTop: 48, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 32 }}>
-            {['Comparacao com taxas do Banco Central', 'Laudo tecnico em PDF', 'Baseado em jurisprudencia do STJ'].map((t, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-                <div style={{ width: 6, height: 6, background: '#C9952A', borderRadius: '50%' }} />
-                <span style={{ color: '#94A3B8', fontSize: 14 }}>{t}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Lado direito - form */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
-        <div style={{ width: '100%', maxWidth: 400 }}>
-          <div style={{ textAlign: 'center', marginBottom: 40 }}>
-            <Link to="/" style={{ fontFamily: "'Playfair Display', serif", color: '#C9952A', fontSize: 22, fontWeight: 700, textDecoration: 'none', display: 'block', marginBottom: 8 }}>
-              Juros Abusivos
-            </Link>
-            <p style={{ color: '#6B7280', fontSize: 14 }}>Analise tecnica de contratos de credito</p>
-          </div>
-
-          <div style={{ background: '#FFFFFF', border: '1px solid #E5E0D8', borderRadius: 20, padding: '40px 36px', boxShadow: '0 4px 24px rgba(12,26,46,0.06)' }}>
-            <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700, color: '#0C1A2E', marginBottom: 28, textAlign: 'center' }}>
-              Entrar na conta
+    <div className="site-shell flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-5xl grid lg:grid-cols-2 gap-6 items-stretch">
+        <section className="surface-dark p-8 sm:p-10 hidden lg:flex flex-col justify-between">
+          <div>
+            <div className="font-['Playfair_Display'] text-3xl font-bold text-[#c9952a]">Juros Abusivos IA</div>
+            <h1 className="mt-6 font-['Playfair_Display'] text-4xl leading-tight font-bold">
+              Entre para gerenciar suas analises tecnicas
             </h1>
-
-            {error && (
-              <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '12px 16px', marginBottom: 20, color: '#7F1D1D', fontSize: 14 }}>
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  placeholder="seu@email.com"
-                  style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #E5E0D8', borderRadius: 10, fontSize: 15, outline: 'none', fontFamily: "'Outfit', sans-serif", background: '#FAFAF8', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div style={{ marginBottom: 28 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Senha</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  placeholder="Sua senha"
-                  style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #E5E0D8', borderRadius: 10, fontSize: 15, outline: 'none', fontFamily: "'Outfit', sans-serif", background: '#FAFAF8', boxSizing: 'border-box' }}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                style={{ width: '100%', padding: '13px', background: loading ? '#94A3B8' : '#0C1A2E', color: '#FFFFFF', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'Outfit', sans-serif" }}
-              >
-                {loading ? 'Entrando...' : 'Entrar'}
-              </button>
-            </form>
-
-            <p style={{ textAlign: 'center', fontSize: 14, color: '#6B7280', marginTop: 24 }}>
-              Nao tem conta?{' '}
-              <Link to="/cadastro" style={{ color: '#C9952A', fontWeight: 600, textDecoration: 'none' }}>Criar conta gratuita</Link>
+            <p className="mt-4 text-[#c7d3e3] leading-relaxed">
+              Fluxo completo de contrato, impacto financeiro e relatorio preliminar em um unico painel.
             </p>
           </div>
-        </div>
+          <div className="space-y-2 text-sm text-[#d3dce8]">
+            <div>Comparacao com referencias de mercado</div>
+            <div>Registro historico por caso</div>
+            <div>Base tecnica para avaliacao juridica</div>
+          </div>
+        </section>
+
+        <section className="surface-card p-7 sm:p-9">
+          <div className="text-center">
+            <Link to="/" className="font-['Playfair_Display'] text-2xl font-bold text-[#b6831f]">Juros Abusivos IA</Link>
+            <p className="mt-2 text-sm muted">Acesse sua conta</p>
+          </div>
+
+          {error ? <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+
+          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+            <div>
+              <label className="block mb-1 text-sm font-semibold text-[#273142]">Email</label>
+              <input className="input-field" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" required />
+            </div>
+            <div>
+              <label className="block mb-1 text-sm font-semibold text-[#273142]">Senha</label>
+              <input className="input-field" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Sua senha" required />
+            </div>
+            <button className="btn-primary w-full" type="submit" disabled={loading}>
+              {loading ? 'Entrando...' : 'Entrar'}
+            </button>
+          </form>
+
+          <p className="mt-6 text-sm text-center muted">
+            Nao tem conta? <Link to="/cadastro" className="font-semibold text-[#9d721b]">Criar conta gratuita</Link>
+          </p>
+        </section>
       </div>
     </div>
   )

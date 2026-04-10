@@ -1,14 +1,24 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getHistory } from '../lib/api'
 
-const STATUS_LABEL = { pending: 'Aguardando', processing: 'Analisando', completed: 'Concluido', failed: 'Erro' }
-const STATUS_COLOR = { pending: '#C9952A', processing: '#2563EB', completed: '#1A6B3C', failed: '#8B1A1A' }
-const STATUS_BG    = { pending: '#FEF9EC', processing: '#EFF6FF', completed: '#F0FDF4', failed: '#FEF2F2' }
+const STATUS_LABEL = {
+  pending: 'Aguardando',
+  processing: 'Processando',
+  completed: 'Concluida',
+  failed: 'Falha',
+}
 
-function fmt(val) {
-  if (val === null || val === undefined) return '--'
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+const STATUS_COLOR = {
+  pending: 'bg-amber-50 text-amber-700 border-amber-200',
+  processing: 'bg-blue-50 text-blue-700 border-blue-200',
+  completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  failed: 'bg-red-50 text-red-700 border-red-200',
+}
+
+function fmtMoney(value) {
+  if (value === null || value === undefined) return '--'
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
 export default function Dashboard() {
@@ -18,8 +28,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     getHistory()
-      .then(r => setHistory(r.data))
-      .catch(() => {})
+      .then((res) => setHistory(res.data || []))
+      .catch(() => setHistory([]))
       .finally(() => setLoading(false))
   }, [])
 
@@ -29,94 +39,87 @@ export default function Dashboard() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9F7F2' }}>
-      {/* Header */}
-      <nav style={{ background: '#0C1A2E', borderBottom: '1px solid #1A3456' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link to="/" style={{ fontFamily: "'Playfair Display', serif", color: '#C9952A', fontSize: 20, fontWeight: 700, textDecoration: 'none' }}>
-            Juros Abusivos
-          </Link>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <Link to="/upload" style={{ background: '#C9952A', color: '#0C1A2E', textDecoration: 'none', fontSize: 14, fontWeight: 700, padding: '8px 18px', borderRadius: 8 }}>
-              + Nova analise
-            </Link>
-            <button onClick={logout} style={{ background: 'transparent', border: '1px solid #334155', color: '#94A3B8', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer', fontFamily: "'Outfit', sans-serif" }}>
-              Sair
-            </button>
+    <div className="site-shell">
+      <header className="top-nav">
+        <div className="container-app h-16 flex items-center justify-between">
+          <Link to="/" className="font-['Playfair_Display'] text-2xl font-bold text-[#c9952a]">Juros Abusivos IA</Link>
+          <div className="flex items-center gap-2">
+            <Link to="/upload" className="btn-accent px-4 py-2 text-sm">+ Nova analise</Link>
+            <button className="btn-secondary px-4 py-2 text-sm" onClick={logout}>Sair</button>
           </div>
         </div>
-      </nav>
+      </header>
 
-      <main style={{ maxWidth: 900, margin: '0 auto', padding: '48px 24px' }}>
-        <div style={{ marginBottom: 40 }}>
-          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 32, fontWeight: 700, color: '#0C1A2E', marginBottom: 6 }}>Minhas analises</h1>
-          <p style={{ color: '#6B7280', fontSize: 15 }}>Historico de contratos enviados para analise</p>
+      <main className="container-app py-10">
+        <div className="flex flex-col gap-2 mb-6">
+          <h1 className="section-title">Painel de analises</h1>
+          <p className="muted">Acompanhe o status dos contratos enviados e acesse seus laudos.</p>
         </div>
 
-        {loading && (
-          <div style={{ textAlign: 'center', padding: '80px 0', color: '#9CA3AF' }}>Carregando...</div>
-        )}
-
-        {!loading && history.length === 0 && (
-          <div style={{ background: '#FFFFFF', border: '1px solid #E5E0D8', borderRadius: 20, padding: '64px 32px', textAlign: 'center' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>📄</div>
-            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, color: '#0C1A2E', marginBottom: 10 }}>Nenhuma analise ainda</h2>
-            <p style={{ color: '#6B7280', fontSize: 15, marginBottom: 28 }}>Envie seu primeiro contrato para comecar</p>
-            <Link to="/upload" style={{ background: '#0C1A2E', color: '#FFFFFF', textDecoration: 'none', fontWeight: 700, fontSize: 15, padding: '12px 28px', borderRadius: 10 }}>
-              Enviar contrato
-            </Link>
+        <div className="grid sm:grid-cols-3 gap-3 mb-6">
+          <div className="stat-card">
+            <div className="text-xs uppercase tracking-wide text-[#7e8a98]">Total de contratos</div>
+            <div className="mt-1 text-2xl font-bold text-[#0c1a2e]">{history.length}</div>
           </div>
-        )}
+          <div className="stat-card">
+            <div className="text-xs uppercase tracking-wide text-[#7e8a98]">Concluidos</div>
+            <div className="mt-1 text-2xl font-bold text-[#0c1a2e]">{history.filter((i) => i.analysis_status === 'completed').length}</div>
+          </div>
+          <div className="stat-card">
+            <div className="text-xs uppercase tracking-wide text-[#7e8a98]">Com impacto</div>
+            <div className="mt-1 text-2xl font-bold text-[#0c1a2e]">{history.filter((i) => Number(i.impact_brl) > 0).length}</div>
+          </div>
+        </div>
 
-        {!loading && history.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {history.map(item => (
-              <div key={item.contract_id} style={{ background: '#FFFFFF', border: '1px solid #E5E0D8', borderRadius: 16, padding: '24px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-                <div style={{ flex: 1, minWidth: 200 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: '#6B7280' }}>{item.loan_type_label}</span>
-                    <span style={{
-                      background: STATUS_BG[item.analysis_status] || '#F3F4F6',
-                      color: STATUS_COLOR[item.analysis_status] || '#6B7280',
-                      fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 100,
-                      textTransform: 'uppercase', letterSpacing: 0.5
-                    }}>
-                      {STATUS_LABEL[item.analysis_status] || item.analysis_status}
-                    </span>
-                    {item.paid && <span style={{ background: '#F0FDF4', color: '#1A6B3C', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 100 }}>PAGO</span>}
+        {loading ? <div className="surface-card p-10 text-center muted">Carregando historico...</div> : null}
+
+        {!loading && history.length === 0 ? (
+          <div className="surface-card p-10 text-center">
+            <div className="text-5xl">📄</div>
+            <h2 className="mt-3 text-2xl font-['Playfair_Display'] font-bold text-[#0c1a2e]">Nenhuma analise ainda</h2>
+            <p className="mt-2 muted">Envie seu primeiro contrato para iniciar o diagnostico.</p>
+            <Link to="/upload" className="btn-primary mt-5">Enviar contrato</Link>
+          </div>
+        ) : null}
+
+        {!loading && history.length > 0 ? (
+          <div className="space-y-3">
+            {history.map((item) => (
+              <article key={item.contract_id} className="surface-card p-5 sm:p-6">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-semibold text-[#374151]">{item.loan_type_label}</span>
+                      <span className={`text-xs px-2.5 py-1 rounded-full border font-semibold ${STATUS_COLOR[item.analysis_status] || 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                        {STATUS_LABEL[item.analysis_status] || item.analysis_status}
+                      </span>
+                      {item.paid ? <span className="text-xs px-2.5 py-1 rounded-full border font-semibold bg-emerald-50 border-emerald-200 text-emerald-700">Pago</span> : null}
+                    </div>
+                    <h3 className="mt-2 text-lg font-bold text-[#0c1a2e]">{item.filename}</h3>
+                    <p className="mt-1 text-sm text-[#7e8a98]">{new Date(item.created_at).toLocaleDateString('pt-BR')}</p>
                   </div>
-                  <p style={{ fontWeight: 600, color: '#0C1A2E', fontSize: 15, marginBottom: 4 }}>{item.filename}</p>
-                  <p style={{ color: '#9CA3AF', fontSize: 12 }}>{new Date(item.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
-                </div>
 
-                {item.impact_brl > 0 && (
-                  <div style={{ textAlign: 'right' }}>
-                    <p style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 2 }}>Impacto estimado</p>
-                    <p style={{ fontSize: 22, fontWeight: 700, color: '#8B1A1A', fontFamily: "'Playfair Display', serif" }}>{fmt(item.impact_brl)}</p>
+                  <div className="flex items-center gap-3">
+                    {Number(item.impact_brl) > 0 ? (
+                      <div className="text-right">
+                        <div className="text-xs text-[#7e8a98]">Impacto estimado</div>
+                        <div className="text-xl font-bold text-[#8b1a1a]">{fmtMoney(item.impact_brl)}</div>
+                      </div>
+                    ) : null}
+
+                    {item.paid && item.analysis_id ? (
+                      <button className="btn-primary" onClick={() => nav(`/laudo/${item.analysis_id}`)}>Ver laudo</button>
+                    ) : (
+                      <button className="btn-secondary" onClick={() => nav(`/analise/${item.contract_id}`)}>
+                        {item.analysis_status === 'completed' ? 'Ver resultado' : 'Acompanhar'}
+                      </button>
+                    )}
                   </div>
-                )}
-
-                <div>
-                  {item.analysis_status === 'completed' && !item.paid && (
-                    <button onClick={() => nav('/analise/' + item.contract_id)} style={{ background: '#0C1A2E', color: '#FFFFFF', border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: "'Outfit', sans-serif" }}>
-                      Ver resultado
-                    </button>
-                  )}
-                  {item.paid && item.analysis_id && (
-                    <button onClick={() => nav('/laudo/' + item.analysis_id)} style={{ background: '#1A6B3C', color: '#FFFFFF', border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: "'Outfit', sans-serif" }}>
-                      Ver laudo
-                    </button>
-                  )}
-                  {(item.analysis_status === 'pending' || item.analysis_status === 'processing') && (
-                    <button onClick={() => nav('/analise/' + item.contract_id)} style={{ background: '#F9F7F2', color: '#6B7280', border: '1px solid #E5E0D8', borderRadius: 10, padding: '10px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: "'Outfit', sans-serif" }}>
-                      Acompanhar
-                    </button>
-                  )}
                 </div>
-              </div>
+              </article>
             ))}
           </div>
-        )}
+        ) : null}
       </main>
     </div>
   )
