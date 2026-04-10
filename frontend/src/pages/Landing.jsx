@@ -2,7 +2,7 @@ import { useNavigate, Link } from 'react-router-dom'
 
 const STEPS = [
   { icon: '📤', title: 'Envie o contrato', desc: 'Faça upload do PDF ou foto do contrato de empréstimo ou financiamento.' },
-  { icon: '🤖', title: 'IA analisa tudo', desc: 'Nossa IA lê todas as cláusulas e compara as taxas com as médias do Banco Central.' },
+  { icon: '🔍', title: 'Analise especializada', desc: 'Nosso sistema verifica todas as clausulas e compara as taxas com as medias do Banco Central.' },
   { icon: '📊', title: 'Receba o resultado', desc: 'Veja se há irregularidades e qual o impacto financeiro estimado.' },
   { icon: '📄', title: 'Baixe o laudo', desc: 'Pague o laudo técnico completo em PDF e leve para um advogado especializado.' },
 ]
@@ -54,12 +54,12 @@ export default function Landing() {
       {/* Hero */}
       <section className="bg-gradient-to-br from-blue-900 to-blue-800 text-white py-20 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-blue-300 text-sm font-medium mb-4 uppercase tracking-wider">Análise inteligente de contratos de crédito</p>
+          <p className="text-blue-300 text-sm font-medium mb-4 uppercase tracking-wider">Analise tecnica especializada de contratos</p>
           <h1 className="text-4xl sm:text-5xl font-extrabold mb-6 leading-tight">
             Seu contrato de empréstimo<br />tem juros abusivos?
           </h1>
           <p className="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">
-            Nossa IA analisa seu contrato em minutos, identifica irregularidades e compara as taxas com as médias do Banco Central. Descubra se você está pagando a mais.
+            Nosso sistema analisa seu contrato em minutos, identifica irregularidades e compara as taxas com as medias do Banco Central. Descubra se você está pagando a mais.
           </p>
           <button
             onClick={() => nav(isLogged ? '/upload' : '/cadastro')}
@@ -91,7 +91,7 @@ export default function Landing() {
       {/* Irregularidades que identificamos */}
       <section className="py-16 px-4">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-gray-800 mb-4">O que a IA identifica</h2>
+          <h2 className="text-3xl font-bold text-center text-gray-800 mb-4">O que nossa analise identifica</h2>
           <p className="text-center text-gray-500 mb-10 max-w-xl mx-auto">
             A análise cobre todas as formas conhecidas de abusividade em contratos de crédito, com base na jurisprudência do STJ e nas resoluções do Banco Central.
           </p>
@@ -109,7 +109,7 @@ export default function Landing() {
       {/* Diferenciais */}
       <section className="py-16 px-4 bg-gray-50">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-gray-800 mb-12">Por que usar Juros Abusivos IA?</h2>
+          <h2 className="text-3xl font-bold text-center text-gray-800 mb-12">Por que usar nossa plataforma?</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {FEATURES.map((f, i) => (
               <div key={i} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">

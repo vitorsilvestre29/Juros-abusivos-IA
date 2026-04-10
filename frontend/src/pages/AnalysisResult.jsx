@@ -74,7 +74,7 @@ export default function AnalysisResult() {
             <div className="text-5xl mb-4 animate-pulse">&#128269;</div>
             <h2 className="text-xl font-bold text-gray-800 mb-2">Analisando seu contrato{dots}</h2>
             <p className="text-gray-500 text-sm mb-6">
-              Nossa IA esta lendo as clausulas e comparando com as normas do Banco Central. Aguarde.
+              Nosso sistema esta analisando o contrato e verificando as normas do Banco Central. Aguarde.
             </p>
             <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-700 text-left space-y-2">
               <p>&#10003; Extracao do texto do contrato</p>

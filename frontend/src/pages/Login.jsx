@@ -33,7 +33,7 @@ export default function Login() {
           <Link to="/" className="inline-flex items-center gap-2 text-blue-900">
             <span className="text-2xl font-bold">⚖️ Juros Abusivos IA</span>
           </Link>
-          <p className="text-gray-500 mt-2 text-sm">Análise inteligente de contratos de crédito</p>
+          <p className="text-gray-500 mt-2 text-sm">Analise tecnica especializada de contratos</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-md p-8">
