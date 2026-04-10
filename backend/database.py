@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import text
 import os
 from dotenv import load_dotenv
 
@@ -7,13 +8,12 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./juros_abusivos.db")
 
-# Railway e Supabase usam "postgres://" mas SQLAlchemy precisa de "postgresql+asyncpg://"
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
 elif DATABASE_URL.startswith("postgresql://") and "+asyncpg" not in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-engine_kwargs: dict = {"echo": False}
+engine_kwargs = {"echo": False}
 
 if "postgresql" in DATABASE_URL:
     engine_kwargs["connect_args"] = {"statement_cache_size": 0}
@@ -39,6 +39,24 @@ async def get_db():
 
 
 async def init_db():
-    """Cria todas as tabelas na startup."""
     async with engine.begin() as conn:
+        if "postgresql" in DATABASE_URL:
+            try:
+                result = await conn.execute(text(
+                    "SELECT is_nullable FROM information_schema.columns "
+                    "WHERE table_name='users' AND column_name='role'"
+                ))
+                row = result.fetchone()
+                if row and row[0] == 'NO':
+                    print("Schema antigo detectado. Migrando...")
+                    for tbl in ["chat_messages", "documents", "client_payments",
+                                "cases", "contracts", "analyses", "payments", "users"]:
+                        await conn.execute(text(
+                            "DROP TABLE IF EXISTS " + tbl + " CASCADE"
+                        ))
+                    print("Tabelas antigas removidas.")
+            except Exception as e:
+                print("Aviso migracao:", e)
+
         await conn.run_sync(Base.metadata.create_all)
+        print("Banco de dados inicializado.")

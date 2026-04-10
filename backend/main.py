@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Juros Abusivos IA",
-    description="Plataforma de análise de contratos de empréstimo e financiamento",
+    description="Plataforma de analise de contratos de emprestimo e financiamento",
     version="2.0.0",
     lifespan=lifespan,
 )
@@ -47,8 +47,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router,      prefix="/api/auth",      tags=["Autenticação"])
-app.include_router(public.router,    prefix="/api/public",    tags=["Público"])
+app.include_router(auth.router,      prefix="/api/auth",      tags=["Autenticacao"])
+app.include_router(public.router,    prefix="/api/public",    tags=["Publico"])
 app.include_router(contracts.router, prefix="/api/contracts", tags=["Contratos"])
 app.include_router(reports.router,   prefix="/api/reports",   tags=["Laudos"])
 app.include_router(payments.router,  prefix="/api/payments",  tags=["Pagamentos"])
@@ -56,7 +56,7 @@ app.include_router(payments.router,  prefix="/api/payments",  tags=["Pagamentos"
 
 @app.get("/")
 async def root():
-    return {"message": "Juros Abusivos IA — API v2.0", "status": "online"}
+    return {"message": "Juros Abusivos IA -- API v2.0", "status": "online"}
 
 
 @app.get("/health")
