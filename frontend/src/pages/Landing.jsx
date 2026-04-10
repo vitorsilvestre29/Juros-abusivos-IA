@@ -65,6 +65,12 @@ export default function Landing() {
             </Link>
             <span style={{ color: '#5E7085', fontSize: 13, alignSelf: 'center' }}>Laudo completo por R$ 20</span>
           </div>
+
+          <div style={{ marginTop: 18, background: 'rgba(255, 244, 229, 0.95)', border: '1px solid rgba(255, 179, 71, 0.9)', borderLeft: '5px solid #FF9F1C', borderRadius: 10, padding: '12px 14px', textAlign: 'left' }}>
+            <p style={{ color: '#7A4300', fontSize: 12, lineHeight: 1.65 }}>
+              <strong>Aviso legal:</strong> Os laudos gerados por esta plataforma sao de natureza tecnico-matematica e tem carater meramente informativo. A interpretacao juridica e o ajuizamento de qualquer acao revisional devem ser realizados exclusivamente por advogado habilitado, conforme o Estatuto da OAB (Lei 8.906/94). A plataforma nao presta consultoria juridica.
+            </p>
+          </div>
         </div>
       </section>
 
@@ -136,21 +142,6 @@ export default function Landing() {
           <Link to="/cadastro" style={{ background: '#10233F', color: '#FFFFFF', textDecoration: 'none', fontWeight: 700, fontSize: 16, padding: '15px 36px', borderRadius: 10, display: 'inline-block' }}>
             Comecar agora
           </Link>
-        </div>
-      </section>
-
-      {/* AVISO LEGAL */}
-      <section style={{ background: '#FFF4E5', borderTop: '2px solid #FF9F1C', padding: '28px 24px' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto' }}>
-          <div style={{ background: '#FFFFFF', border: '2px solid #FFB347', borderLeft: '7px solid #FF9F1C', borderRadius: 12, padding: '16px 18px', boxShadow: '0 8px 24px rgba(122,67,0,0.08)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 16 }}>⚠️</span>
-              <strong style={{ color: '#7A4300', fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.6 }}>Aviso legal importante</strong>
-            </div>
-            <p style={{ color: '#8A4C00', fontSize: 13, lineHeight: 1.75 }}>
-              <strong>Aviso legal:</strong> Os laudos gerados por esta plataforma sao de natureza tecnico-matematica e tem carater meramente informativo. A interpretacao juridica e o ajuizamento de qualquer acao revisional devem ser realizados exclusivamente por advogado habilitado, conforme o Estatuto da OAB (Lei 8.906/94). A plataforma nao presta consultoria juridica.
-            </p>
-          </div>
         </div>
       </section>
 
