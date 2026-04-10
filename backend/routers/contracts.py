@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from datetime import datetime
 import json
 
@@ -30,14 +31,10 @@ async def upload_contract(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Recebe o contrato (PDF ou imagem), salva no banco e dispara análise em background.
-    Retorna contract_id e analysis_id para polling de status.
-    """
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(
             status_code=400,
-            detail="Formato inválido. Envie PDF, JPG ou PNG.",
+            detail="Formato invalido. Envie PDF, JPG ou PNG.",
         )
 
     if loan_type not in LOAN_TYPES:
@@ -47,7 +44,7 @@ async def upload_contract(
     if len(file_bytes) > MAX_FILE_MB * 1024 * 1024:
         raise HTTPException(
             status_code=400,
-            detail=f"Arquivo muito grande. Máximo: {MAX_FILE_MB}MB.",
+            detail=f"Arquivo muito grande. Maximo: {MAX_FILE_MB}MB.",
         )
 
     file_type = "pdf" if "pdf" in file.content_type else "image"
@@ -60,7 +57,7 @@ async def upload_contract(
         loan_type=loan_type,
     )
     db.add(contract)
-    await db.flush()  # obtém o ID antes do commit
+    await db.flush()
 
     analysis = Analysis(
         contract_id=contract.id,
@@ -72,7 +69,6 @@ async def upload_contract(
     await db.refresh(contract)
     await db.refresh(analysis)
 
-    # Dispara análise em background (não bloqueia a resposta)
     background_tasks.add_task(
         run_full_analysis,
         contract_id=contract.id,
@@ -87,64 +83,8 @@ async def upload_contract(
         "contract_id": contract.id,
         "analysis_id": analysis.id,
         "status": AnalysisStatus.PENDING,
-        "message": "Contrato recebido. Análise iniciada.",
+        "message": "Contrato recebido. Analise iniciada.",
     }
-
-
-@router.get("/{contract_id}/status")
-async def get_analysis_status(
-    contract_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """
-    Polling de status da análise.
-    Quando status='completed', retorna o preview (has_issues, impact_brl, irregularities_count).
-    O laudo completo só é liberado após pagamento.
-    """
-    result = await db.execute(
-        select(Contract).where(
-            Contract.id == contract_id,
-            Contract.user_id == current_user.id,
-        )
-    )
-    contract = result.scalar_one_or_none()
-    if not contract:
-        raise HTTPException(status_code=404, detail="Contrato não encontrado")
-
-    analysis = contract.analysis
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Análise não encontrada")
-
-    response: dict = {
-        "contract_id": contract_id,
-        "analysis_id": analysis.id,
-        "status": analysis.status,
-        "loan_type": contract.loan_type,
-        "loan_type_label": LOAN_TYPES.get(contract.loan_type, contract.loan_type),
-        "filename": contract.filename,
-        "created_at": contract.created_at.isoformat(),
-    }
-
-    if analysis.status == AnalysisStatus.FAILED:
-        response["error"] = analysis.error_message
-
-    if analysis.status == AnalysisStatus.COMPLETED:
-        # Preview público — sem revelar detalhes (paywall)
-        response["has_issues"] = analysis.has_issues
-        response["irregularities_count"] = analysis.irregularities_count
-        response["impact_brl"] = analysis.impact_brl
-        response["bcb_rate_pct"] = analysis.bcb_rate_pct
-
-        # Se já pagou, sinaliza que pode baixar
-        payment = analysis.payment
-        if payment and payment.status == "paid":
-            response["paid"] = True
-            response["payment_id"] = payment.id
-        else:
-            response["paid"] = False
-
-    return response
 
 
 @router.get("/history")
@@ -152,10 +92,10 @@ async def get_history(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Histórico de contratos analisados pelo usuário."""
     result = await db.execute(
         select(Contract)
         .where(Contract.user_id == current_user.id)
+        .options(selectinload(Contract.analysis).selectinload(Analysis.payment))
         .order_by(Contract.created_at.desc())
     )
     contracts = result.scalars().all()
@@ -183,3 +123,54 @@ async def get_history(
         items.append(item)
 
     return items
+
+
+@router.get("/{contract_id}/status")
+async def get_analysis_status(
+    contract_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(Contract)
+        .where(
+            Contract.id == contract_id,
+            Contract.user_id == current_user.id,
+        )
+        .options(selectinload(Contract.analysis).selectinload(Analysis.payment))
+    )
+    contract = result.scalar_one_or_none()
+    if not contract:
+        raise HTTPException(status_code=404, detail="Contrato nao encontrado")
+
+    analysis = contract.analysis
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analise nao encontrada")
+
+    response: dict = {
+        "contract_id": contract_id,
+        "analysis_id": analysis.id,
+        "status": analysis.status,
+        "loan_type": contract.loan_type,
+        "loan_type_label": LOAN_TYPES.get(contract.loan_type, contract.loan_type),
+        "filename": contract.filename,
+        "created_at": contract.created_at.isoformat(),
+    }
+
+    if analysis.status == AnalysisStatus.FAILED:
+        response["error"] = analysis.error_message
+
+    if analysis.status == AnalysisStatus.COMPLETED:
+        response["has_issues"] = analysis.has_issues
+        response["irregularities_count"] = analysis.irregularities_count
+        response["impact_brl"] = analysis.impact_brl
+        response["bcb_rate_pct"] = analysis.bcb_rate_pct
+
+        payment = analysis.payment
+        if payment and payment.status == "paid":
+            response["paid"] = True
+            response["payment_id"] = payment.id
+        else:
+            response["paid"] = False
+
+    return response
