@@ -19,7 +19,7 @@ async def list_loan_types():
 @router.get("/pricing")
 async def pricing():
     """Retorna o preco do laudo."""
-    price = float(os.getenv("REPORT_PRICE", "97.00"))
+    price = float(os.getenv("REPORT_PRICE", "20.00"))
     return {
         "price_brl": price,
         "description": "Laudo Tecnico Completo de Analise de Abusividades",
