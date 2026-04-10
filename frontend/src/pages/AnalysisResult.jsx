@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { getContractStatus, getPricing } from '../lib/api'
 
 function fmt(val) {
-  if (\!val && val \!== 0) return '—'
+  if (val === null || val === undefined) return '--'
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 }
 
@@ -15,9 +15,7 @@ export default function AnalysisResult() {
   const [dots, setDots] = useState('.')
 
   useEffect(() => {
-    getPricing()
-      .then(r => setPricing(r.data))
-      .catch(() => {})
+    getPricing().then(r => setPricing(r.data)).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -28,12 +26,11 @@ export default function AnalysisResult() {
         setStatus(res.data)
         if (res.data.status === 'completed' || res.data.status === 'failed') {
           clearInterval(interval)
-          // Se já pagou, vai direto pro laudo
-          if (res.data.status === 'completed' && res.data.paid) {
-            nav(`/laudo/${res.data.analysis_id}`, { replace: true })
+          if (res.data.status === 'completed' && res.data.paid === true) {
+            nav('/laudo/' + res.data.analysis_id, { replace: true })
           }
         }
-      } catch {
+      } catch (e) {
         clearInterval(interval)
       }
     }
@@ -43,13 +40,13 @@ export default function AnalysisResult() {
   }, [contractId])
 
   useEffect(() => {
-    if (status?.status === 'processing' || status?.status === 'pending') {
+    if (status && (status.status === 'processing' || status.status === 'pending')) {
       const t = setInterval(() => setDots(d => d.length >= 3 ? '.' : d + '.'), 600)
       return () => clearInterval(t)
     }
-  }, [status?.status])
+  }, [status])
 
-  if (\!status) return (
+  if (status === null) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <p className="text-gray-400">Carregando...</p>
     </div>
@@ -63,117 +60,87 @@ export default function AnalysisResult() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
-          <Link to="/app" className="text-gray-400 hover:text-gray-600 text-sm">← Minhas análises</Link>
-          <span className="text-gray-300">|</span>
-          <span className="text-blue-900 font-bold">⚖️ Juros Abusivos IA</span>
+          <Link to="/app" className="text-gray-400 hover:text-gray-600 text-sm">Minhas analises</Link>
+          <span className="text-gray-300"> | </span>
+          <span className="text-blue-900 font-bold">Juros Abusivos IA</span>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-10">
 
-        {/* Analisando */}
         {isProcessing && (
           <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center shadow-sm">
-            <div className="text-5xl mb-4 animate-pulse">🔍</div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">
-              Analisando seu contrato{dots}
-            </h2>
+            <div className="text-5xl mb-4 animate-pulse">&#128269;</div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Analisando seu contrato{dots}</h2>
             <p className="text-gray-500 text-sm mb-6">
-              Nossa IA está lendo todas as cláusulas e comparando com as normas do Banco Central.
-              Isso leva entre 30 segundos e 2 minutos.
+              Nossa IA esta lendo as clausulas e comparando com as normas do Banco Central. Aguarde.
             </p>
             <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-700 text-left space-y-2">
-              <p>✓ Extração do texto do contrato</p>
-              <p>✓ Consulta às taxas médias do Banco Central (BCB)</p>
-              <p className="opacity-60">⏳ Identificando irregularidades técnicas...</p>
-              <p className="opacity-30">⏳ Calculando impacto financeiro...</p>
+              <p>Extracao do texto do contrato</p>
+              <p>Consulta as taxas do Banco Central (BCB)</p>
+              <p className="opacity-60">Identificando irregularidades...</p>
+              <p className="opacity-30">Calculando impacto financeiro...</p>
             </div>
           </div>
         )}
 
-        {/* Erro */}
         {isFailed && (
           <div className="bg-white rounded-2xl border border-red-200 p-8 text-center shadow-sm">
-            <p className="text-4xl mb-3">❌</p>
-            <h2 className="text-xl font-bold text-red-700 mb-2">Não foi possível analisar</h2>
-            <p className="text-gray-500 text-sm mb-4">
-              {status.error || 'Verifique se o arquivo está legível e tente novamente.'}
-            </p>
-            <button
-              onClick={() => nav('/upload')}
-              className="bg-blue-900 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-blue-800 transition"
-            >
+            <h2 className="text-xl font-bold text-red-700 mb-2">Nao foi possivel analisar</h2>
+            <p className="text-gray-500 text-sm mb-4">{status.error || 'Verifique se o arquivo esta legivel e tente novamente.'}</p>
+            <button onClick={() => nav('/upload')} className="bg-blue-900 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-blue-800 transition">
               Tentar novamente
             </button>
           </div>
         )}
 
-        {/* Análise pronta — paywall total */}
-        {isDone && \!status.paid && (
+        {isDone && status.paid === false && (
           <div className="space-y-4">
-
-            {/* Banner de conclusão */}
             <div className="bg-blue-900 rounded-2xl p-6 text-white text-center shadow-md">
-              <div className="text-4xl mb-3">📋</div>
-              <h1 className="text-2xl font-bold mb-2">Análise concluída\!</h1>
+              <div className="text-4xl mb-3">&#128203;</div>
+              <h1 className="text-2xl font-bold mb-2">Analise concluida.</h1>
               <p className="text-blue-200 text-sm">
-                Verificamos seu contrato de <strong className="text-white">{status.loan_type_label}</strong> contra
-                as normas do Banco Central e a legislação bancária vigente.
+                Verificamos seu contrato de <strong className="text-white">{status.loan_type_label}</strong> contra as normas do Banco Central.
               </p>
             </div>
 
-            {/* Paywall */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <h2 className="text-xl font-bold text-gray-800 mb-1">
-                Acesse o Laudo Técnico Completo
-              </h2>
+              <h2 className="text-xl font-bold text-gray-800 mb-1">Acesse o Laudo Tecnico Completo</h2>
               <p className="text-gray-500 text-sm mb-5">
-                O laudo detalha cada ponto encontrado na análise, com fundamento legal,
-                cálculo do impacto financeiro e orientações para ação revisional.
+                O laudo detalha cada ponto encontrado com fundamento legal, calculo do impacto financeiro e orientacoes para acao revisional.
               </p>
-
               <ul className="space-y-2 mb-6">
-                {(pricing.includes?.length > 0 ? pricing.includes : [
-                  'Todas as irregularidades detalhadas com fundamento legal',
-                  'Cálculo preciso do valor cobrado a mais',
-                  'Comparação com taxas médias do Banco Central',
+                {(pricing.includes && pricing.includes.length > 0 ? pricing.includes : [
+                  'Irregularidades com fundamento legal',
+                  'Calculo do valor cobrado a mais',
+                  'Comparacao com taxas do Banco Central',
                   'PDF pronto para o advogado',
-                  'Indicação de ação revisional quando aplicável',
+                  'Orientacao para acao revisional',
                 ]).map((item, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                    <span className="text-green-500 mt-0.5">✅</span>
+                    <span className="text-green-500">&#10003;</span>
                     <span>{item}</span>
                   </li>
                 ))}
               </ul>
-
-              {/* Aviso legal */}
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-5 text-xs text-amber-800">
-                ⚖️ <strong>Nota:</strong> Este laudo é uma análise técnica e matemática.
-                Não constitui assessoria jurídica. Para ação revisional, consulte um advogado habilitado.
+                <strong>Nota legal:</strong> Este laudo e uma analise tecnica e matematica, nao assessoria juridica. Para acao revisional, consulte um advogado.
               </div>
-
-              {/* CTA de pagamento */}
               <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4 mb-4 border border-gray-100">
                 <div>
-                  <p className="text-sm font-semibold text-gray-700">Laudo Técnico Completo</p>
-                  <p className="text-xs text-gray-400">Pagamento único • Acesso imediato</p>
+                  <p className="text-sm font-semibold text-gray-700">Laudo Tecnico Completo</p>
+                  <p className="text-xs text-gray-400">Pagamento unico - Acesso imediato</p>
                 </div>
                 <span className="text-2xl font-bold text-blue-900">{fmt(pricing.price_brl)}</span>
               </div>
-
               <button
-                onClick={() => nav(`/pagamento/${status.analysis_id}`)}
+                onClick={() => nav('/pagamento/' + status.analysis_id)}
                 className="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-4 rounded-xl transition text-lg"
               >
-                💳 Pagar com PIX e acessar laudo
+                Pagar com PIX e acessar laudo
               </button>
-
-              <p className="text-center text-xs text-gray-400 mt-3">
-                Pagamento seguro via PIX • Acesso imediato após confirmação
-              </p>
+              <p className="text-center text-xs text-gray-400 mt-3">Pagamento seguro via PIX - Acesso imediato apos confirmacao</p>
             </div>
-
           </div>
         )}
 
