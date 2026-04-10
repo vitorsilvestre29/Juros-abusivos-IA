@@ -25,6 +25,9 @@ function fmt(val) {
 
 export default function Report() {
   const { analysisId } = useParams()
+  const rawUser = localStorage.getItem('user')
+  const currentUser = rawUser ? JSON.parse(rawUser) : null
+  const isGuest = !!currentUser?.is_guest
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -75,8 +78,8 @@ export default function Report() {
               style={{ background: '#FF9F1C', color: '#10233F', textDecoration: 'none', fontSize: 13, fontWeight: 700, padding: '8px 18px', borderRadius: 8 }}>
               Baixar PDF
             </a>
-            <Link to="/app" style={{ background: 'transparent', border: '1px solid #3B4D63', color: '#7E91A6', textDecoration: 'none', fontSize: 13, fontWeight: 600, padding: '8px 14px', borderRadius: 8 }}>
-              Minhas analises
+            <Link to={isGuest ? '/cadastro' : '/app'} style={{ background: 'transparent', border: '1px solid #3B4D63', color: '#7E91A6', textDecoration: 'none', fontSize: 13, fontWeight: 600, padding: '8px 14px', borderRadius: 8 }}>
+              {isGuest ? 'Criar conta para salvar' : 'Minhas analises'}
             </Link>
           </div>
         </div>

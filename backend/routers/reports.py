@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -6,7 +6,8 @@ import json
 
 from database import get_db
 from models import Analysis, Payment, PaymentStatus, AnalysisStatus
-from routers.auth import get_current_user
+from auth_utils import verify_token
+from routers.auth import get_current_user, get_current_user_optional
 from models import User, LOAN_TYPES
 
 router = APIRouter()
@@ -117,13 +118,23 @@ async def get_full_report_json(
 @router.get("/{analysis_id}/download")
 async def download_report_pdf(
     analysis_id: int,
+    token: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     """
     Download do laudo em PDF (apenas para análises pagas).
     Se o PDF ainda não foi gerado, gera na hora.
     """
+    if not current_user and token:
+        email = verify_token(token)
+        if email:
+            user_result = await db.execute(select(User).where(User.email == email))
+            current_user = user_result.scalar_one_or_none()
+
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Credenciais invalidas")
+
     result = await db.execute(
         select(Analysis).where(
             Analysis.id == analysis_id,

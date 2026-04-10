@@ -16,6 +16,11 @@ export default function Login() {
     try {
       const res = await loginApi(email, password)
       localStorage.setItem('token', res.data.access_token)
+      localStorage.setItem('user', JSON.stringify({
+        name: res.data.user_name,
+        email: res.data.user_email,
+        is_guest: !!res.data.is_guest,
+      }))
       nav('/app')
     } catch (err) {
       setError(err.response?.data?.detail || 'Email ou senha incorretos.')

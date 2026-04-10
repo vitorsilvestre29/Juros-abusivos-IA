@@ -15,6 +15,9 @@ const LOAN_LABELS = {
 
 export default function UploadContract() {
   const nav = useNavigate()
+  const rawUser = localStorage.getItem('user')
+  const currentUser = rawUser ? JSON.parse(rawUser) : null
+  const isGuest = !!currentUser?.is_guest
   const [loanTypes, setLoanTypes] = useState(Object.entries(LOAN_LABELS).map(([id, label]) => ({ id, label })))
   const [loanType, setLoanType] = useState('credito_pessoal')
   const [file, setFile] = useState(null)
@@ -55,7 +58,9 @@ export default function UploadContract() {
           <Link to="/" style={{ fontFamily: "'Merriweather', serif", color: '#FF9F1C', fontSize: 20, fontWeight: 700, textDecoration: 'none' }}>
             Juros Abusivos
           </Link>
-          <Link to="/app" style={{ color: '#5E7085', textDecoration: 'none', fontSize: 14 }}>Minhas analises</Link>
+          <Link to={isGuest ? '/cadastro' : '/app'} style={{ color: '#5E7085', textDecoration: 'none', fontSize: 14 }}>
+            {isGuest ? 'Criar conta para salvar' : 'Minhas analises'}
+          </Link>
         </div>
       </nav>
 

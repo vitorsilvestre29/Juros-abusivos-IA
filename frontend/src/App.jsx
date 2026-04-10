@@ -8,9 +8,18 @@ import AnalysisResult from './pages/AnalysisResult'
 import Payment from './pages/Payment'
 import Report from './pages/Report'
 
+function SessionRoute({ children }) {
+  const token = localStorage.getItem('token')
+  return token ? children : <Navigate to="/" replace />
+}
+
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token')
-  return token ? children : <Navigate to="/login" replace />
+  const userRaw = localStorage.getItem('user')
+  const user = userRaw ? JSON.parse(userRaw) : null
+  if (!token) return <Navigate to="/login" replace />
+  if (user?.is_guest) return <Navigate to="/upload" replace />
+  return children
 }
 
 export default function App() {
@@ -24,10 +33,10 @@ export default function App() {
 
         {/* Privado */}
         <Route path="/app" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-        <Route path="/upload" element={<PrivateRoute><UploadContract /></PrivateRoute>} />
-        <Route path="/analise/:contractId" element={<PrivateRoute><AnalysisResult /></PrivateRoute>} />
-        <Route path="/pagamento/:analysisId" element={<PrivateRoute><Payment /></PrivateRoute>} />
-        <Route path="/laudo/:analysisId" element={<PrivateRoute><Report /></PrivateRoute>} />
+        <Route path="/upload" element={<SessionRoute><UploadContract /></SessionRoute>} />
+        <Route path="/analise/:contractId" element={<SessionRoute><AnalysisResult /></SessionRoute>} />
+        <Route path="/pagamento/:analysisId" element={<SessionRoute><Payment /></SessionRoute>} />
+        <Route path="/laudo/:analysisId" element={<SessionRoute><Report /></SessionRoute>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

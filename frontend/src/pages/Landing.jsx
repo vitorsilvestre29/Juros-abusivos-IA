@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { startGuestSession } from '../lib/api'
 
 const steps = [
   { n: '01', title: 'Envie o contrato', desc: 'Faca upload do PDF ou foto do contrato de emprestimo ou financiamento.' },
@@ -25,6 +26,29 @@ const features = [
 ]
 
 export default function Landing() {
+  const nav = useNavigate()
+
+  async function handleStartAnalysis() {
+    const hasToken = localStorage.getItem('token')
+    if (hasToken) {
+      nav('/upload')
+      return
+    }
+
+    try {
+      const res = await startGuestSession()
+      localStorage.setItem('token', res.data.access_token)
+      localStorage.setItem('user', JSON.stringify({
+        name: res.data.user_name,
+        email: res.data.user_email,
+        is_guest: !!res.data.is_guest,
+      }))
+      nav('/upload')
+    } catch {
+      nav('/login')
+    }
+  }
+
   return (
     <div style={{ fontFamily: "'Manrope', sans-serif", background: '#F3F8FF', minHeight: '100vh' }}>
 
@@ -60,9 +84,12 @@ export default function Landing() {
             Enviamos seu contrato para analise tecnica especializada. Identificamos irregularidades, comparamos com as taxas do Banco Central e geramos um laudo tecnico completo.
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link to="/cadastro" style={{ background: '#FF9F1C', color: '#10233F', textDecoration: 'none', fontWeight: 700, fontSize: 16, padding: '14px 32px', borderRadius: 10, display: 'inline-block' }}>
+            <button
+              onClick={handleStartAnalysis}
+              style={{ background: '#FF9F1C', color: '#10233F', fontWeight: 700, fontSize: 16, padding: '14px 32px', borderRadius: 10, border: 'none', cursor: 'pointer', fontFamily: "'Manrope', sans-serif" }}
+            >
               Analisar meu contrato
-            </Link>
+            </button>
             <span style={{ color: '#5E7085', fontSize: 13, alignSelf: 'center' }}>Laudo completo por R$ 20</span>
           </div>
 
@@ -139,9 +166,12 @@ export default function Landing() {
           <p style={{ color: '#7A4300', fontSize: 16, marginBottom: 32, lineHeight: 1.6 }}>
             Cadastro gratuito. Envie o contrato e receba o resultado. O laudo completo custa apenas R$ 20.
           </p>
-          <Link to="/cadastro" style={{ background: '#10233F', color: '#FFFFFF', textDecoration: 'none', fontWeight: 700, fontSize: 16, padding: '15px 36px', borderRadius: 10, display: 'inline-block' }}>
+          <button
+            onClick={handleStartAnalysis}
+            style={{ background: '#10233F', color: '#FFFFFF', fontWeight: 700, fontSize: 16, padding: '15px 36px', borderRadius: 10, display: 'inline-block', border: 'none', cursor: 'pointer', fontFamily: "'Manrope', sans-serif" }}
+          >
             Comecar agora
-          </Link>
+          </button>
         </div>
       </section>
 

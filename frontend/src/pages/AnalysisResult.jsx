@@ -10,6 +10,9 @@ function fmt(val) {
 export default function AnalysisResult() {
   const { contractId } = useParams()
   const nav = useNavigate()
+  const rawUser = localStorage.getItem('user')
+  const currentUser = rawUser ? JSON.parse(rawUser) : null
+  const isGuest = !!currentUser?.is_guest
   const [status, setStatus] = useState(null)
   const [pricing, setPricing] = useState({ price_brl: 20, includes: [] })
   const [dots, setDots] = useState('.')
@@ -61,7 +64,9 @@ export default function AnalysisResult() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
-          <Link to="/app" className="text-gray-400 hover:text-gray-600 text-sm">Minhas analises</Link>
+          <Link to={isGuest ? '/cadastro' : '/app'} className="text-gray-400 hover:text-gray-600 text-sm">
+            {isGuest ? 'Criar conta para salvar' : 'Minhas analises'}
+          </Link>
           <span className="text-gray-300"> | </span>
           <span className="text-blue-900 font-bold">Juros Abusivos IA</span>
         </div>

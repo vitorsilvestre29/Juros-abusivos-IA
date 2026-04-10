@@ -41,9 +41,11 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
+      const userRaw = localStorage.getItem('user')
+      const user = userRaw ? JSON.parse(userRaw) : null
       localStorage.removeItem('token')
       localStorage.removeItem('user')
-      window.location.href = '/login'
+      window.location.href = user?.is_guest ? '/' : '/login'
     }
     return Promise.reject(err)
   }
@@ -58,6 +60,9 @@ export const login = (email, password) => {
 }
 export const register = (name, email, password) =>
   api.post('/auth/register', { name, email, password })
+export const startGuestSession = () => api.post('/auth/guest')
+export const upgradeGuestAccount = (name, email, password) =>
+  api.post('/auth/upgrade-guest', { name, email, password })
 export const getMe = () => api.get('/auth/me')
 
 // ── PUBLIC ────────────────────────────────────────────────────────

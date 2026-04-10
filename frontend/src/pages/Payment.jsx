@@ -7,6 +7,9 @@ const MOCK_MODE = import.meta.env.VITE_MOCK_MODE === 'true'
 export default function Payment() {
   const { analysisId } = useParams()
   const nav = useNavigate()
+  const rawUser = localStorage.getItem('user')
+  const currentUser = rawUser ? JSON.parse(rawUser) : null
+  const isGuest = !!currentUser?.is_guest
   const [payment, setPayment] = useState(null)
   const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -34,8 +37,8 @@ export default function Payment() {
   }, [payment])
 
   function copyCode() {
-    if (payment?.pix_code) {
-      navigator.clipboard.writeText(payment.pix_code)
+    if (payment?.qr_code) {
+      navigator.clipboard.writeText(payment.qr_code)
       setCopied(true)
       setTimeout(() => setCopied(false), 3000)
     }
@@ -60,7 +63,9 @@ export default function Payment() {
           <Link to="/" style={{ fontFamily: "'Merriweather', serif", color: '#FF9F1C', fontSize: 20, fontWeight: 700, textDecoration: 'none' }}>
             Juros Abusivos
           </Link>
-          <Link to="/app" style={{ color: '#5E7085', textDecoration: 'none', fontSize: 14 }}>Minhas analises</Link>
+          <Link to={isGuest ? '/cadastro' : '/app'} style={{ color: '#5E7085', textDecoration: 'none', fontSize: 14 }}>
+            {isGuest ? 'Criar conta para salvar' : 'Minhas analises'}
+          </Link>
         </div>
       </nav>
 
@@ -91,7 +96,7 @@ export default function Payment() {
             <div style={{ textAlign: 'center', padding: '20px 0 28px', borderBottom: '1px solid #E4ECF8', marginBottom: 28 }}>
               <p style={{ color: '#56677B', fontSize: 13, marginBottom: 4 }}>Laudo Tecnico Completo</p>
               <p style={{ fontFamily: "'Merriweather', serif", fontSize: 42, fontWeight: 700, color: '#10233F' }}>
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payment.amount || 20)}
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payment.amount_brl || 20)}
               </p>
             </div>
 
@@ -107,12 +112,12 @@ export default function Payment() {
             )}
 
             {/* Codigo copia e cola */}
-            {payment.pix_code && (
+            {payment.qr_code && (
               <div style={{ marginBottom: 20 }}>
                 <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Codigo Pix copia e cola</p>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <div style={{ flex: 1, background: '#F3F8FF', border: '1px solid #D8E3F2', borderRadius: 10, padding: '10px 12px', fontSize: 12, color: '#56677B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {payment.pix_code}
+                    {payment.qr_code}
                   </div>
                   <button onClick={copyCode} style={{ background: copied ? '#1A6B3C' : '#10233F', color: '#FFFFFF', border: 'none', borderRadius: 10, padding: '10px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: "'Manrope', sans-serif" }}>
                     {copied ? 'Copiado' : 'Copiar'}

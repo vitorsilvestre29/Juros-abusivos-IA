@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { register as registerApi, login as loginApi } from '../lib/api'
+import { register as registerApi, login as loginApi, upgradeGuestAccount } from '../lib/api'
 
 export default function Register() {
   const nav = useNavigate()
@@ -15,9 +15,23 @@ export default function Register() {
     setLoading(true)
     setError('')
     try {
-      await registerApi(name, email, password)
-      const res = await loginApi(email, password)
+      const current = localStorage.getItem('user')
+      const currentUser = current ? JSON.parse(current) : null
+
+      let res
+      if (currentUser?.is_guest) {
+        res = await upgradeGuestAccount(name, email, password)
+      } else {
+        await registerApi(name, email, password)
+        res = await loginApi(email, password)
+      }
+
       localStorage.setItem('token', res.data.access_token)
+      localStorage.setItem('user', JSON.stringify({
+        name: res.data.user_name,
+        email: res.data.user_email,
+        is_guest: !!res.data.is_guest,
+      }))
       nav('/upload')
     } catch (err) {
       setError(err.response?.data?.detail || 'Erro ao criar conta. Tente novamente.')
