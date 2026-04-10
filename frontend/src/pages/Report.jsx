@@ -82,7 +82,7 @@ export default function Report() {
         </div>
       </nav>
 
-      <main style={{ maxWidth: 820, margin: '0 auto', padding: '48px 24px' }}>
+      <main className="mobile-safe" style={{ maxWidth: 820, margin: '0 auto', padding: '48px 24px' }}>
 
         {/* Cabecalho do laudo */}
         <div style={{ background: '#10233F', borderRadius: 20, padding: '40px', marginBottom: 32, position: 'relative', overflow: 'hidden' }}>

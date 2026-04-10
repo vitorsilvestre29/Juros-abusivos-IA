@@ -67,7 +67,7 @@ export default function AnalysisResult() {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-10">
+      <main className="max-w-3xl mx-auto px-4 py-10 mobile-safe">
 
         {isProcessing && (
           <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center shadow-sm">

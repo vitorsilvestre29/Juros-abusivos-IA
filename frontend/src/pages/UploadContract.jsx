@@ -51,7 +51,7 @@ export default function UploadContract() {
   return (
     <div style={{ minHeight: '100vh', background: '#F3F8FF' }}>
       <nav style={{ background: '#10233F', borderBottom: '1px solid #1F4E79' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="mobile-safe" style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link to="/" style={{ fontFamily: "'Merriweather', serif", color: '#FF9F1C', fontSize: 20, fontWeight: 700, textDecoration: 'none' }}>
             Juros Abusivos
           </Link>
@@ -59,7 +59,7 @@ export default function UploadContract() {
         </div>
       </nav>
 
-      <main style={{ maxWidth: 680, margin: '0 auto', padding: '56px 24px' }}>
+      <main className="mobile-safe" style={{ maxWidth: 680, margin: '0 auto', padding: '56px 24px' }}>
         <div style={{ marginBottom: 40, textAlign: 'center' }}>
           <h1 style={{ fontFamily: "'Merriweather', serif", fontSize: 34, fontWeight: 700, color: '#10233F', marginBottom: 10 }}>
             Enviar contrato para analise

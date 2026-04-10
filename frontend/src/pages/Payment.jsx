@@ -56,7 +56,7 @@ export default function Payment() {
   return (
     <div style={{ minHeight: '100vh', background: '#F3F8FF' }}>
       <nav style={{ background: '#10233F', borderBottom: '1px solid #1F4E79' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="mobile-safe" style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link to="/" style={{ fontFamily: "'Merriweather', serif", color: '#FF9F1C', fontSize: 20, fontWeight: 700, textDecoration: 'none' }}>
             Juros Abusivos
           </Link>
@@ -64,7 +64,7 @@ export default function Payment() {
         </div>
       </nav>
 
-      <main style={{ maxWidth: 520, margin: '0 auto', padding: '56px 24px' }}>
+      <main className="mobile-safe" style={{ maxWidth: 520, margin: '0 auto', padding: '56px 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
           <h1 style={{ fontFamily: "'Merriweather', serif", fontSize: 32, fontWeight: 700, color: '#10233F', marginBottom: 8 }}>
             Pagamento via PIX

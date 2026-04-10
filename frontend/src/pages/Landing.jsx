@@ -30,7 +30,7 @@ export default function Landing() {
 
       {/* NAV */}
       <nav style={{ background: '#10233F', borderBottom: '1px solid #1F4E79' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px', height: 68, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="mobile-safe" style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px', height: 68, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontFamily: "'Merriweather', serif", color: '#FF9F1C', fontSize: 22, fontWeight: 700, letterSpacing: '-0.3px' }}>
             Juros Abusivos
           </span>
@@ -46,13 +46,13 @@ export default function Landing() {
       </nav>
 
       {/* HERO */}
-      <section style={{ background: 'linear-gradient(160deg, #10233F 0%, #1F4E79 60%, #10233F 100%)', padding: '100px 24px 90px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      <section className="mobile-hero" style={{ background: 'linear-gradient(160deg, #10233F 0%, #1F4E79 60%, #10233F 100%)', padding: '100px 24px 90px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(201,149,42,0.08) 0%, transparent 60%), radial-gradient(circle at 80% 20%, rgba(201,149,42,0.05) 0%, transparent 50%)', pointerEvents: 'none' }} />
         <div style={{ maxWidth: 800, margin: '0 auto', position: 'relative' }}>
           <div style={{ display: 'inline-block', background: 'rgba(201,149,42,0.15)', border: '1px solid rgba(201,149,42,0.3)', borderRadius: 100, padding: '6px 18px', marginBottom: 28 }}>
             <span style={{ color: '#FF9F1C', fontSize: 12, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase' }}>Analise Tecnica Especializada</span>
           </div>
-          <h1 style={{ fontFamily: "'Merriweather', serif", color: '#FFFFFF', fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 24 }}>
+          <h1 className="mobile-title" style={{ fontFamily: "'Merriweather', serif", color: '#FFFFFF', fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 24 }}>
             Seu contrato tem<br />
             <span style={{ color: '#FF9F1C' }}>juros abusivos?</span>
           </h1>
@@ -75,14 +75,14 @@ export default function Landing() {
       </section>
 
       {/* COMO FUNCIONA */}
-      <section style={{ padding: '80px 24px', maxWidth: 1000, margin: '0 auto' }}>
+      <section className="mobile-safe" style={{ padding: '80px 24px', maxWidth: 1000, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 56 }}>
           <p style={{ color: '#FF9F1C', fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 }}>Como funciona</p>
           <h2 style={{ fontFamily: "'Merriweather', serif", fontSize: 36, color: '#10233F', fontWeight: 700 }}>Simples e rapido</h2>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 32 }}>
+        <div className="mobile-grid-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 32 }}>
           {steps.map(s => (
-            <div key={s.n} style={{ background: '#FFFFFF', border: '1px solid #D8E3F2', borderRadius: 16, padding: '32px 28px', position: 'relative' }}>
+            <div key={s.n} className="mobile-card" style={{ background: '#FFFFFF', border: '1px solid #D8E3F2', borderRadius: 16, padding: '32px 28px', position: 'relative' }}>
               <div style={{ fontFamily: "'Merriweather', serif", fontSize: 48, fontWeight: 800, color: '#F0EAD6', lineHeight: 1, marginBottom: 16 }}>{s.n}</div>
               <h3 style={{ fontSize: 18, fontWeight: 700, color: '#10233F', marginBottom: 10 }}>{s.title}</h3>
               <p style={{ color: '#56677B', fontSize: 14, lineHeight: 1.7 }}>{s.desc}</p>
@@ -93,7 +93,7 @@ export default function Landing() {
       </section>
 
       {/* O QUE IDENTIFICAMOS */}
-      <section style={{ background: '#10233F', padding: '80px 24px' }}>
+      <section className="mobile-safe" style={{ background: '#10233F', padding: '80px 24px' }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <p style={{ color: '#FF9F1C', fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 }}>Cobertura completa</p>
@@ -114,7 +114,7 @@ export default function Landing() {
       </section>
 
       {/* DIFERENCIAIS */}
-      <section style={{ padding: '80px 24px', maxWidth: 1000, margin: '0 auto' }}>
+      <section className="mobile-safe" style={{ padding: '80px 24px', maxWidth: 1000, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 56 }}>
           <p style={{ color: '#FF9F1C', fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 }}>Nossos diferenciais</p>
           <h2 style={{ fontFamily: "'Merriweather', serif", fontSize: 36, color: '#10233F', fontWeight: 700 }}>Por que usar nossa plataforma?</h2>
@@ -131,7 +131,7 @@ export default function Landing() {
       </section>
 
       {/* CTA */}
-      <section style={{ background: '#FF9F1C', padding: '70px 24px', textAlign: 'center' }}>
+      <section className="mobile-safe" style={{ background: '#FF9F1C', padding: '70px 24px', textAlign: 'center' }}>
         <div style={{ maxWidth: 600, margin: '0 auto' }}>
           <h2 style={{ fontFamily: "'Merriweather', serif", fontSize: 36, color: '#10233F', fontWeight: 800, marginBottom: 16 }}>
             Pronto para verificar seu contrato?
@@ -146,7 +146,7 @@ export default function Landing() {
       </section>
 
       {/* FOOTER */}
-      <footer style={{ background: '#10233F', padding: '24px', textAlign: 'center' }}>
+      <footer className="mobile-safe" style={{ background: '#10233F', padding: '24px', textAlign: 'center' }}>
         <p style={{ color: '#3B4D63', fontSize: 13 }}>
           {String.fromCharCode(169)} {new Date().getFullYear()} Juros Abusivos - Plataforma de analise tecnica de contratos de credito
         </p>

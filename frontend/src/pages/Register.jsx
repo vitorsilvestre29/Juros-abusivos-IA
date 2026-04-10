@@ -27,7 +27,7 @@ export default function Register() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F3F8FF', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
+    <div className="mobile-safe" style={{ minHeight: '100vh', background: '#F3F8FF', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
       <div style={{ width: '100%', maxWidth: 460 }}>
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
           <Link to="/" style={{ fontFamily: "'Merriweather', serif", color: '#FF9F1C', fontSize: 24, fontWeight: 700, textDecoration: 'none', display: 'block', marginBottom: 6 }}>
