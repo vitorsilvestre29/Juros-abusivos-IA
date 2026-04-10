@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { confirmMockPayment, createPayment, getPaymentStatus } from '../lib/api'
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import { createPayment, getPaymentStatus, confirmMockPayment } from '../lib/api'
 
 const MOCK_MODE = import.meta.env.VITE_MOCK_MODE === 'true'
 
@@ -15,112 +15,129 @@ export default function Payment() {
 
   useEffect(() => {
     createPayment(analysisId)
-      .then((res) => {
-        setPayment(res.data)
-        setLoading(false)
-      })
-      .catch(() => {
-        setError('Erro ao gerar pagamento.')
-        setLoading(false)
-      })
+      .then(r => { setPayment(r.data); setLoading(false) })
+      .catch(() => { setError('Erro ao gerar pagamento.'); setLoading(false) })
   }, [analysisId])
 
   useEffect(() => {
     if (!payment) return
-
     const interval = setInterval(async () => {
       try {
-        const res = await getPaymentStatus(payment.payment_id)
-        if (res.data.status === 'paid') {
+        const r = await getPaymentStatus(payment.payment_id)
+        if (r.data.status === 'paid') {
           clearInterval(interval)
-          nav(`/laudo/${analysisId}`, { replace: true })
+          nav('/laudo/' + analysisId, { replace: true })
         }
-      } catch (_err) {}
+      } catch (e) {}
     }, 4000)
-
     return () => clearInterval(interval)
-  }, [payment, analysisId, nav])
+  }, [payment])
 
   function copyCode() {
-    if (!payment?.pix_code) return
-    navigator.clipboard.writeText(payment.pix_code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2500)
+    if (payment?.pix_code) {
+      navigator.clipboard.writeText(payment.pix_code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 3000)
+    }
   }
 
   async function mockConfirm() {
-    if (!payment) return
     setConfirming(true)
     try {
       await confirmMockPayment(payment.payment_id)
-      nav(`/laudo/${analysisId}`, { replace: true })
-    } catch (_err) {
-      setError('Erro ao confirmar pagamento em modo de teste.')
+      nav('/laudo/' + analysisId, { replace: true })
+    } catch (e) {
+      setError('Erro ao confirmar pagamento mock.')
     } finally {
       setConfirming(false)
     }
   }
 
   return (
-    <div className="site-shell">
-      <header className="top-nav">
-        <div className="container-app h-16 flex items-center justify-between">
-          <Link to="/app" className="text-sm text-[#d3dce8]">Voltar ao painel</Link>
-          <div className="font-['Playfair_Display'] text-2xl font-bold text-[#c9952a]">Pagamento PIX</div>
-          <div />
+    <div style={{ minHeight: '100vh', background: '#F3F8FF' }}>
+      <nav style={{ background: '#10233F', borderBottom: '1px solid #1F4E79' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Link to="/" style={{ fontFamily: "'Merriweather', serif", color: '#FF9F1C', fontSize: 20, fontWeight: 700, textDecoration: 'none' }}>
+            Juros Abusivos
+          </Link>
+          <Link to="/app" style={{ color: '#5E7085', textDecoration: 'none', fontSize: 14 }}>Minhas analises</Link>
         </div>
-      </header>
+      </nav>
 
-      <main className="container-app py-10 max-w-2xl">
-        {error ? <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+      <main style={{ maxWidth: 520, margin: '0 auto', padding: '56px 24px' }}>
+        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+          <h1 style={{ fontFamily: "'Merriweather', serif", fontSize: 32, fontWeight: 700, color: '#10233F', marginBottom: 8 }}>
+            Pagamento via PIX
+          </h1>
+          <p style={{ color: '#56677B', fontSize: 15 }}>Acesso imediato apos confirmacao</p>
+        </div>
 
-        {loading ? <div className="surface-card p-10 text-center muted">Gerando cobranca...</div> : null}
+        {error && (
+          <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, padding: '14px 18px', marginBottom: 24, color: '#7F1D1D', fontSize: 14 }}>
+            {error}
+          </div>
+        )}
 
-        {!loading && payment ? (
-          <section className="surface-card p-6 sm:p-8">
-            <div className="text-center border-b border-[#ece4d5] pb-6">
-              <div className="text-xs uppercase tracking-wider text-[#7e8a98]">Laudo tecnico completo</div>
-              <div className="mt-2 font-['Playfair_Display'] text-5xl font-bold text-[#0c1a2e]">
+        {loading && (
+          <div style={{ background: '#FFFFFF', border: '1px solid #D8E3F2', borderRadius: 20, padding: '48px', textAlign: 'center', color: '#7E8FA5' }}>
+            Gerando QR Code...
+          </div>
+        )}
+
+        {payment && !loading && (
+          <div style={{ background: '#FFFFFF', border: '1px solid #D8E3F2', borderRadius: 20, padding: '36px', boxShadow: '0 4px 24px rgba(12,26,46,0.06)' }}>
+
+            {/* Valor */}
+            <div style={{ textAlign: 'center', padding: '20px 0 28px', borderBottom: '1px solid #E4ECF8', marginBottom: 28 }}>
+              <p style={{ color: '#56677B', fontSize: 13, marginBottom: 4 }}>Laudo Tecnico Completo</p>
+              <p style={{ fontFamily: "'Merriweather', serif", fontSize: 42, fontWeight: 700, color: '#10233F' }}>
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payment.amount || 20)}
-              </div>
+              </p>
             </div>
 
-            {payment.qr_code_base64 ? (
-              <div className="mt-6 flex justify-center">
+            {/* QR Code */}
+            {payment.qr_code_base64 && (
+              <div style={{ textAlign: 'center', marginBottom: 24 }}>
                 <img
-                  src={`data:image/png;base64,${payment.qr_code_base64}`}
+                  src={'data:image/png;base64,' + payment.qr_code_base64}
                   alt="QR Code PIX"
-                  className="w-52 h-52 rounded-xl border border-[#ded6c7] bg-white p-2"
+                  style={{ width: 200, height: 200, border: '1px solid #D8E3F2', borderRadius: 12, padding: 8 }}
                 />
               </div>
-            ) : null}
+            )}
 
-            {payment.pix_code ? (
-              <div className="mt-6">
-                <label className="block mb-2 text-xs uppercase tracking-wide font-semibold text-[#7e8a98]">Pix copia e cola</label>
-                <div className="flex gap-2">
-                  <div className="flex-1 rounded-xl border border-[#ded6c7] bg-[#fbfaf6] px-3 py-3 text-xs text-[#334155] truncate">
+            {/* Codigo copia e cola */}
+            {payment.pix_code && (
+              <div style={{ marginBottom: 20 }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Codigo Pix copia e cola</p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ flex: 1, background: '#F3F8FF', border: '1px solid #D8E3F2', borderRadius: 10, padding: '10px 12px', fontSize: 12, color: '#56677B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {payment.pix_code}
                   </div>
-                  <button className="btn-primary px-4" type="button" onClick={copyCode}>
+                  <button onClick={copyCode} style={{ background: copied ? '#1A6B3C' : '#10233F', color: '#FFFFFF', border: 'none', borderRadius: 10, padding: '10px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: "'Manrope', sans-serif" }}>
                     {copied ? 'Copiado' : 'Copiar'}
                   </button>
                 </div>
               </div>
-            ) : null}
+            )}
 
-            <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
-              O laudo sera liberado automaticamente assim que o pagamento for confirmado.
+            <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 10, padding: '12px 16px', fontSize: 13, color: '#0C4A6E', marginBottom: 20 }}>
+              Apos o pagamento, o laudo sera liberado automaticamente em alguns segundos.
             </div>
 
-            {MOCK_MODE ? (
-              <button className="btn-accent w-full mt-4" onClick={mockConfirm} disabled={confirming}>
-                {confirming ? 'Confirmando...' : 'Simular pagamento (teste)'}
+            {MOCK_MODE && (
+              <button
+                onClick={mockConfirm}
+                disabled={confirming}
+                style={{ width: '100%', background: '#1A6B3C', color: '#FFFFFF', border: 'none', borderRadius: 10, padding: '12px', fontSize: 14, fontWeight: 700, cursor: confirming ? 'not-allowed' : 'pointer', fontFamily: "'Manrope', sans-serif" }}
+              >
+                {confirming ? 'Confirmando...' : 'Simular pagamento (modo teste)'}
               </button>
-            ) : null}
-          </section>
-        ) : null}
+            )}
+          </div>
+        )}
       </main>
     </div>
   )
 }
+

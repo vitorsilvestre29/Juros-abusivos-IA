@@ -1,52 +1,46 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { getLoanTypes, uploadContract } from '../lib/api'
+import { useState, useRef } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import { uploadContract, getLoanTypes } from '../lib/api'
+import { useEffect } from 'react'
 
 const LOAN_LABELS = {
-  credito_pessoal: 'Credito pessoal',
+  credito_pessoal: 'Credito Pessoal',
   consignado: 'Consignado',
-  financiamento_veiculo: 'Financiamento de veiculo',
-  financiamento_imovel: 'Financiamento de imovel',
-  cartao_credito: 'Cartao de credito',
-  cheque_especial: 'Cheque especial',
-  capital_giro: 'Capital de giro',
+  financiamento_veiculo: 'Financiamento de Veiculo',
+  financiamento_imovel: 'Financiamento de Imovel',
+  cartao_credito: 'Cartao de Credito',
+  cheque_especial: 'Cheque Especial',
+  capital_giro: 'Capital de Giro',
 }
 
 export default function UploadContract() {
   const nav = useNavigate()
-  const fileRef = useRef(null)
   const [loanTypes, setLoanTypes] = useState(Object.entries(LOAN_LABELS).map(([id, label]) => ({ id, label })))
   const [loanType, setLoanType] = useState('credito_pessoal')
   const [file, setFile] = useState(null)
-  const [dragging, setDragging] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [dragging, setDragging] = useState(false)
+  const fileRef = useRef()
 
   useEffect(() => {
-    getLoanTypes().then((r) => setLoanTypes(r.data || [])).catch(() => {})
+    getLoanTypes().then(r => setLoanTypes(r.data)).catch(() => {})
   }, [])
 
-  function handleFile(selectedFile) {
-    if (selectedFile && selectedFile.size > 20 * 1024 * 1024) {
-      setError('Arquivo muito grande. Limite de 20MB.')
-      return
-    }
-    setFile(selectedFile)
+  function handleFile(f) {
+    if (f && f.size > 20 * 1024 * 1024) { setError('Arquivo muito grande. Maximo 20MB.'); return }
+    setFile(f)
     setError('')
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!file) {
-      setError('Selecione um arquivo para continuar.')
-      return
-    }
-
+    if (!file) { setError('Selecione um arquivo.'); return }
     setLoading(true)
     setError('')
     try {
       const res = await uploadContract(file, loanType)
-      nav(`/analise/${res.data.contract_id}`)
+      nav('/analise/' + res.data.contract_id)
     } catch (err) {
       setError(err.response?.data?.detail || 'Erro ao enviar contrato. Tente novamente.')
     } finally {
@@ -55,87 +49,89 @@ export default function UploadContract() {
   }
 
   return (
-    <div className="site-shell">
-      <header className="top-nav">
-        <div className="container-app h-16 flex items-center justify-between">
-          <Link to="/" className="font-['Playfair_Display'] text-2xl font-bold text-[#c9952a]">Juros Abusivos IA</Link>
-          <Link to="/app" className="btn-secondary px-4 py-2 text-sm">Minhas analises</Link>
+    <div style={{ minHeight: '100vh', background: '#F3F8FF' }}>
+      <nav style={{ background: '#10233F', borderBottom: '1px solid #1F4E79' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Link to="/" style={{ fontFamily: "'Merriweather', serif", color: '#FF9F1C', fontSize: 20, fontWeight: 700, textDecoration: 'none' }}>
+            Juros Abusivos
+          </Link>
+          <Link to="/app" style={{ color: '#5E7085', textDecoration: 'none', fontSize: 14 }}>Minhas analises</Link>
         </div>
-      </header>
+      </nav>
 
-      <main className="container-app py-10 max-w-4xl">
-        <div className="mb-6">
-          <h1 className="section-title">Enviar contrato para analise</h1>
-          <p className="mt-2 muted">PDF, JPG, PNG ou WEBP. O arquivo sera processado em ambiente seguro.</p>
+      <main style={{ maxWidth: 680, margin: '0 auto', padding: '56px 24px' }}>
+        <div style={{ marginBottom: 40, textAlign: 'center' }}>
+          <h1 style={{ fontFamily: "'Merriweather', serif", fontSize: 34, fontWeight: 700, color: '#10233F', marginBottom: 10 }}>
+            Enviar contrato para analise
+          </h1>
+          <p style={{ color: '#56677B', fontSize: 16 }}>PDF ou imagem do contrato de emprestimo ou financiamento</p>
         </div>
 
-        {error ? <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+        {error && (
+          <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, padding: '14px 18px', marginBottom: 24, color: '#7F1D1D', fontSize: 14 }}>
+            {error}
+          </div>
+        )}
 
-        <form className="space-y-5" onSubmit={handleSubmit}>
-          <section
-            className={`surface-card p-6 sm:p-8 text-center cursor-pointer transition-all ${dragging ? 'ring-2 ring-[#c9952a]' : ''}`}
-            onClick={() => fileRef.current?.click()}
-            onDragOver={(e) => {
-              e.preventDefault()
-              setDragging(true)
-            }}
+        <form onSubmit={handleSubmit}>
+          {/* Upload area */}
+          <div
+            onClick={() => fileRef.current.click()}
+            onDragOver={e => { e.preventDefault(); setDragging(true) }}
             onDragLeave={() => setDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault()
-              setDragging(false)
-              handleFile(e.dataTransfer.files?.[0])
+            onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]) }}
+            style={{
+              border: dragging ? '2px dashed #FF9F1C' : file ? '2px dashed #1A6B3C' : '2px dashed #D1CBC0',
+              borderRadius: 16, padding: '48px 32px', textAlign: 'center', cursor: 'pointer',
+              background: dragging ? '#FFF4E5' : file ? '#F0FDF4' : '#FFFFFF',
+              transition: 'all 0.2s', marginBottom: 32
             }}
           >
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".pdf,image/*"
-              className="hidden"
-              onChange={(e) => handleFile(e.target.files?.[0])}
-            />
-
+            <input ref={fileRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
             {file ? (
               <>
-                <div className="text-4xl">✅</div>
-                <h2 className="mt-3 text-xl font-bold text-[#0c1a2e]">{file.name}</h2>
-                <p className="mt-1 text-sm muted">{(file.size / 1024 / 1024).toFixed(2)} MB - clique para trocar</p>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+                <p style={{ fontWeight: 700, color: '#1A6B3C', fontSize: 16, marginBottom: 4 }}>{file.name}</p>
+                <p style={{ color: '#56677B', fontSize: 13 }}>{(file.size / 1024 / 1024).toFixed(2)} MB — Clique para trocar</p>
               </>
             ) : (
               <>
-                <div className="text-4xl">📎</div>
-                <h2 className="mt-3 text-xl font-bold text-[#0c1a2e]">Arraste o arquivo aqui</h2>
-                <p className="mt-1 text-sm muted">ou clique para selecionar no dispositivo</p>
-                <p className="mt-2 text-xs text-[#7e8a98]">Limite de 20MB por envio</p>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>📎</div>
+                <p style={{ fontWeight: 700, color: '#10233F', fontSize: 16, marginBottom: 6 }}>Arraste o arquivo ou clique para selecionar</p>
+                <p style={{ color: '#7E8FA5', fontSize: 13 }}>PDF, JPG ou PNG — Maximo 20MB</p>
               </>
             )}
-          </section>
+          </div>
 
-          <section className="surface-card p-6">
-            <label className="block text-sm font-semibold text-[#273142] mb-3">Tipo da operacao</label>
-            <div className="grid sm:grid-cols-2 gap-2">
-              {loanTypes.map((item) => (
-                <label key={item.id} className={`rounded-xl border px-3 py-2.5 text-sm cursor-pointer transition-all ${loanType === item.id ? 'border-[#c9952a] bg-[#fff8e8] text-[#7d5a12] font-semibold' : 'border-[#ddd5c7] bg-white text-[#374151]'}`}>
-                  <input
-                    type="radio"
-                    className="mr-2"
-                    checked={loanType === item.id}
-                    onChange={() => setLoanType(item.id)}
-                  />
-                  {item.label}
+          {/* Tipo de contrato */}
+          <div style={{ marginBottom: 36 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 14, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Tipo de contrato
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 10 }}>
+              {loanTypes.map(lt => (
+                <label key={lt.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', border: loanType === lt.id ? '2px solid #FF9F1C' : '1.5px solid #D8E3F2', borderRadius: 10, cursor: 'pointer', background: loanType === lt.id ? '#FFF4E5' : '#FFFFFF', transition: 'all 0.15s' }}>
+                  <input type="radio" name="loan_type" value={lt.id} checked={loanType === lt.id} onChange={() => setLoanType(lt.id)} style={{ accentColor: '#FF9F1C' }} />
+                  <span style={{ fontSize: 13, color: loanType === lt.id ? '#8A4C00' : '#374151', fontWeight: loanType === lt.id ? 600 : 400 }}>{lt.label}</span>
                 </label>
               ))}
             </div>
-          </section>
+          </div>
 
-          <button className="btn-primary w-full" type="submit" disabled={loading || !file}>
-            {loading ? 'Enviando para analise...' : 'Iniciar analise tecnica'}
+          <button
+            type="submit"
+            disabled={loading || !file}
+            style={{ width: '100%', padding: '15px', background: (loading || !file) ? '#CBD5E1' : '#10233F', color: '#FFFFFF', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: (loading || !file) ? 'not-allowed' : 'pointer', fontFamily: "'Manrope', sans-serif" }}
+          >
+            {loading ? 'Enviando para analise...' : 'Analisar contrato'}
           </button>
 
-          <div className="legal-box">
-            Este envio gera analise tecnica automatizada. O resultado nao substitui parecer juridico profissional.
-          </div>
+          <p style={{ textAlign: 'center', fontSize: 12, color: '#7E8FA5', marginTop: 16, lineHeight: 1.6 }}>
+            Seus documentos sao protegidos conforme a LGPD. Analise tecnica — nao assessoria juridica.
+          </p>
         </form>
       </main>
     </div>
   )
 }
+
