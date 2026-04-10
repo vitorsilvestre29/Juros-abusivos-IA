@@ -20,7 +20,7 @@ export default function Payment() {
   }, [analysisId])
 
   useEffect(() => {
-    if (\!payment) return
+    if (!payment) return
     const interval = setInterval(async () => {
       try {
         const r = await getPaymentStatus(payment.payment_id)
@@ -84,7 +84,7 @@ export default function Payment() {
           </div>
         )}
 
-        {payment && \!loading && (
+        {payment && !loading && (
           <div style={{ background: '#FFFFFF', border: '1px solid #E5E0D8', borderRadius: 20, padding: '36px', boxShadow: '0 4px 24px rgba(12,26,46,0.06)' }}>
 
             {/* Valor */}

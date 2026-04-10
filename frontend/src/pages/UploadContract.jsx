@@ -35,7 +35,7 @@ export default function UploadContract() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (\!file) { setError('Selecione um arquivo.'); return }
+    if (!file) { setError('Selecione um arquivo.'); return }
     setLoading(true)
     setError('')
     try {
@@ -120,8 +120,8 @@ export default function UploadContract() {
 
           <button
             type="submit"
-            disabled={loading || \!file}
-            style={{ width: '100%', padding: '15px', background: (loading || \!file) ? '#CBD5E1' : '#0C1A2E', color: '#FFFFFF', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: (loading || \!file) ? 'not-allowed' : 'pointer', fontFamily: "'Outfit', sans-serif" }}
+            disabled={loading || !file}
+            style={{ width: '100%', padding: '15px', background: (loading || !file) ? '#CBD5E1' : '#0C1A2E', color: '#FFFFFF', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: (loading || !file) ? 'not-allowed' : 'pointer', fontFamily: "'Outfit', sans-serif" }}
           >
             {loading ? 'Enviando para analise...' : 'Analisar contrato'}
           </button>

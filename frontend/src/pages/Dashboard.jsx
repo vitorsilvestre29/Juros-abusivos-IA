@@ -1,22 +1,18 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { getHistory } from '../lib/api'
 
-const STATUS_LABEL = {
-  pending: { text: 'Aguardando', color: 'bg-yellow-100 text-yellow-800' },
-  processing: { text: 'Analisando...', color: 'bg-blue-100 text-blue-800' },
-  completed: { text: 'Concluído', color: 'bg-green-100 text-green-800' },
-  failed: { text: 'Falhou', color: 'bg-red-100 text-red-800' },
-}
+const STATUS_LABEL = { pending: 'Aguardando', processing: 'Analisando', completed: 'Concluido', failed: 'Erro' }
+const STATUS_COLOR = { pending: '#C9952A', processing: '#2563EB', completed: '#1A6B3C', failed: '#8B1A1A' }
+const STATUS_BG    = { pending: '#FEF9EC', processing: '#EFF6FF', completed: '#F0FDF4', failed: '#FEF2F2' }
 
 function fmt(val) {
-  if (!val && val !== 0) return '—'
+  if (val === null || val === undefined) return '--'
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 }
 
 export default function Dashboard() {
   const nav = useNavigate()
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -28,101 +24,99 @@ export default function Dashboard() {
   }, [])
 
   function logout() {
-    localStorage.clear()
-    nav('/login')
+    localStorage.removeItem('token')
+    nav('/')
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div style={{ minHeight: '100vh', background: '#F9F7F2' }}>
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="text-blue-900 font-bold text-lg">⚖️ Juros Abusivos IA</Link>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500 hidden sm:block">Olá, {user.name?.split(' ')[0] || 'usuário'}</span>
-            <button onClick={logout} className="text-sm text-gray-500 hover:text-red-600 transition">Sair</button>
+      <nav style={{ background: '#0C1A2E', borderBottom: '1px solid #1A3456' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Link to="/" style={{ fontFamily: "'Playfair Display', serif", color: '#C9952A', fontSize: 20, fontWeight: 700, textDecoration: 'none' }}>
+            Juros Abusivos
+          </Link>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <Link to="/upload" style={{ background: '#C9952A', color: '#0C1A2E', textDecoration: 'none', fontSize: 14, fontWeight: 700, padding: '8px 18px', borderRadius: 8 }}>
+              + Nova analise
+            </Link>
+            <button onClick={logout} style={{ background: 'transparent', border: '1px solid #334155', color: '#94A3B8', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer', fontFamily: "'Outfit', sans-serif" }}>
+              Sair
+            </button>
           </div>
         </div>
-      </header>
+      </nav>
 
-      <main className="max-w-5xl mx-auto px-4 py-8">
-        {/* CTA nova análise */}
-        <div className="bg-blue-900 rounded-2xl p-6 text-white mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold mb-1">Analisar novo contrato</h2>
-            <p className="text-blue-200 text-sm">Envie um contrato de empréstimo ou financiamento e receba o resultado em minutos.</p>
-          </div>
-          <button
-            onClick={() => nav('/upload')}
-            className="bg-white text-blue-900 font-bold px-6 py-3 rounded-xl hover:bg-blue-50 transition whitespace-nowrap"
-          >
-            + Nova análise
-          </button>
+      <main style={{ maxWidth: 900, margin: '0 auto', padding: '48px 24px' }}>
+        <div style={{ marginBottom: 40 }}>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 32, fontWeight: 700, color: '#0C1A2E', marginBottom: 6 }}>Minhas analises</h1>
+          <p style={{ color: '#6B7280', fontSize: 15 }}>Historico de contratos enviados para analise</p>
         </div>
 
-        {/* Histórico */}
-        <div>
-          <h3 className="text-gray-800 font-semibold text-lg mb-4">Suas análises</h3>
+        {loading && (
+          <div style={{ textAlign: 'center', padding: '80px 0', color: '#9CA3AF' }}>Carregando...</div>
+        )}
 
-          {loading && (
-            <div className="text-center py-16 text-gray-400">Carregando...</div>
-          )}
+        {!loading && history.length === 0 && (
+          <div style={{ background: '#FFFFFF', border: '1px solid #E5E0D8', borderRadius: 20, padding: '64px 32px', textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>📄</div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, color: '#0C1A2E', marginBottom: 10 }}>Nenhuma analise ainda</h2>
+            <p style={{ color: '#6B7280', fontSize: 15, marginBottom: 28 }}>Envie seu primeiro contrato para comecar</p>
+            <Link to="/upload" style={{ background: '#0C1A2E', color: '#FFFFFF', textDecoration: 'none', fontWeight: 700, fontSize: 15, padding: '12px 28px', borderRadius: 10 }}>
+              Enviar contrato
+            </Link>
+          </div>
+        )}
 
-          {!loading && history.length === 0 && (
-            <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
-              <p className="text-4xl mb-3">📄</p>
-              <p className="text-gray-500 font-medium">Nenhuma análise ainda</p>
-              <p className="text-gray-400 text-sm mt-1">Clique em "Nova análise" para começar</p>
-            </div>
-          )}
-
-          {!loading && history.length > 0 && (
-            <div className="space-y-3">
-              {history.map(item => {
-                const st = STATUS_LABEL[item.analysis_status] || STATUS_LABEL.pending
-                return (
-                  <div
-                    key={item.contract_id}
-                    className="bg-white rounded-xl border border-gray-200 p-4 hover:border-blue-300 transition cursor-pointer"
-                    onClick={() => {
-                      if (item.analysis_id) {
-                        if (item.paid) nav(`/laudo/${item.analysis_id}`)
-                        else if (item.analysis_status === 'completed') nav(`/analise/${item.contract_id}`)
-                        else nav(`/analise/${item.contract_id}`)
-                      }
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-800 truncate">{item.filename}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{item.loan_type_label} • {new Date(item.created_at).toLocaleDateString('pt-BR')}</p>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {item.paid && (
-                          <span className="bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded-full">✅ Pago</span>
-                        )}
-                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${st.color}`}>{st.text}</span>
-                      </div>
-                    </div>
-                    {item.analysis_status === 'completed' && item.has_issues && (
-                      <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-4 text-sm">
-                        <span className="text-red-600 font-semibold">⚠️ Irregularidades encontradas</span>
-                        {item.impact_brl > 0 && (
-                          <span className="text-gray-500">Impacto estimado: <strong className="text-red-600">{fmt(item.impact_brl)}</strong></span>
-                        )}
-                      </div>
-                    )}
-                    {item.analysis_status === 'completed' && !item.has_issues && (
-                      <div className="mt-3 pt-3 border-t border-gray-100 text-sm text-green-600 font-medium">
-                        ✅ Nenhuma irregularidade encontrada
-                      </div>
-                    )}
+        {!loading && history.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {history.map(item => (
+              <div key={item.contract_id} style={{ background: '#FFFFFF', border: '1px solid #E5E0D8', borderRadius: 16, padding: '24px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: '#6B7280' }}>{item.loan_type_label}</span>
+                    <span style={{
+                      background: STATUS_BG[item.analysis_status] || '#F3F4F6',
+                      color: STATUS_COLOR[item.analysis_status] || '#6B7280',
+                      fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 100,
+                      textTransform: 'uppercase', letterSpacing: 0.5
+                    }}>
+                      {STATUS_LABEL[item.analysis_status] || item.analysis_status}
+                    </span>
+                    {item.paid && <span style={{ background: '#F0FDF4', color: '#1A6B3C', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 100 }}>PAGO</span>}
                   </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+                  <p style={{ fontWeight: 600, color: '#0C1A2E', fontSize: 15, marginBottom: 4 }}>{item.filename}</p>
+                  <p style={{ color: '#9CA3AF', fontSize: 12 }}>{new Date(item.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                </div>
+
+                {item.impact_brl > 0 && (
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 2 }}>Impacto estimado</p>
+                    <p style={{ fontSize: 22, fontWeight: 700, color: '#8B1A1A', fontFamily: "'Playfair Display', serif" }}>{fmt(item.impact_brl)}</p>
+                  </div>
+                )}
+
+                <div>
+                  {item.analysis_status === 'completed' && !item.paid && (
+                    <button onClick={() => nav('/analise/' + item.contract_id)} style={{ background: '#0C1A2E', color: '#FFFFFF', border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: "'Outfit', sans-serif" }}>
+                      Ver resultado
+                    </button>
+                  )}
+                  {item.paid && item.analysis_id && (
+                    <button onClick={() => nav('/laudo/' + item.analysis_id)} style={{ background: '#1A6B3C', color: '#FFFFFF', border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: "'Outfit', sans-serif" }}>
+                      Ver laudo
+                    </button>
+                  )}
+                  {(item.analysis_status === 'pending' || item.analysis_status === 'processing') && (
+                    <button onClick={() => nav('/analise/' + item.contract_id)} style={{ background: '#F9F7F2', color: '#6B7280', border: '1px solid #E5E0D8', borderRadius: 10, padding: '10px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: "'Outfit', sans-serif" }}>
+                      Acompanhar
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   )
