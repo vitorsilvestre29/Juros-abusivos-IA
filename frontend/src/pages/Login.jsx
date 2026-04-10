@@ -1,81 +1,113 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { login } from '../lib/api'
+import { Link, useNavigate } from 'react-router-dom'
+import { login as loginApi } from '../lib/api'
 
 export default function Login() {
   const nav = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   async function handleSubmit(e) {
     e.preventDefault()
-    setError('')
     setLoading(true)
+    setError('')
     try {
-      const res = await login(email, password)
+      const res = await loginApi(email, password)
       localStorage.setItem('token', res.data.access_token)
-      localStorage.setItem('user', JSON.stringify({ name: res.data.user_name, email: res.data.user_email }))
       nav('/app')
-    } catch {
-      setError('Email ou senha incorretos.')
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Email ou senha incorretos.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 text-blue-900">
-            <span className="text-2xl font-bold">⚖️ Juros Abusivos IA</span>
-          </Link>
-          <p className="text-gray-500 mt-2 text-sm">Analise tecnica especializada de contratos</p>
-        </div>
+    <div style={{ minHeight: '100vh', background: '#F9F7F2', display: 'flex' }}>
 
-        <div className="bg-white rounded-2xl shadow-md p-8">
-          <h1 className="text-xl font-bold text-gray-800 mb-6">Entrar na sua conta</h1>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input
-                type="email" required value={email} onChange={e => setEmail(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="seu@email.com"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
-              <input
-                type="password" required value={password} onChange={e => setPassword(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="••••••••"
-              />
-            </div>
-            <button
-              type="submit" disabled={loading}
-              className="w-full bg-blue-900 hover:bg-blue-800 text-white font-semibold py-2.5 rounded-lg transition disabled:opacity-60"
-            >
-              {loading ? 'Entrando...' : 'Entrar'}
-            </button>
-          </form>
-
-          <p className="text-center text-sm text-gray-500 mt-6">
-            Não tem conta?{' '}
-            <Link to="/cadastro" className="text-blue-700 font-medium hover:underline">
-              Cadastre-se grátis
-            </Link>
+      {/* Lado esquerdo - decorativo */}
+      <div style={{ flex: 1, background: 'linear-gradient(160deg, #0C1A2E, #1A3456)', display: 'none', alignItems: 'center', justifyContent: 'center', padding: 60, flexDirection: 'column' }} className="hidden md:flex">
+        <div style={{ maxWidth: 380 }}>
+          <div style={{ fontFamily: "'Playfair Display', serif", color: '#C9952A', fontSize: 28, fontWeight: 700, marginBottom: 40 }}>
+            Juros Abusivos
+          </div>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", color: '#FFFFFF', fontSize: 36, fontWeight: 700, lineHeight: 1.25, marginBottom: 20 }}>
+            Analise tecnica especializada de contratos
+          </h2>
+          <p style={{ color: '#64748B', fontSize: 15, lineHeight: 1.7 }}>
+            Identifique irregularidades e descubra se voce esta pagando a mais no seu emprestimo ou financiamento.
           </p>
+          <div style={{ marginTop: 48, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 32 }}>
+            {['Comparacao com taxas do Banco Central', 'Laudo tecnico em PDF', 'Baseado em jurisprudencia do STJ'].map((t, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                <div style={{ width: 6, height: 6, background: '#C9952A', borderRadius: '50%' }} />
+                <span style={{ color: '#94A3B8', fontSize: 14 }}>{t}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Lado direito - form */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
+        <div style={{ width: '100%', maxWidth: 400 }}>
+          <div style={{ textAlign: 'center', marginBottom: 40 }}>
+            <Link to="/" style={{ fontFamily: "'Playfair Display', serif", color: '#C9952A', fontSize: 22, fontWeight: 700, textDecoration: 'none', display: 'block', marginBottom: 8 }}>
+              Juros Abusivos
+            </Link>
+            <p style={{ color: '#6B7280', fontSize: 14 }}>Analise tecnica de contratos de credito</p>
+          </div>
+
+          <div style={{ background: '#FFFFFF', border: '1px solid #E5E0D8', borderRadius: 20, padding: '40px 36px', boxShadow: '0 4px 24px rgba(12,26,46,0.06)' }}>
+            <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700, color: '#0C1A2E', marginBottom: 28, textAlign: 'center' }}>
+              Entrar na conta
+            </h1>
+
+            {error && (
+              <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '12px 16px', marginBottom: 20, color: '#7F1D1D', fontSize: 14 }}>
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit}>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                  placeholder="seu@email.com"
+                  style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #E5E0D8', borderRadius: 10, fontSize: 15, outline: 'none', fontFamily: "'Outfit', sans-serif", background: '#FAFAF8', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ marginBottom: 28 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Senha</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  placeholder="Sua senha"
+                  style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #E5E0D8', borderRadius: 10, fontSize: 15, outline: 'none', fontFamily: "'Outfit', sans-serif", background: '#FAFAF8', boxSizing: 'border-box' }}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{ width: '100%', padding: '13px', background: loading ? '#94A3B8' : '#0C1A2E', color: '#FFFFFF', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'Outfit', sans-serif" }}
+              >
+                {loading ? 'Entrando...' : 'Entrar'}
+              </button>
+            </form>
+
+            <p style={{ textAlign: 'center', fontSize: 14, color: '#6B7280', marginTop: 24 }}>
+              Nao tem conta?{' '}
+              <Link to="/cadastro" style={{ color: '#C9952A', fontWeight: 600, textDecoration: 'none' }}>Criar conta gratuita</Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -1,27 +1,24 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { register, login } from '../lib/api'
+import { Link, useNavigate } from 'react-router-dom'
+import { register as registerApi, login as loginApi } from '../lib/api'
 
 export default function Register() {
   const nav = useNavigate()
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
-  const [error, setError] = useState('')
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-
-  function set(field) { return e => setForm(f => ({ ...f, [field]: e.target.value })) }
+  const [error, setError] = useState('')
 
   async function handleSubmit(e) {
     e.preventDefault()
-    setError('')
-    if (form.password.length < 6) { setError('A senha deve ter no mínimo 6 caracteres.'); return }
     setLoading(true)
+    setError('')
     try {
-      await register(form.name, form.email, form.password)
-      // Faz login automaticamente após cadastro
-      const res = await login(form.email, form.password)
+      await registerApi(name, email, password)
+      const res = await loginApi(email, password)
       localStorage.setItem('token', res.data.access_token)
-      localStorage.setItem('user', JSON.stringify({ name: res.data.user_name, email: res.data.user_email }))
-      nav('/app')
+      nav('/upload')
     } catch (err) {
       setError(err.response?.data?.detail || 'Erro ao criar conta. Tente novamente.')
     } finally {
@@ -30,65 +27,62 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 text-blue-900">
-            <span className="text-2xl font-bold">⚖️ Juros Abusivos IA</span>
+    <div style={{ minHeight: '100vh', background: '#F9F7F2', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
+      <div style={{ width: '100%', maxWidth: 460 }}>
+        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+          <Link to="/" style={{ fontFamily: "'Playfair Display', serif", color: '#C9952A', fontSize: 24, fontWeight: 700, textDecoration: 'none', display: 'block', marginBottom: 6 }}>
+            Juros Abusivos
           </Link>
-          <p className="text-gray-500 mt-2 text-sm">Crie sua conta para começar a análise</p>
+          <p style={{ color: '#6B7280', fontSize: 14 }}>Analise tecnica de contratos de credito</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-md p-8">
-          <h1 className="text-xl font-bold text-gray-800 mb-2">Criar conta gratuita</h1>
-          <p className="text-sm text-gray-500 mb-6">Seu histórico de análises ficará salvo aqui.</p>
+        <div style={{ background: '#FFFFFF', border: '1px solid #E5E0D8', borderRadius: 20, padding: '40px 36px', boxShadow: '0 4px 24px rgba(12,26,46,0.06)' }}>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700, color: '#0C1A2E', marginBottom: 6, textAlign: 'center' }}>
+            Criar conta gratuita
+          </h1>
+          <p style={{ color: '#6B7280', fontSize: 14, textAlign: 'center', marginBottom: 28 }}>Seu historico de analises ficara salvo aqui</p>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm">
+            <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '12px 16px', marginBottom: 20, color: '#7F1D1D', fontSize: 14 }}>
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nome completo</label>
-              <input
-                type="text" required value={form.name} onChange={set('name')}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Seu nome"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input
-                type="email" required value={form.email} onChange={set('email')}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="seu@email.com"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
-              <input
-                type="password" required value={form.password} onChange={set('password')}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Mínimo 6 caracteres"
-              />
-            </div>
+          <form onSubmit={handleSubmit}>
+            {[
+              { label: 'Nome completo', type: 'text', val: name, set: setName, ph: 'Seu nome completo' },
+              { label: 'Email', type: 'email', val: email, set: setEmail, ph: 'seu@email.com' },
+              { label: 'Senha', type: 'password', val: password, set: setPassword, ph: 'Minimo 6 caracteres' },
+            ].map(f => (
+              <div key={f.label} style={{ marginBottom: 18 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>{f.label}</label>
+                <input
+                  type={f.type}
+                  value={f.val}
+                  onChange={e => f.set(e.target.value)}
+                  required
+                  placeholder={f.ph}
+                  style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #E5E0D8', borderRadius: 10, fontSize: 15, outline: 'none', fontFamily: "'Outfit', sans-serif", background: '#FAFAF8', boxSizing: 'border-box' }}
+                />
+              </div>
+            ))}
 
             <button
-              type="submit" disabled={loading}
-              className="w-full bg-blue-900 hover:bg-blue-800 text-white font-semibold py-2.5 rounded-lg transition disabled:opacity-60"
+              type="submit"
+              disabled={loading}
+              style={{ width: '100%', padding: '13px', background: loading ? '#94A3B8' : '#0C1A2E', color: '#FFFFFF', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'Outfit', sans-serif", marginTop: 8 }}
             >
               {loading ? 'Criando conta...' : 'Criar conta e continuar'}
             </button>
           </form>
 
-          <p className="text-center text-xs text-gray-400 mt-4">
-            Ao criar sua conta, você concorda com os termos de uso e a política de privacidade (LGPD).
+          <p style={{ textAlign: 'center', fontSize: 12, color: '#9CA3AF', marginTop: 20, lineHeight: 1.6 }}>
+            Ao criar sua conta, voce concorda com os termos de uso e a politica de privacidade (LGPD).
           </p>
-          <p className="text-center text-sm text-gray-500 mt-4">
-            Já tem conta?{' '}
-            <Link to="/login" className="text-blue-700 font-medium hover:underline">Entrar</Link>
+
+          <p style={{ textAlign: 'center', fontSize: 14, color: '#6B7280', marginTop: 20 }}>
+            Ja tem conta?{' '}
+            <Link to="/login" style={{ color: '#C9952A', fontWeight: 600, textDecoration: 'none' }}>Entrar</Link>
           </p>
         </div>
       </div>

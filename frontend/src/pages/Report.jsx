@@ -4,15 +4,23 @@ import { getFullReport, getReportDownloadUrl } from '../lib/api'
 
 const WHATSAPP = import.meta.env.VITE_WHATSAPP_NUMBER || '5511999999999'
 
-function fmt(val) {
-  if (!val && val !== 0) return '—'
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+function Severity({ val }) {
+  const map = {
+    alta: { bg: '#FEF2F2', color: '#7F1D1D', label: 'ALTA' },
+    media: { bg: '#FFFBEB', color: '#78350F', label: 'MEDIA' },
+    baixa: { bg: '#F0FDF4', color: '#14532D', label: 'BAIXA' },
+  }
+  const s = map[val] || { bg: '#F3F4F6', color: '#374151', label: val }
+  return (
+    <span style={{ background: s.bg, color: s.color, fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 100, letterSpacing: 1, textTransform: 'uppercase' }}>
+      {s.label}
+    </span>
+  )
 }
 
-function GravidadeBadge({ g }) {
-  return g === 'alta'
-    ? <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">🔴 ALTA</span>
-    : <span className="bg-yellow-100 text-yellow-700 text-xs font-bold px-2 py-0.5 rounded-full">🟡 MÉDIA</span>
+function fmt(val) {
+  if (val === null || val === undefined) return '--'
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 }
 
 export default function Report() {
@@ -23,178 +31,159 @@ export default function Report() {
 
   useEffect(() => {
     getFullReport(analysisId)
-      .then(r => setReport(r.data))
-      .catch(err => setError(err.response?.data?.detail || 'Erro ao carregar laudo'))
-      .finally(() => setLoading(false))
+      .then(r => { setReport(r.data); setLoading(false) })
+      .catch(err => {
+        setError(err.response?.status === 402 ? 'Pagamento necessario para acessar o laudo.' : 'Erro ao carregar laudo.')
+        setLoading(false)
+      })
   }, [analysisId])
 
+  const waMsg = 'Ola%21%20Recebi%20meu%20laudo%20tecnico%20(analise%20n%C2%BA%20' + analysisId + ')%20e%20gostaria%20de%20saber%20mais%20sobre%20a%20acao%20revisional.'
+  const waUrl = 'https://wa.me/' + WHATSAPP + '?text=' + waMsg
+
   if (loading) return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <p className="text-gray-400">Carregando laudo...</p>
+    <div style={{ minHeight: '100vh', background: '#F9F7F2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF' }}>
+      Carregando laudo...
     </div>
   )
 
   if (error) return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="text-center">
-        <p className="text-4xl mb-3">⚠️</p>
-        <p className="text-red-600 font-medium mb-4">{error}</p>
-        <Link to="/app" className="text-blue-700 text-sm hover:underline">Voltar ao início</Link>
+    <div style={{ minHeight: '100vh', background: '#F9F7F2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ textAlign: 'center', maxWidth: 400 }}>
+        <p style={{ fontSize: 36, marginBottom: 16 }}>🔒</p>
+        <h2 style={{ fontFamily: "'Playfair Display', serif", color: '#0C1A2E', marginBottom: 8 }}>Acesso restrito</h2>
+        <p style={{ color: '#6B7280', marginBottom: 24 }}>{error}</p>
+        <Link to="/app" style={{ background: '#0C1A2E', color: '#FFF', textDecoration: 'none', padding: '12px 28px', borderRadius: 10, fontWeight: 700 }}>
+          Voltar para analises
+        </Link>
       </div>
     </div>
   )
 
-  const irregularidades = report?.irregularidades || []
-  const waMsg = `Olá! Recebi meu laudo técnico (análise nº ${analysisId}) e gostaria de saber mais sobre a ação revisional.`
-  const waUrl = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(waMsg)}`
+  const irregularidades = report.irregularidades || []
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Link to="/app" className="text-gray-400 hover:text-gray-600 text-sm">← Minhas análises</Link>
-            <span className="text-gray-300 hidden sm:block">|</span>
-            <span className="text-blue-900 font-bold hidden sm:block">⚖️ Juros Abusivos IA</span>
+    <div style={{ minHeight: '100vh', background: '#F9F7F2' }}>
+      {/* Header */}
+      <nav style={{ background: '#0C1A2E', borderBottom: '1px solid #1A3456', position: 'sticky', top: 0, zIndex: 10 }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Link to="/" style={{ fontFamily: "'Playfair Display', serif", color: '#C9952A', fontSize: 20, fontWeight: 700, textDecoration: 'none' }}>
+            Juros Abusivos
+          </Link>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <a href={getReportDownloadUrl(analysisId)} target="_blank" rel="noreferrer"
+              style={{ background: '#C9952A', color: '#0C1A2E', textDecoration: 'none', fontSize: 13, fontWeight: 700, padding: '8px 18px', borderRadius: 8 }}>
+              Baixar PDF
+            </a>
+            <Link to="/app" style={{ background: 'transparent', border: '1px solid #334155', color: '#94A3B8', textDecoration: 'none', fontSize: 13, fontWeight: 600, padding: '8px 14px', borderRadius: 8 }}>
+              Minhas analises
+            </Link>
           </div>
-          <a
-            href={getReportDownloadUrl(analysisId)}
-            target="_blank" rel="noreferrer"
-            className="bg-blue-900 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-blue-800 transition"
-          >
-            ⬇️ Baixar PDF
-          </a>
         </div>
-      </header>
+      </nav>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-        {/* Título */}
-        <div className="bg-blue-900 rounded-2xl p-6 text-white">
-          <h1 className="text-xl font-bold mb-1">Laudo Técnico de Análise de Contrato</h1>
-          <p className="text-blue-200 text-sm">{report.loan_type_label} • Emitido em {new Date(report.completed_at || Date.now()).toLocaleDateString('pt-BR')}</p>
-        </div>
+      <main style={{ maxWidth: 820, margin: '0 auto', padding: '48px 24px' }}>
 
-        {/* Aviso legal */}
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800">
-          <p className="font-semibold mb-1">⚖️ Aviso importante</p>
-          <p>Este laudo é de natureza <strong>técnico-matemática</strong>. A interpretação jurídica e o ajuizamento de ação revisional devem ser realizados por advogado habilitado, conforme o Estatuto da OAB (Lei 8.906/94).</p>
-        </div>
+        {/* Cabecalho do laudo */}
+        <div style={{ background: '#0C1A2E', borderRadius: 20, padding: '40px', marginBottom: 32, position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: 0, right: 0, width: 200, height: 200, background: 'radial-gradient(circle, rgba(201,149,42,0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
+            <div>
+              <p style={{ color: '#C9952A', fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 }}>Laudo Tecnico de Analise</p>
+              <h1 style={{ fontFamily: "'Playfair Display', serif", color: '#FFFFFF', fontSize: 28, fontWeight: 700, marginBottom: 6 }}>
+                {report.banco_credor || 'Instituicao Financeira'}
+              </h1>
+              <p style={{ color: '#64748B', fontSize: 14 }}>{report.tipo_contrato}</p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ color: '#64748B', fontSize: 12, marginBottom: 4 }}>Analise n.</p>
+              <p style={{ color: '#C9952A', fontSize: 20, fontWeight: 700, fontFamily: "'Playfair Display', serif" }}>#{analysisId}</p>
+            </div>
+          </div>
 
-        {/* Dados do contrato */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <h2 className="font-bold text-gray-800 mb-4">📋 Dados do contrato</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, marginTop: 32, paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
             {[
-              ['Banco', report.banco_identificado],
-              ['Nº Contrato', report.numero_contrato],
-              ['Data', report.data_contrato],
-              ['Valor liberado', report.valor_emprestimo],
-              ['Taxa mensal', report.taxa_mensal],
-              ['CET anual', report.cet_anual],
-              ['Parcelas', `${report.numero_parcelas}x de ${report.valor_parcela}`],
-              ['Total a pagar', report.valor_total_devido],
-              ['Taxa média BCB', `${report.bcb_rate_pct?.toFixed(2)}% a.m.`],
-            ].map(([label, val]) => val && (
-              <div key={label}>
-                <p className="text-xs text-gray-400">{label}</p>
-                <p className="font-medium text-gray-800">{val || '—'}</p>
+              { label: 'Valor contratado', val: fmt(report.valor_contratado) },
+              { label: 'Taxa contratada', val: (report.taxa_mensal_contratada || '--') + '% a.m.' },
+              { label: 'Taxa media BCB', val: (report.bcb_rate_pct ? report.bcb_rate_pct.toFixed(2) : '--') + '% a.m.' },
+              { label: 'Prazo', val: (report.prazo_meses || '--') + ' meses' },
+            ].map((d, i) => (
+              <div key={i}>
+                <p style={{ color: '#64748B', fontSize: 11, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{d.label}</p>
+                <p style={{ color: '#FFFFFF', fontSize: 17, fontWeight: 700 }}>{d.val}</p>
               </div>
             ))}
           </div>
         </div>
 
+        {/* Impacto financeiro */}
+        {report.impact_brl > 0 && (
+          <div style={{ background: '#FEF2F2', border: '2px solid #FECACA', borderRadius: 16, padding: '28px', marginBottom: 28, display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <p style={{ color: '#7F1D1D', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Cobranca excessiva estimada</p>
+              <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 40, fontWeight: 800, color: '#8B1A1A' }}>{fmt(report.impact_brl)}</p>
+              <p style={{ color: '#9CA3AF', fontSize: 12, marginTop: 4 }}>acima da taxa media do Banco Central para esta modalidade</p>
+            </div>
+            <div style={{ fontSize: 48 }}>⚠️</div>
+          </div>
+        )}
+
         {/* Irregularidades */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
-          <h2 className="font-bold text-gray-800 mb-4">🔍 Irregularidades identificadas ({irregularidades.length})</h2>
-          {irregularidades.length === 0 ? (
-            <p className="text-green-600 font-medium">✅ Nenhuma irregularidade identificada.</p>
-          ) : (
-            <div className="space-y-4">
+        {irregularidades.length > 0 && (
+          <div style={{ marginBottom: 32 }}>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, color: '#0C1A2E', marginBottom: 20, fontWeight: 700 }}>
+              Irregularidades encontradas
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {irregularidades.map((irr, i) => (
-                <div
-                  key={i}
-                  className={`rounded-xl border p-4 ${irr.gravidade === 'alta' ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'}`}
-                >
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <h3 className="font-semibold text-gray-800 text-sm">{irr.tipo}</h3>
-                    <GravidadeBadge g={irr.gravidade} />
-                  </div>
-                  <p className="text-sm text-gray-600 mb-2">{irr.descricao}</p>
-                  {irr.trecho_contrato && (
-                    <p className="text-xs text-gray-500 italic bg-white rounded-lg p-2 border border-gray-100 mb-2">
-                      "{irr.trecho_contrato}"
-                    </p>
-                  )}
-                  <div className="flex flex-wrap gap-3 text-xs mt-2">
-                    {irr.fundamento_legal && (
-                      <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded">⚖️ {irr.fundamento_legal}</span>
-                    )}
-                    {irr.valor_cobrado && (
-                      <span className="bg-red-100 text-red-700 font-bold px-2 py-1 rounded">💰 {irr.valor_cobrado}</span>
+                <div key={i} style={{ background: '#FFFFFF', border: '1px solid #E5E0D8', borderRadius: 14, padding: '22px 24px', borderLeft: '4px solid ' + (irr.gravidade === 'alta' ? '#DC2626' : irr.gravidade === 'media' ? '#D97706' : '#16A34A') }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+                    <h3 style={{ fontWeight: 700, color: '#0C1A2E', fontSize: 15, flex: 1 }}>{irr.tipo}</h3>
+                    <Severity val={irr.gravidade} />
+                    {irr.valor_estimado > 0 && (
+                      <span style={{ color: '#8B1A1A', fontWeight: 700, fontSize: 14 }}>{fmt(irr.valor_estimado)}</span>
                     )}
                   </div>
+                  <p style={{ color: '#6B7280', fontSize: 14, lineHeight: 1.7 }}>{irr.descricao}</p>
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Impacto financeiro */}
-        {report.impact_brl > 0 && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-6">
-            <h2 className="font-bold text-gray-800 mb-4">💰 Impacto financeiro estimado</h2>
-            <div className="bg-red-50 rounded-xl p-4 text-center mb-4">
-              <p className="text-sm text-gray-500 mb-1">Cobrança excessiva estimada</p>
-              <p className="text-4xl font-bold text-red-600">{fmt(report.impact_brl)}</p>
-              <p className="text-xs text-gray-400 mt-1">acima da taxa média do Banco Central para esta modalidade</p>
-            </div>
-            <p className="text-xs text-gray-400">
-              Metodologia: cálculo pelo Sistema Price (tabela de amortização francesa) comparando a taxa contratada ({report.taxa_mensal}) com a taxa média BCB ({report.bcb_rate_pct?.toFixed(2)}% a.m.). Somadas às cobranças identificadas como indevidas. Valores aproximados — cálculo exato deve ser realizado por perito contábil.
+        {/* Resumo tecnico */}
+        {report.resumo_tecnico && (
+          <div style={{ background: '#FFFFFF', border: '1px solid #E5E0D8', borderRadius: 16, padding: '28px', marginBottom: 28 }}>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: '#0C1A2E', marginBottom: 12, fontWeight: 700 }}>Resumo tecnico</h2>
+            <p style={{ color: '#374151', fontSize: 15, lineHeight: 1.8 }}>{report.resumo_tecnico}</p>
+          </div>
+        )}
+
+        {/* CTA Advogado */}
+        {irregularidades.length > 0 && (
+          <div style={{ background: 'linear-gradient(135deg, #0C1A2E, #1A3456)', borderRadius: 20, padding: '36px', textAlign: 'center' }}>
+            <p style={{ color: '#C9952A', fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 }}>Proximo passo</p>
+            <h3 style={{ fontFamily: "'Playfair Display', serif", color: '#FFFFFF', fontSize: 24, fontWeight: 700, marginBottom: 12 }}>
+              Fale com um advogado especializado
+            </h3>
+            <p style={{ color: '#94A3B8', fontSize: 14, lineHeight: 1.7, marginBottom: 28, maxWidth: 480, margin: '0 auto 28px' }}>
+              Este laudo identificou irregularidades no seu contrato. Um advogado especialista pode avaliar a viabilidade de uma acao revisional para reduzir os juros e recuperar valores cobrados indevidamente.
             </p>
+            <a href={waUrl} target="_blank" rel="noreferrer"
+              style={{ background: '#25D366', color: '#FFFFFF', textDecoration: 'none', fontWeight: 700, fontSize: 15, padding: '14px 32px', borderRadius: 12, display: 'inline-block' }}>
+              Falar no WhatsApp
+            </a>
+            <p style={{ color: '#475569', fontSize: 12, marginTop: 14 }}>Atendimento especializado em acoes revisionais</p>
           </div>
         )}
 
-        {/* Resumo */}
-        {(report.resumo_para_cliente || report.recomendacao) && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-6">
-            <h2 className="font-bold text-gray-800 mb-4">📝 Conclusão</h2>
-            {report.resumo_para_cliente && <p className="text-sm text-gray-600 mb-3">{report.resumo_para_cliente}</p>}
-            {report.recomendacao && (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
-                <p className="font-semibold mb-1">Recomendação:</p>
-                <p>{report.recomendacao}</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* CTA advogado */}
-        <div className="bg-green-50 border border-green-300 rounded-2xl p-6 text-center">
-          <p className="text-2xl mb-2">📱</p>
-          <h3 className="font-bold text-green-800 text-lg mb-2">Fale com um advogado especializado</h3>
-          <p className="text-green-700 text-sm mb-5">
-            Este laudo identificou irregularidades no seu contrato. Um advogado especialista pode
-            avaliar a viabilidade de uma ação revisional para reduzir os juros e recuperar os valores cobrados indevidamente.
+        {/* Disclaimer */}
+        <div style={{ background: '#FEF9EC', border: '1px solid #F5E8C8', borderRadius: 12, padding: '18px', marginTop: 24 }}>
+          <p style={{ color: '#78500A', fontSize: 12, lineHeight: 1.7 }}>
+            <strong>Aviso legal:</strong> Este laudo e de natureza tecnico-matematica e tem carater meramente informativo. A interpretacao juridica e o ajuizamento de qualquer acao revisional devem ser realizados exclusivamente por advogado habilitado (Lei 8.906/94). Os valores apresentados sao estimativas baseadas em calculo matematico comparativo.
           </p>
-          <a
-            href={waUrl} target="_blank" rel="noreferrer"
-            className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white font-bold px-8 py-3.5 rounded-xl transition text-base"
-          >
-            💬 Falar com advogado no WhatsApp
-          </a>
-          <p className="text-xs text-green-600 mt-3">Atendimento especializado em ações revisionais</p>
         </div>
 
-        {/* Download */}
-        <div className="text-center pb-4">
-          <a
-            href={getReportDownloadUrl(analysisId)}
-            target="_blank" rel="noreferrer"
-            className="inline-flex items-center gap-2 bg-white border border-gray-300 text-gray-700 font-medium px-6 py-3 rounded-xl hover:border-gray-400 transition text-sm"
-          >
-            ⬇️ Baixar laudo em PDF
-          </a>
-        </div>
       </main>
     </div>
   )

@@ -1,154 +1,158 @@
-import { useNavigate, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 
-const STEPS = [
-  { icon: '📤', title: 'Envie o contrato', desc: 'Faça upload do PDF ou foto do contrato de empréstimo ou financiamento.' },
-  { icon: '🔍', title: 'Analise especializada', desc: 'Nosso sistema verifica todas as clausulas e compara as taxas com as medias do Banco Central.' },
-  { icon: '📊', title: 'Receba o resultado', desc: 'Veja se há irregularidades e qual o impacto financeiro estimado.' },
-  { icon: '📄', title: 'Baixe o laudo', desc: 'Pague o laudo técnico completo em PDF e leve para um advogado especializado.' },
+const steps = [
+  { n: '01', title: 'Envie o contrato', desc: 'Faca upload do PDF ou foto do contrato de emprestimo ou financiamento.' },
+  { n: '02', title: 'Analise especializada', desc: 'Nosso sistema verifica clausulas, taxas e compara com as medias do Banco Central.' },
+  { n: '03', title: 'Acesse o laudo', desc: 'Pague o laudo tecnico completo e leve para um advogado especializado.' },
 ]
 
-const FEATURES = [
-  { icon: '🏦', title: 'Taxas comparadas com o BCB', desc: 'Consultamos as taxas médias de mercado diretamente da API do Banco Central, atualizadas a cada 12 horas.' },
-  { icon: '⚖️', title: 'Baseado em jurisprudência real', desc: 'A análise usa Súmula 566 STJ, REsp 1.061.530/RS e as Resoluções BCB vigentes como referência.' },
-  { icon: '🔒', title: 'Protegido pela LGPD', desc: 'Seus dados são processados de forma segura e anônima, conforme a Lei Geral de Proteção de Dados.' },
-  { icon: '⚡', title: 'Resultado em minutos', desc: 'A análise completa leva entre 30 segundos e 2 minutos — muito mais rápido que qualquer análise manual.' },
+const issues = [
+  'Juros acima da media do Banco Central',
+  'Capitalizacao indevida de juros (anatocismo)',
+  'Tarifas nao autorizadas pelo BCB',
+  'Seguro prestamista abusivo',
+  'Comissao de permanencia irregular',
+  'Spread bancario excessivo',
+  'Cobranca de IOF irregular',
+  'Multas e encargos em duplicidade',
 ]
 
-const IRREGULARITIES = [
-  'Juros acima da média do Banco Central',
-  'Seguro prestamista não autorizado (venda casada)',
-  'Capitalização de juros — anatocismo',
-  'IOF acima dos limites legais',
-  'Tarifas indevidas cobradas no contrato',
-  'Dados bancários incompletos (violação BCB)',
-  'CET (Custo Efetivo Total) abusivo',
+const features = [
+  { icon: '📊', title: 'Taxas comparadas com o BCB', desc: 'Consultamos as taxas medias de mercado diretamente da API do Banco Central, atualizadas a cada 12 horas.' },
+  { icon: '⚖️', title: 'Baseado em jurisprudencia real', desc: 'A analise usa Sumula 566 STJ, REsp 1.061.530/RS e as Resolucoes BCB vigentes como referencia.' },
+  { icon: '📄', title: 'Laudo em PDF profissional', desc: 'Documento tecnico completo, pronto para ser apresentado a um advogado para acao revisional.' },
+  { icon: '🔒', title: 'Privacidade garantida (LGPD)', desc: 'Seus dados e documentos sao protegidos conforme a Lei Geral de Protecao de Dados.' },
 ]
 
 export default function Landing() {
-  const nav = useNavigate()
-  const isLogged = !!localStorage.getItem('token')
-
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="border-b border-gray-100 sticky top-0 bg-white z-10">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <span className="text-blue-900 font-bold text-xl">⚖️ Juros Abusivos IA</span>
-          <div className="flex items-center gap-3">
-            {isLogged ? (
-              <button onClick={() => nav('/app')} className="bg-blue-900 text-white text-sm font-semibold px-5 py-2 rounded-xl hover:bg-blue-800 transition">
-                Minha conta
-              </button>
-            ) : (
-              <>
-                <Link to="/login" className="text-gray-600 text-sm hover:text-gray-800">Entrar</Link>
-                <Link to="/cadastro" className="bg-blue-900 text-white text-sm font-semibold px-5 py-2 rounded-xl hover:bg-blue-800 transition">
-                  Começar grátis
-                </Link>
-              </>
-            )}
+    <div style={{ fontFamily: "'Outfit', sans-serif", background: '#F9F7F2', minHeight: '100vh' }}>
+
+      {/* NAV */}
+      <nav style={{ background: '#0C1A2E', borderBottom: '1px solid #1A3456' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px', height: 68, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontFamily: "'Playfair Display', serif", color: '#C9952A', fontSize: 22, fontWeight: 700, letterSpacing: '-0.3px' }}>
+            Juros Abusivos
+          </span>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <Link to="/login" style={{ color: '#94A3B8', textDecoration: 'none', fontSize: 14, fontWeight: 500, padding: '8px 16px' }}>
+              Entrar
+            </Link>
+            <Link to="/cadastro" style={{ background: '#C9952A', color: '#0C1A2E', textDecoration: 'none', fontSize: 14, fontWeight: 700, padding: '9px 20px', borderRadius: 8 }}>
+              Comecar agora
+            </Link>
           </div>
         </div>
-      </header>
+      </nav>
 
-      {/* Hero */}
-      <section className="bg-gradient-to-br from-blue-900 to-blue-800 text-white py-20 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-blue-300 text-sm font-medium mb-4 uppercase tracking-wider">Analise tecnica especializada de contratos</p>
-          <h1 className="text-4xl sm:text-5xl font-extrabold mb-6 leading-tight">
-            Seu contrato de empréstimo<br />tem juros abusivos?
+      {/* HERO */}
+      <section style={{ background: 'linear-gradient(160deg, #0C1A2E 0%, #1A3456 60%, #0C1A2E 100%)', padding: '100px 24px 90px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(201,149,42,0.08) 0%, transparent 60%), radial-gradient(circle at 80% 20%, rgba(201,149,42,0.05) 0%, transparent 50%)', pointerEvents: 'none' }} />
+        <div style={{ maxWidth: 800, margin: '0 auto', position: 'relative' }}>
+          <div style={{ display: 'inline-block', background: 'rgba(201,149,42,0.15)', border: '1px solid rgba(201,149,42,0.3)', borderRadius: 100, padding: '6px 18px', marginBottom: 28 }}>
+            <span style={{ color: '#C9952A', fontSize: 12, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase' }}>Analise Tecnica Especializada</span>
+          </div>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", color: '#FFFFFF', fontSize: 'clamp(36px, 6vw, 64px)', fontWeight: 800, lineHeight: 1.1, marginBottom: 24 }}>
+            Seu contrato tem<br />
+            <span style={{ color: '#C9952A' }}>juros abusivos?</span>
           </h1>
-          <p className="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">
-            Nosso sistema analisa seu contrato em minutos, identifica irregularidades e compara as taxas com as medias do Banco Central. Descubra se você está pagando a mais.
+          <p style={{ color: '#94A3B8', fontSize: 18, lineHeight: 1.7, marginBottom: 40, maxWidth: 580, margin: '0 auto 40px' }}>
+            Enviamos seu contrato para analise tecnica especializada. Identificamos irregularidades, comparamos com as taxas do Banco Central e geramos um laudo tecnico completo.
           </p>
-          <button
-            onClick={() => nav(isLogged ? '/upload' : '/cadastro')}
-            className="bg-white text-blue-900 font-bold text-lg px-10 py-4 rounded-2xl hover:bg-blue-50 transition shadow-lg"
-          >
-            🔍 Analisar meu contrato
-          </button>
-          <p className="text-blue-300 text-sm mt-4">Cadastro gratuito • Análise em minutos • Laudo por R$ 20</p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link to="/cadastro" style={{ background: '#C9952A', color: '#0C1A2E', textDecoration: 'none', fontWeight: 700, fontSize: 16, padding: '14px 32px', borderRadius: 10, display: 'inline-block' }}>
+              Analisar meu contrato
+            </Link>
+            <span style={{ color: '#64748B', fontSize: 13, alignSelf: 'center' }}>Laudo completo por R$ 20</span>
+          </div>
         </div>
       </section>
 
-      {/* Como funciona */}
-      <section className="py-16 px-4 bg-gray-50">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-gray-800 mb-12">Como funciona</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {STEPS.map((s, i) => (
-              <div key={i} className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100">
-                <div className="text-4xl mb-3">{s.icon}</div>
-                <div className="text-xs font-bold text-blue-600 mb-2">PASSO {i + 1}</div>
-                <h3 className="font-bold text-gray-800 mb-2">{s.title}</h3>
-                <p className="text-sm text-gray-500">{s.desc}</p>
+      {/* COMO FUNCIONA */}
+      <section style={{ padding: '80px 24px', maxWidth: 1000, margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: 56 }}>
+          <p style={{ color: '#C9952A', fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 }}>Como funciona</p>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 36, color: '#0C1A2E', fontWeight: 700 }}>Simples e rapido</h2>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 32 }}>
+          {steps.map(s => (
+            <div key={s.n} style={{ background: '#FFFFFF', border: '1px solid #E5E0D8', borderRadius: 16, padding: '32px 28px', position: 'relative' }}>
+              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 48, fontWeight: 800, color: '#F0EAD6', lineHeight: 1, marginBottom: 16 }}>{s.n}</div>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: '#0C1A2E', marginBottom: 10 }}>{s.title}</h3>
+              <p style={{ color: '#6B7280', fontSize: 14, lineHeight: 1.7 }}>{s.desc}</p>
+              <div style={{ position: 'absolute', top: 28, right: 28, width: 4, height: 40, background: '#C9952A', borderRadius: 2 }} />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* O QUE IDENTIFICAMOS */}
+      <section style={{ background: '#0C1A2E', padding: '80px 24px' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+            <p style={{ color: '#C9952A', fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 }}>Cobertura completa</p>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 36, color: '#FFFFFF', fontWeight: 700 }}>O que nossa analise identifica</h2>
+            <p style={{ color: '#64748B', fontSize: 15, marginTop: 14, maxWidth: 560, margin: '14px auto 0' }}>
+              Cobrimos todas as formas de abusividade em contratos de credito, com base na jurisprudencia do STJ e nas resolucoes do Banco Central.
+            </p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+            {issues.map((issue, i) => (
+              <div key={i} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 8, height: 8, background: '#C9952A', borderRadius: '50%', flexShrink: 0 }} />
+                <span style={{ color: '#CBD5E1', fontSize: 14 }}>{issue}</span>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Irregularidades que identificamos */}
-      <section className="py-16 px-4">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-gray-800 mb-4">O que nossa analise identifica</h2>
-          <p className="text-center text-gray-500 mb-10 max-w-xl mx-auto">
-            A análise cobre todas as formas conhecidas de abusividade em contratos de crédito, com base na jurisprudência do STJ e nas resoluções do Banco Central.
+      {/* DIFERENCIAIS */}
+      <section style={{ padding: '80px 24px', maxWidth: 1000, margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: 56 }}>
+          <p style={{ color: '#C9952A', fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 }}>Nossos diferenciais</p>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 36, color: '#0C1A2E', fontWeight: 700 }}>Por que usar nossa plataforma?</h2>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24 }}>
+          {features.map((f, i) => (
+            <div key={i} style={{ background: '#FFFFFF', border: '1px solid #E5E0D8', borderRadius: 16, padding: '28px 24px' }}>
+              <div style={{ fontSize: 32, marginBottom: 14 }}>{f.icon}</div>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0C1A2E', marginBottom: 8 }}>{f.title}</h3>
+              <p style={{ color: '#6B7280', fontSize: 14, lineHeight: 1.7 }}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section style={{ background: '#C9952A', padding: '70px 24px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 600, margin: '0 auto' }}>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 36, color: '#0C1A2E', fontWeight: 800, marginBottom: 16 }}>
+            Pronto para verificar seu contrato?
+          </h2>
+          <p style={{ color: '#5C3D0A', fontSize: 16, marginBottom: 32, lineHeight: 1.6 }}>
+            Cadastro gratuito. Envie o contrato e receba o resultado. O laudo completo custa apenas R$ 20.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {IRREGULARITIES.map((item, i) => (
-              <div key={i} className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-xl p-4">
-                <span className="text-red-500 font-bold text-lg">⚠️</span>
-                <span className="text-gray-700 text-sm font-medium">{item}</span>
-              </div>
-            ))}
-          </div>
+          <Link to="/cadastro" style={{ background: '#0C1A2E', color: '#FFFFFF', textDecoration: 'none', fontWeight: 700, fontSize: 16, padding: '15px 36px', borderRadius: 10, display: 'inline-block' }}>
+            Comecar agora
+          </Link>
         </div>
       </section>
 
-      {/* Diferenciais */}
-      <section className="py-16 px-4 bg-gray-50">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-gray-800 mb-12">Por que usar nossa plataforma?</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {FEATURES.map((f, i) => (
-              <div key={i} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                <div className="text-3xl mb-3">{f.icon}</div>
-                <h3 className="font-bold text-gray-800 mb-2">{f.title}</h3>
-                <p className="text-sm text-gray-500">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Aviso legal */}
-      <section className="py-10 px-4 bg-yellow-50 border-t border-yellow-200">
-        <div className="max-w-3xl mx-auto text-center">
-          <p className="text-sm text-yellow-800">
-            <strong>⚖️ Aviso legal:</strong> Os laudos gerados por esta plataforma são de natureza técnico-matemática e têm caráter meramente informativo. A interpretação jurídica e o ajuizamento de qualquer ação revisional devem ser realizados exclusivamente por advogado habilitado, conforme o Estatuto da OAB (Lei 8.906/94). A plataforma não presta consultoria jurídica.
+      {/* AVISO LEGAL */}
+      <section style={{ background: '#FEF9EC', borderTop: '2px solid #C9952A', padding: '28px 24px' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+          <p style={{ color: '#78500A', fontSize: 12, lineHeight: 1.7 }}>
+            <strong>Aviso legal:</strong> Os laudos gerados por esta plataforma sao de natureza tecnico-matematica e tem carater meramente informativo. A interpretacao juridica e o ajuizamento de qualquer acao revisional devem ser realizados exclusivamente por advogado habilitado, conforme o Estatuto da OAB (Lei 8.906/94). A plataforma nao presta consultoria juridica.
           </p>
         </div>
       </section>
 
-      {/* CTA final */}
-      <section className="py-16 px-4 bg-blue-900 text-white text-center">
-        <h2 className="text-3xl font-bold mb-4">Pronto para verificar seu contrato?</h2>
-        <p className="text-blue-200 mb-8 max-w-xl mx-auto">
-          Faça o cadastro gratuito, envie o contrato e receba o resultado em minutos. O laudo completo custa apenas R$ 20.
+      {/* FOOTER */}
+      <footer style={{ background: '#0C1A2E', padding: '24px', textAlign: 'center' }}>
+        <p style={{ color: '#334155', fontSize: 13 }}>
+          {String.fromCharCode(169)} {new Date().getFullYear()} Juros Abusivos - Plataforma de analise tecnica de contratos de credito
         </p>
-        <button
-          onClick={() => nav(isLogged ? '/upload' : '/cadastro')}
-          className="bg-white text-blue-900 font-bold text-lg px-10 py-4 rounded-2xl hover:bg-blue-50 transition"
-        >
-          Começar agora →
-        </button>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-gray-400 text-sm py-8 px-4 text-center">
-        <p>© {new Date().getFullYear()} Juros Abusivos IA — Plataforma de análise técnica de contratos de crédito</p>
-        <p className="mt-1">Todos os direitos reservados. Não prestamos consultoria jurídica.</p>
       </footer>
     </div>
   )
