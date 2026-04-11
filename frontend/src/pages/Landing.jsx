@@ -27,7 +27,7 @@ const features = [
 
 const stats = [
   { val: '8', label: 'tipos de abusividade verificados' },
-  { val: 'R$ 20', label: 'laudo tecnico completo' },
+  { val: 'R$ 9,99', label: 'laudo tecnico completo' },
   { val: '100%', label: 'baseado em normas BCB/STJ' },
 ]
 
@@ -55,7 +55,7 @@ export default function Landing() {
       {/* ANNOUNCEMENT BAR */}
       <div style={{ background: '#FF9F1C', padding: '8px 24px', textAlign: 'center' }}>
         <p style={{ color: '#10233F', fontSize: 13, fontWeight: 700, margin: 0 }}>
-          Analise gratuita — pague apenas R$ 20 pelo laudo completo, sem cadastro obrigatorio
+          Analise gratuita — pague apenas R$ 9,99 pelo laudo completo, sem cadastro obrigatorio
         </p>
       </div>
 
@@ -65,16 +65,14 @@ export default function Landing() {
           <span style={{ fontFamily: "'Merriweather', serif", color: '#FF9F1C', fontSize: 22, fontWeight: 700 }}>
             Juros Abusivos
           </span>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Link to="/login" style={{ color: '#94A3B8', textDecoration: 'none', fontSize: 14, fontWeight: 500, padding: '8px 14px' }}>
-              Entrar
-            </Link>
-            <Link to="/cadastro" style={{ color: '#94A3B8', textDecoration: 'none', fontSize: 14, fontWeight: 500, padding: '8px 14px' }}>
-              Cadastro
-            </Link>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <Link to="/comparador" style={{ color: '#94A3B8', textDecoration: 'none', fontSize: 14, fontWeight: 500, padding: '8px 12px' }}>Comparador</Link>
+            <Link to="/ranking" style={{ color: '#94A3B8', textDecoration: 'none', fontSize: 14, fontWeight: 500, padding: '8px 12px' }}>Ranking</Link>
+            <Link to="/blog" style={{ color: '#94A3B8', textDecoration: 'none', fontSize: 14, fontWeight: 500, padding: '8px 12px' }}>Blog</Link>
+            <Link to="/login" style={{ color: '#94A3B8', textDecoration: 'none', fontSize: 14, fontWeight: 500, padding: '8px 12px' }}>Entrar</Link>
             <button
               onClick={handleStart}
-              style={{ ...navBtn, background: '#FF9F1C', color: '#10233F', fontSize: 14, fontWeight: 700, padding: '9px 22px', borderRadius: 8 }}
+              style={{ ...navBtn, background: '#FF9F1C', color: '#10233F', fontSize: 14, fontWeight: 700, padding: '9px 22px', borderRadius: 8, marginLeft: 4 }}
             >
               Analisar contrato
             </button>
@@ -225,7 +223,7 @@ export default function Landing() {
               <p style={{ color: '#FF9F1C', fontSize: 11, fontWeight: 800, letterSpacing: 2.5, textTransform: 'uppercase', marginBottom: 16 }}>Preco unico e transparente</p>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 4, marginBottom: 8 }}>
                 <span style={{ color: '#56677B', fontSize: 20, marginTop: 10, fontWeight: 600 }}>R$</span>
-                <span style={{ fontFamily: "'Merriweather', serif", fontSize: 72, fontWeight: 800, color: '#10233F', lineHeight: 1 }}>20</span>
+                <span style={{ fontFamily: "'Merriweather', serif", fontSize: 72, fontWeight: 800, color: '#10233F', lineHeight: 1 }}>9,99</span>
               </div>
               <p style={{ color: '#56677B', fontSize: 15 }}>pagamento unico — laudo disponivel imediatamente</p>
             </div>
@@ -252,7 +250,7 @@ export default function Landing() {
               onClick={handleStart}
               style={{ ...navBtn, width: '100%', background: '#10233F', color: '#FFFFFF', fontWeight: 700, fontSize: 16, padding: '15px', borderRadius: 12, boxShadow: '0 4px 16px rgba(12,26,46,0.2)' }}
             >
-              Analisar meu contrato — R$ 20
+              Analisar meu contrato — R$ 9,99
             </button>
             <p style={{ textAlign: 'center', color: '#94A3B8', fontSize: 13, marginTop: 14 }}>
               Sem cadastro obrigatorio. Pagamento seguro via PIX.
@@ -270,7 +268,7 @@ export default function Landing() {
             Pronto para verificar seu contrato?
           </h2>
           <p style={{ color: '#7A4300', fontSize: 16, marginBottom: 36, lineHeight: 1.7 }}>
-            Sem cadastro obrigatorio. Envie o contrato e receba o resultado. O laudo completo custa apenas R$ 20.
+            Sem cadastro obrigatorio. Envie o contrato e receba o resultado. O laudo completo custa apenas R$ 9,99.
           </p>
           <button
             onClick={handleStart}
@@ -294,6 +292,14 @@ export default function Landing() {
               <div>
                 <p style={{ color: '#94A3B8', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Plataforma</p>
                 {[['Analisar contrato', '/upload'], ['Entrar', '/login'], ['Cadastrar', '/cadastro']].map(([label, href]) => (
+                  <div key={label} style={{ marginBottom: 8 }}>
+                    <Link to={href} style={{ color: '#475569', textDecoration: 'none', fontSize: 14 }}>{label}</Link>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <p style={{ color: '#94A3B8', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Ferramentas</p>
+                {[['Comparador de taxas', '/comparador'], ['Ranking de abusividade', '/ranking'], ['Blog juridico', '/blog']].map(([label, href]) => (
                   <div key={label} style={{ marginBottom: 8 }}>
                     <Link to={href} style={{ color: '#475569', textDecoration: 'none', fontSize: 14 }}>{label}</Link>
                   </div>

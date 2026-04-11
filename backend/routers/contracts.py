@@ -28,6 +28,7 @@ async def upload_contract(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     loan_type: str = Form("credito_pessoal"),
+    user_phone: str = Form(""),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -55,6 +56,7 @@ async def upload_contract(
         file_type=file_type,
         file_data=file_bytes,
         loan_type=loan_type,
+        user_phone=user_phone.strip() if user_phone else None,
     )
     db.add(contract)
     await db.flush()
@@ -77,6 +79,7 @@ async def upload_contract(
         file_type=file_type,
         loan_type=loan_type,
         user_email=current_user.email,
+        user_phone=user_phone.strip() if user_phone else "",
     )
 
     return {

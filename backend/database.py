@@ -58,5 +58,20 @@ async def init_db():
             except Exception as e:
                 print("Aviso migracao:", e)
 
+
+        if "postgresql" in DATABASE_URL:
+            try:
+                result = await conn.execute(text(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_name='contracts' AND column_name='user_phone'"
+                ))
+                if result.fetchone() is None:
+                    await conn.execute(text(
+                        "ALTER TABLE contracts ADD COLUMN IF NOT EXISTS user_phone VARCHAR(20)"
+                    ))
+                    print("Coluna user_phone adicionada.")
+            except Exception as e:
+                print("Aviso migracao user_phone:", e)
+
         await conn.run_sync(Base.metadata.create_all)
         print("Banco de dados inicializado.")

@@ -27,7 +27,7 @@ COLOR_GRAY      = colors.HexColor("#718096")
 COLOR_BORDER    = colors.HexColor("#CBD5E0")
 
 WHATSAPP_NUMBER = os.getenv("WHATSAPP_NUMBER", "5511999999999")
-REPORT_PRICE    = float(os.getenv("REPORT_PRICE", "97.00"))
+REPORT_PRICE    = float(os.getenv("REPORT_PRICE", "9.99"))
 
 
 def _styles():

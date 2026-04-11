@@ -25,10 +25,12 @@ export default function UploadContract() {
   const [loanTypes, setLoanTypes] = useState(Object.entries(LOAN_LABELS).map(([id, label]) => ({ id, label })))
   const [loanType, setLoanType] = useState('credito_pessoal')
   const [file, setFile] = useState(null)
+  const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [dragging, setDragging] = useState(false)
   const fileRef = useRef()
+  const cameraRef = useRef()
 
   useEffect(() => {
     getLoanTypes().then(r => setLoanTypes(r.data)).catch(() => {})
@@ -39,12 +41,22 @@ export default function UploadContract() {
     setFile(f); setError('')
   }
 
+  function formatPhone(val) {
+    const digits = val.replace(/\D/g, '')
+    if (digits.length <= 2) return digits
+    if (digits.length <= 7) return '(' + digits.slice(0,2) + ') ' + digits.slice(2)
+    if (digits.length <= 11) return '(' + digits.slice(0,2) + ') ' + digits.slice(2,7) + '-' + digits.slice(7)
+    return '(' + digits.slice(0,2) + ') ' + digits.slice(2,7) + '-' + digits.slice(7,11)
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     if (file === null) { setError('Selecione um arquivo.'); return }
     setLoading(true); setError('')
     try {
-      const res = await uploadContract(file, loanType)
+      const rawPhone = phone.replace(/\D/g, '')
+      const phoneE164 = rawPhone.length >= 10 ? '55' + rawPhone : ''
+      const res = await uploadContract(file, loanType, phoneE164)
       nav('/analise/' + res.data.contract_id)
     } catch (err) {
       setError(err.response?.data?.detail || 'Erro ao enviar contrato. Tente novamente.')
@@ -77,7 +89,7 @@ export default function UploadContract() {
           <h1 style={{ fontFamily: "'Merriweather', serif", fontSize: 36, fontWeight: 700, color: '#10233F', marginBottom: 10 }}>
             Enviar contrato para analise
           </h1>
-          <p style={{ color: '#56677B', fontSize: 16 }}>PDF ou imagem do contrato de emprestimo ou financiamento</p>
+          <p style={{ color: '#56677B', fontSize: 16 }}>PDF ou foto do contrato de emprestimo ou financiamento</p>
         </div>
 
         {error && (
@@ -89,36 +101,54 @@ export default function UploadContract() {
         <form onSubmit={handleSubmit}>
           {/* Upload area */}
           <div
-            onClick={() => fileRef.current.click()}
             onDragOver={e => { e.preventDefault(); setDragging(true) }}
             onDragLeave={() => setDragging(false)}
             onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]) }}
             style={{
               border: dragging ? '2px dashed #FF9F1C' : file ? '2px dashed #16A34A' : '2px dashed #CBD5E1',
-              borderRadius: 20, padding: '56px 32px', textAlign: 'center', cursor: 'pointer',
+              borderRadius: 20, padding: '40px 32px', textAlign: 'center',
               background: dragging ? '#FFF9F0' : file ? '#F0FDF4' : '#FFFFFF',
-              transition: 'all 0.2s', marginBottom: 36,
+              transition: 'all 0.2s', marginBottom: 28,
               boxShadow: '0 2px 12px rgba(12,26,46,0.05)',
             }}
           >
+            {/* Hidden inputs */}
             <input ref={fileRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
+            <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
+
             {file ? (
               <>
-                <div style={{ fontSize: 44, marginBottom: 14 }}>✅</div>
+                <div style={{ fontSize: 44, marginBottom: 14 }}>\u2705</div>
                 <p style={{ fontWeight: 700, color: '#15803D', fontSize: 17, marginBottom: 6 }}>{file.name}</p>
-                <p style={{ color: '#56677B', fontSize: 14 }}>{(file.size / 1024 / 1024).toFixed(2)} MB — Clique para trocar o arquivo</p>
+                <p style={{ color: '#56677B', fontSize: 14, marginBottom: 20 }}>{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button type="button" onClick={() => fileRef.current.click()} style={{ background: '#F0F4FB', color: '#374151', border: '1.5px solid #CBD5E1', borderRadius: 10, padding: '10px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: "'Manrope', sans-serif" }}>
+                    Trocar arquivo
+                  </button>
+                  <button type="button" onClick={() => cameraRef.current.click()} style={{ background: '#F0F4FB', color: '#374151', border: '1.5px solid #CBD5E1', borderRadius: 10, padding: '10px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: "'Manrope', sans-serif" }}>
+                    📷 Tirar foto
+                  </button>
+                </div>
               </>
             ) : (
               <>
                 <div style={{ width: 72, height: 72, background: '#F0F4FB', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 32 }}>📎</div>
-                <p style={{ fontWeight: 700, color: '#10233F', fontSize: 17, marginBottom: 8 }}>Arraste o arquivo aqui ou clique para selecionar</p>
-                <p style={{ color: '#94A3B8', fontSize: 14 }}>PDF, JPG ou PNG — Maximo 20MB</p>
+                <p style={{ fontWeight: 700, color: '#10233F', fontSize: 17, marginBottom: 8 }}>Arraste o arquivo ou escolha uma opcao</p>
+                <p style={{ color: '#94A3B8', fontSize: 14, marginBottom: 24 }}>PDF, JPG ou PNG — Maximo 20MB</p>
+                <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button type="button" onClick={() => fileRef.current.click()} style={{ background: '#10233F', color: '#FFFFFF', border: 'none', borderRadius: 10, padding: '12px 24px', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Manrope', sans-serif" }}>
+                    📄 Selecionar arquivo
+                  </button>
+                  <button type="button" onClick={() => cameraRef.current.click()} style={{ background: '#FFF4E5', color: '#8A4C00', border: '1.5px solid rgba(255,159,28,0.4)', borderRadius: 10, padding: '12px 24px', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Manrope', sans-serif" }}>
+                    📸 Foto pelo celular
+                  </button>
+                </div>
               </>
             )}
           </div>
 
           {/* Tipo de contrato */}
-          <div style={{ marginBottom: 40 }}>
+          <div style={{ marginBottom: 32 }}>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 16, textTransform: 'uppercase', letterSpacing: 0.8 }}>
               Tipo de contrato
             </label>
@@ -133,6 +163,25 @@ export default function UploadContract() {
             </div>
           </div>
 
+          {/* Campo de telefone opcional */}
+          <div style={{ marginBottom: 36, background: '#FFFFFF', border: '1.5px solid #E2EBF8', borderRadius: 16, padding: '22px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
+              <div style={{ fontSize: 24, marginTop: 2 }}>💬</div>
+              <div>
+                <p style={{ fontWeight: 700, color: '#10233F', fontSize: 15, marginBottom: 3 }}>Receber resultado por WhatsApp</p>
+                <p style={{ color: '#56677B', fontSize: 13 }}>Opcional — te avisamos quando a analise ficar pronta</p>
+              </div>
+            </div>
+            <input
+              type="tel"
+              value={phone}
+              onChange={e => setPhone(formatPhone(e.target.value))}
+              placeholder="(11) 99999-9999"
+              maxLength={16}
+              style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #CBD5E1', borderRadius: 10, fontSize: 16, fontFamily: "'Manrope', sans-serif", color: '#10233F', outline: 'none', boxSizing: 'border-box' }}
+            />
+          </div>
+
           <button
             type="submit"
             disabled={loading || file === null}
@@ -143,7 +192,7 @@ export default function UploadContract() {
 
           {/* trust bar */}
           <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 20, flexWrap: 'wrap' }}>
-            {['🔒 Protegido pela LGPD', '📊 Comparacao com BCB', '⚖️ Base juridica STJ'].map(t => (
+            {['🔒 Protegido pela LGPD', '📊 Comparacao com BCB', '\u2696\uFE0F Base juridica STJ'].map(t => (
               <span key={t} style={{ color: '#94A3B8', fontSize: 13 }}>{t}</span>
             ))}
           </div>

@@ -60,7 +60,7 @@ async def create_payment(
             "expires_at": p.expires_at.isoformat() if p.expires_at else None,
         }
 
-    amount = float(os.getenv("REPORT_PRICE", "97.00"))
+    amount = float(os.getenv("REPORT_PRICE", "9.99"))
     mock_mode = os.getenv("MOCK_MODE", "false").lower() == "true"
 
     mp_data = await create_pix_payment(

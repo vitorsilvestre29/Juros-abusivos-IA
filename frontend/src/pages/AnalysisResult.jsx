@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { getContractStatus, getPricing } from '../lib/api'
+const WHATSAPP = import.meta.env.VITE_WHATSAPP_NUMBER || '5511999999999'
+
 
 function fmt(val) {
   if (val === null || val === undefined) return '--'
@@ -14,7 +16,7 @@ export default function AnalysisResult() {
   const currentUser = rawUser ? JSON.parse(rawUser) : null
   const isGuest = currentUser ? currentUser.is_guest === true : true
   const [status, setStatus] = useState(null)
-  const [pricing, setPricing] = useState({ price_brl: 20, includes: [] })
+  const [pricing, setPricing] = useState({ price_brl: 9.99, includes: [] })
   const [dots, setDots] = useState('.')
 
   useEffect(() => { getPricing().then(r => setPricing(r.data)).catch(() => {}) }, [])
@@ -211,10 +213,27 @@ export default function AnalysisResult() {
                 Pagamento seguro via PIX — Acesso imediato apos confirmacao
               </p>
 
+
+              {/* Botao WhatsApp advogado */}
+              <div style={{ marginTop: 16, background: 'linear-gradient(135deg, #075E54, #128C7E)', borderRadius: 14, padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+                <div>
+                  <p style={{ color: '#FFFFFF', fontWeight: 700, fontSize: 15, marginBottom: 3 }}>Fale com um advogado especializado</p>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Tire suas duvidas antes de pagar pelo laudo</p>
+                </div>
+                <a
+                  href={'https://wa.me/' + WHATSAPP + '?text=Ola%2C%20fiz%20uma%20analise%20de%20contrato%20e%20gostaria%20de%20saber%20mais%20sobre%20meus%20direitos.'}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ background: '#25D366', color: '#FFFFFF', textDecoration: 'none', fontWeight: 700, fontSize: 14, padding: '11px 22px', borderRadius: 10, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 8 }}
+                >
+                  Falar no WhatsApp
+                </a>
+              </div>
+
               {isGuest && (
                 <div style={{ marginTop: 20, borderTop: '1px solid #E2EBF8', paddingTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                   <p style={{ color: '#56677B', fontSize: 13 }}>Quer salvar este resultado? Crie uma conta gratuita.</p>
-                  <Link to="/cadastro" style={{ color: '#FF9F1C', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>Criar conta →</Link>
+                  <Link to="/cadastro" style={{ color: '#FF9F1C', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>Criar conta</Link>
                 </div>
               )}
             </div>

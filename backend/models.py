@@ -55,6 +55,7 @@ class Contract(Base):
     file_type: Mapped[str] = mapped_column(String(10))    # "pdf" ou "image"
     file_data: Mapped[bytes] = mapped_column(LargeBinary) # arquivo original em bytes
     loan_type: Mapped[str] = mapped_column(String(50), default="credito_pessoal")
+    user_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)  # para notif. WhatsApp
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     user: Mapped["User"] = relationship("User", back_populates="contracts")

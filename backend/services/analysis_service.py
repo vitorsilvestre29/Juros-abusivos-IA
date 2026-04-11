@@ -15,7 +15,8 @@ import io
 from datetime import datetime
 from typing import Optional
 
-from services.bcb_service import get_bcb_rate
+from services.bcb_service import get_bcb_rate, get_enriched_bcb_context, format_bcb_context_for_prompt
+from services.stj_service import get_stj_context, format_stj_context_for_prompt
 from models import AnalysisStatus
 
 MOCK_MODE = os.getenv("MOCK_MODE", "false").lower() == "true"
@@ -124,6 +125,8 @@ async def analyze_contract(
     loan_type: str,
     reference_rate: float,
     image_pages: Optional[list] = None,
+    bcb_context: str = "",
+    stj_context: str = "",
 ) -> dict:
     if MOCK_MODE:
         return _mock_result(loan_type, reference_rate)
@@ -137,8 +140,20 @@ async def analyze_contract(
 Analise contratos de emprestimo/financiamento identificando irregularidades TECNICAS e MATEMATICAS.
 Nao preste assessoria juridica — apenas analise tecnica.
 
-CONTEXTO NORMATIVO:
+{bcb_context if bcb_context else ""}
+
+{stj_context if stj_context else ""}
+
+CONTEXTO NORMATIVO ADICIONAL:
 {skills_ctx}
+
+INSTRUCOES:
+- Compare a taxa contratada com a taxa media BCB fornecida acima
+- Identifique clausulas que violem as sumulas e normas listadas
+- Calcule o excesso cobrado com base na diferenca entre a taxa contratada e a taxa BCB
+- Verifique tarifas cobradas contra a lista permitida pela Resolucao CMN 4.881/2021
+- Verifique se o CET foi informado conforme Resolucao CMN 3.517/2007
+- Para consignado: verifique se o desconto respeita o limite de 35% do beneficio
 
 Responda SOMENTE em JSON valido com esta estrutura:
 {{
@@ -224,6 +239,7 @@ async def run_full_analysis(
     file_type: str,
     loan_type: str,
     user_email: str,
+    user_phone: str = "",
 ) -> None:
     from database import AsyncSessionLocal
     from models import Analysis
@@ -254,16 +270,36 @@ async def run_full_analysis(
             else:
                 image_pages = [base64.standard_b64encode(file_bytes).decode("utf-8")]
 
-            # 2. Taxa BCB
-            bcb_data = await get_bcb_rate(loan_type)
-            reference_rate = bcb_data["monthly_rate_pct"]
+            # 2. Taxa BCB + Selic + STJ em paralelo
+            bcb_ctx_data, stj_ctx_data = await asyncio.gather(
+                get_enriched_bcb_context(loan_type),
+                get_stj_context(loan_type),
+                return_exceptions=True,
+            )
+            if isinstance(bcb_ctx_data, Exception):
+                bcb_ctx_data = {}
+            if isinstance(stj_ctx_data, Exception):
+                stj_ctx_data = {}
 
-            # 3. Analise Claude
+            bcb_loan = bcb_ctx_data.get("loan_rate", {})
+            reference_rate = bcb_loan.get("monthly_rate_pct", 0.0)
+            if reference_rate == 0.0:
+                fallback = await get_bcb_rate(loan_type)
+                reference_rate = fallback.get("monthly_rate_pct", 4.0)
+
+            bcb_prompt_ctx = format_bcb_context_for_prompt(bcb_ctx_data)
+            stj_prompt_ctx = format_stj_context_for_prompt(stj_ctx_data)
+
+            print(f"[analysis] BCB rate fetched: {reference_rate}% a.m. | STJ cases: {len(stj_ctx_data.get('leading_cases', []))}")
+
+            # 3. Analise Claude com contexto enriquecido
             ai_result = await analyze_contract(
                 contract_text=extracted_text,
                 loan_type=loan_type,
                 reference_rate=reference_rate,
                 image_pages=image_pages if image_pages else None,
+                bcb_context=bcb_prompt_ctx,
+                stj_context=stj_prompt_ctx,
             )
 
             # 4. Impacto financeiro
@@ -273,6 +309,14 @@ async def run_full_analysis(
             irregularities = ai_result.get("irregularidades", [])
             analysis.status = AnalysisStatus.COMPLETED
             analysis.ai_result_json = json.dumps(ai_result, ensure_ascii=False)
+            # Notificar WhatsApp se numero disponivel
+            if user_phone:
+                try:
+                    asyncio.ensure_future(send_whatsapp_notification(
+                        user_phone, len(ai_result.get("irregularidades", [])) > 0, contract_id
+                    ))
+                except Exception:
+                    pass
             analysis.has_issues = len(irregularities) > 0
             analysis.irregularities_count = len(irregularities)
             analysis.impact_brl = impact_data.get("estimated_overcharge_brl", 0.0)
@@ -285,3 +329,44 @@ async def run_full_analysis(
             analysis.error_message = str(e)[:500]
             await db.commit()
             print(f"[analysis_service] Erro na analise {analysis_id}: {e}")
+
+# ── Notificacao WhatsApp via Z-API ────────────────────────────────────────────
+import asyncio
+import httpx
+
+async def send_whatsapp_notification(phone: str, has_issues: bool, contract_id: int) -> None:
+    instance_id  = os.getenv("ZAPI_INSTANCE_ID", "")
+    token        = os.getenv("ZAPI_TOKEN", "")
+    client_token = os.getenv("ZAPI_CLIENT_TOKEN", "")
+    if not instance_id or not token:
+        return
+
+    digits = "".join(c for c in phone if c.isdigit())
+    if len(digits) == 11:
+        digits = "55" + digits
+    elif len(digits) == 10:
+        digits = "55" + digits
+
+    site = os.getenv("FRONTEND_URL", "https://juros-abusivos.vercel.app")
+    if has_issues:
+        msg = (
+            "Ola, sua analise de contrato foi concluida.\n\n"
+            "*Irregularidades identificadas no seu contrato.*\n\n"
+            "Acesse o laudo tecnico por apenas R$ 9,99 para ver os detalhes e agir:\n"
+            + site + "/analise/" + str(contract_id)
+        )
+    else:
+        msg = (
+            "Ola, sua analise de contrato foi concluida.\n\n"
+            "Acesse o laudo tecnico por apenas R$ 9,99 para ver o resultado completo:\n"
+            + site + "/analise/" + str(contract_id)
+        )
+
+    url = f"https://api.z-api.io/instances/{instance_id}/token/{token}/send-text"
+    headers = {"client-token": client_token, "Content-Type": "application/json"}
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(url, json={"phone": digits, "message": msg}, headers=headers)
+            print("[whatsapp] Notificacao enviada: " + digits)
+    except Exception as e:
+        print("[whatsapp] Erro: " + str(e))

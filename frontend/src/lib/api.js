@@ -53,10 +53,11 @@ export const getMe = () => api.get('/auth/me')
 export const getLoanTypes = () => api.get('/public/loan-types')
 export const getPricing = () => api.get('/public/pricing')
 
-export const uploadContract = (file, loanType) => {
+export const uploadContract = (file, loanType, phone) => {
   const form = new FormData()
   form.append('file', file)
   form.append('loan_type', loanType)
+  if (phone) form.append('user_phone', phone)
   return api.post('/contracts/upload', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 300000 })
 }
 export const getContractStatus = (contractId) => api.get(`/contracts/${contractId}/status`)

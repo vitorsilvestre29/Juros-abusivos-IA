@@ -103,7 +103,7 @@ export default function Payment() {
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 4 }}>
                 <span style={{ color: '#56677B', fontSize: 18, marginTop: 10, fontWeight: 600 }}>R$</span>
                 <span style={{ fontFamily: "'Merriweather', serif", fontSize: 60, fontWeight: 800, color: '#10233F', lineHeight: 1 }}>
-                  {Math.floor(payment.amount_brl || 20)}
+                  {new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(payment.amount_brl || 9.99)}
                 </span>
               </div>
             </div>
