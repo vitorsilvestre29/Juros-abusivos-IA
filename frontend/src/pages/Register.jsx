@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { register as registerApi, login as loginApi, upgradeGuestAccount } from '../lib/api'
+import { register as registerApi, login as loginApi } from '../lib/api'
 
 export default function Register() {
   const nav = useNavigate()
@@ -15,22 +15,13 @@ export default function Register() {
     setLoading(true)
     setError('')
     try {
-      const current = localStorage.getItem('user')
-      const currentUser = current ? JSON.parse(current) : null
-
-      let res
-      if (currentUser?.is_guest) {
-        res = await upgradeGuestAccount(name, email, password)
-      } else {
-        await registerApi(name, email, password)
-        res = await loginApi(email, password)
-      }
-
+      await registerApi(name, email, password)
+      const res = await loginApi(email, password)
       localStorage.setItem('token', res.data.access_token)
       localStorage.setItem('user', JSON.stringify({
         name: res.data.user_name,
         email: res.data.user_email,
-        is_guest: !!res.data.is_guest,
+        is_guest: false,
       }))
       nav('/upload')
     } catch (err) {
@@ -41,7 +32,7 @@ export default function Register() {
   }
 
   return (
-    <div className="mobile-safe" style={{ minHeight: '100vh', background: '#F3F8FF', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
+    <div style={{ minHeight: '100vh', background: '#F3F8FF', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
       <div style={{ width: '100%', maxWidth: 460 }}>
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
           <Link to="/" style={{ fontFamily: "'Merriweather', serif", color: '#FF9F1C', fontSize: 24, fontWeight: 700, textDecoration: 'none', display: 'block', marginBottom: 6 }}>
@@ -103,4 +94,3 @@ export default function Register() {
     </div>
   )
 }
-

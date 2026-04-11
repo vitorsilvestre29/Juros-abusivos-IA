@@ -19,7 +19,7 @@ export default function Login() {
       localStorage.setItem('user', JSON.stringify({
         name: res.data.user_name,
         email: res.data.user_email,
-        is_guest: !!res.data.is_guest,
+        is_guest: false,
       }))
       nav('/app')
     } catch (err) {
@@ -33,7 +33,7 @@ export default function Login() {
     <div style={{ minHeight: '100vh', background: '#F3F8FF', display: 'flex' }}>
 
       {/* Lado esquerdo - decorativo */}
-      <div style={{ flex: 1, background: 'linear-gradient(160deg, #10233F, #1F4E79)', display: 'none', alignItems: 'center', justifyContent: 'center', padding: 60, flexDirection: 'column' }} className="hidden md:flex">
+      <div style={{ flex: 1, background: 'linear-gradient(160deg, #10233F, #1F4E79)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 60, flexDirection: 'column' }} className="hidden md:flex">
         <div style={{ maxWidth: 380 }}>
           <div style={{ fontFamily: "'Merriweather', serif", color: '#FF9F1C', fontSize: 28, fontWeight: 700, marginBottom: 40 }}>
             Juros Abusivos
@@ -56,7 +56,7 @@ export default function Login() {
       </div>
 
       {/* Lado direito - form */}
-      <div className="mobile-safe" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
         <div style={{ width: '100%', maxWidth: 400 }}>
           <div style={{ textAlign: 'center', marginBottom: 40 }}>
             <Link to="/" style={{ fontFamily: "'Merriweather', serif", color: '#FF9F1C', fontSize: 22, fontWeight: 700, textDecoration: 'none', display: 'block', marginBottom: 8 }}>
@@ -118,4 +118,3 @@ export default function Login() {
     </div>
   )
 }
-
