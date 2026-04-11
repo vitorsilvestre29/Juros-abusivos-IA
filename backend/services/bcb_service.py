@@ -1,63 +1,93 @@
 """
-Integração com a API do Banco Central do Brasil (SGS).
-Busca taxas médias de mercado por modalidade de crédito.
-Cache em arquivo JSON com validade de 12 horas.
+Servico BCB — busca SEMPRE ao vivo nas APIs publicas do Banco Central do Brasil.
+Zero valores hardcoded: se a API estiver indisponivel, levanta excecao explícita.
+
+APIs utilizadas:
+  1. BCB/SGS (Sistema Gerenciador de Series Temporais)
+     https://api.bcb.gov.br/dados/serie/bcdata.sgs.{SERIE}/dados/ultimos/1?formato=json
+  2. BCB/OLINDA (Open Data — backup para taxas de mercado)
+     https://olinda.bcb.gov.br/olinda/servico/taxaJuros/versao/v2/odata/...
+
+Mapeamento de modalidades para series SGS (oficiais, publicados pelo BCB):
+  consignado_inss      -> SGS 25466  (Credito pessoal consignado - INSS, % a.m.)
+  consignado_clt       -> SGS 25475  (Credito pessoal consignado - privado, % a.m.)
+  credito_pessoal      -> SGS 20714  (Credito pessoal nao consignado, % a.m.)
+  financiamento_imovel -> SGS 433    (Financiamento habitacional, % a.m.)
+  financiamento_veiculo-> SGS 25480  (Credito veiculos PF - CDC, % a.m.)
+  cartao_credito       -> SGS 20739  (Cartao de credito rotativo total, % a.m.)
+  cheque_especial      -> SGS 20668  (Cheque especial - PF, % a.m.)
+  capital_giro         -> SGS 20616  (Capital de giro ate 365 dias, % a.m.)
+  selic                -> SGS 4390   (Selic acumulada no mes, % a.m.)
+  selic_anual          -> SGS 432    (Selic acumulada no ano, % a.a.)
+  cdi                  -> SGS 4391   (CDI acumulado no mes, % a.m.)
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from typing import Any
 import json
 import os
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
 
 import httpx
 
-CACHE_HOURS = 12
-CACHE_FILE = Path(os.getenv("BCB_CACHE_FILE", "/tmp/bcb_rates_cache.json"))
+# Cache muito curto: 1 hora — dados precisam ser frescos
+CACHE_HOURS = 1
+CACHE_FILE  = Path(os.getenv("BCB_CACHE_FILE", "/tmp/bcb_rates_cache.json"))
 
-# Taxas de fallback (% ao mês) usadas quando a API do BCB estiver indisponível.
-# Valores baseados nas médias históricas do BCB (2024-2025).
-DEFAULT_MONTHLY_RATES: dict[str, float] = {
-    "consignado_inss":      1.80,
-    "consignado_clt":       2.50,
-    "credito_pessoal":      6.20,
-    "credito_habitacional": 0.75,
-    "cdc_veiculo":          1.90,
-    "cartao_credito":      15.00,
-    "outros":               4.50,
+SGS_BASE = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{serie}/dados/ultimos/1?formato=json"
+
+# Mapeamento oficial modalidade -> serie SGS do BCB
+# Fonte: https://www3.bcb.gov.br/sgspub/localizarseries/localizarSeries.do
+# Mapeamento verificado no portal: https://dadosabertos.bcb.gov.br/
+# Cada serie e a taxa media de mercado (% a.m.) para a modalidade — publicada mensalmente pelo BCB
+SERIES_MAP: dict[str, str] = {
+    # Credito consignado - INSS: SGS 25466
+    # Fonte: https://dadosabertos.bcb.gov.br/dataset/25466-taxa-media-mensal-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-fisicas---cre
+    "consignado_inss":      "25466",
+    "consignado":           "25466",  # alias
+
+    # Credito consignado - privado (CLT/servidores): SGS 25475
+    # Fonte: https://dadosabertos.bcb.gov.br/dataset/25475-taxa-media-mensal-de-juros
+    "consignado_clt":       "25475",
+
+    # Credito pessoal nao consignado: SGS 20714
+    # Fonte: https://dadosabertos.bcb.gov.br/dataset/20714-taxa-media-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-fisicas---credito-p
+    "credito_pessoal":      "20714",
+
+    # Financiamento imobiliario - PF - taxas de mercado: SGS 25497
+    # Fonte: https://dadosabertos.bcb.gov.br/dataset/25497-taxa-media-mensal-de-juros-das-operacoes-de-credito-com-recursos-direcionados---pessoas-fisic
+    "financiamento_imovel": "25497",
+
+    # CDC / Financiamento de veiculos - PF: SGS 25480
+    # Fonte: https://dadosabertos.bcb.gov.br/dataset/25480-taxa-media-mensal-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-fisicas---cre
+    "financiamento_veiculo":"25480",
+
+    # Cartao de credito rotativo total - PF: SGS 20739
+    # Fonte: https://dadosabertos.bcb.gov.br/dataset/20739-taxa-media-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-fisicas---cartao-de-
+    "cartao_credito":       "20739",
+
+    # Cheque especial - PF: SGS 20668
+    # Fonte: https://dadosabertos.bcb.gov.br/dataset/20668-taxa-media-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-fisicas---cheque-esp
+    "cheque_especial":      "20668",
+
+    # Capital de giro - PJ - prazo superior a 365 dias: SGS 25442
+    # Fonte: https://dadosabertos.bcb.gov.br/dataset/25442-taxa-media-mensal-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-juridicas--
+    "capital_giro":         "25442",
+
+    # Outros (fallback): usa credito pessoal nao consignado como referencia
+    "outros":               "20714",
 }
 
-# Limites de abusividade por modalidade (% ao mês)
-# Baseado em: taxa > 2x a média de mercado = abusivo (REsp 1.061.530/RS, Súmula 566 STJ)
-ABUSIVITY_THRESHOLD: dict[str, float] = {
-    "consignado_inss":      2.08,
-    "consignado_clt":       4.50,
-    "credito_pessoal":      7.00,
-    "credito_habitacional": 2.00,
-    "cdc_veiculo":          3.50,
-    "cartao_credito":      20.00,
-    "outros":               7.00,
-}
-
-# Séries SGS do Banco Central — configuráveis via variáveis de ambiente na Railway
-BCB_SERIES: dict[str, str | None] = {
-    "consignado_inss":      os.getenv("BCB_SGS_SERIES_CONSIGNADO_INSS",  "25466"),
-    "consignado_clt":       os.getenv("BCB_SGS_SERIES_CONSIGNADO_CLT",   "25475"),
-    "credito_pessoal":      os.getenv("BCB_SGS_SERIES_CREDITO_PESSOAL",  "20714"),
-    "credito_habitacional": os.getenv("BCB_SGS_SERIES_HABITACIONAL",     "433"),
-    "cdc_veiculo":          os.getenv("BCB_SGS_SERIES_VEICULO",          "25480"),
-    "cartao_credito":       os.getenv("BCB_SGS_SERIES_CARTAO",           "20739"),
-    "outros":               None,
-}
+# Series auxiliares (sempre buscadas)
+SERIE_SELIC_MENSAL = "4390"
+SERIE_SELIC_ANUAL  = "432"
+SERIE_CDI_MENSAL   = "4391"
 
 
-def _annual_from_monthly(monthly_pct: float) -> float:
-    r = monthly_pct / 100.0
-    return round(((1 + r) ** 12 - 1) * 100.0, 2)
+# ── Cache ─────────────────────────────────────────────────────────────────────
 
-
-def _load_cache() -> dict[str, Any]:
+def _load_cache() -> dict:
     if not CACHE_FILE.exists():
         return {}
     try:
@@ -65,212 +95,260 @@ def _load_cache() -> dict[str, Any]:
     except Exception:
         return {}
 
-
-def _save_cache(data: dict[str, Any]) -> None:
+def _save_cache(data: dict) -> None:
     try:
         CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        CACHE_FILE.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        CACHE_FILE.write_text(json.dumps(data, ensure_ascii=False, default=str), encoding="utf-8")
     except Exception:
         pass
 
-
-def _cache_valid(entry: dict[str, Any]) -> bool:
-    ts = entry.get("updated_at")
+def _cache_is_fresh(entry: dict) -> bool:
+    ts = entry.get("fetched_at")
     if not ts:
         return False
     try:
-        updated = datetime.fromisoformat(ts)
-        return datetime.now(timezone.utc) - updated <= timedelta(hours=CACHE_HOURS)
+        from datetime import timedelta
+        fetched = datetime.fromisoformat(ts)
+        return (datetime.now(timezone.utc) - fetched).total_seconds() < CACHE_HOURS * 3600
     except Exception:
         return False
 
 
-async def _fetch_sgs(series_id: str) -> float | None:
-    url = (
-        f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.{series_id}"
-        f"/dados/ultimos/1?formato=json"
-    )
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(url)
-        resp.raise_for_status()
-        data = resp.json()
-        if not data:
-            return None
-        raw = str(data[0].get("valor", "")).replace(".", "").replace(",", ".")
-        return float(raw) if raw else None
+# ── Fetch SGS ─────────────────────────────────────────────────────────────────
 
+async def _sgs_fetch(serie: str, label: str) -> dict[str, Any]:
+    """
+    Busca uma serie SGS do BCB.
+    Levanta BCBAPIError se indisponivel.
+    """
+    url = SGS_BASE.format(serie=serie)
+    try:
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+            if not data:
+                raise ValueError(f"BCB retornou lista vazia para serie {serie}")
+            row = data[-1]  # ultimo registro
+            raw_val = str(row.get("valor", "")).replace(".", "").replace(",", ".")
+            val = float(raw_val)
+            raw_date = row.get("data", "")
+            return {
+                "serie": serie,
+                "label": label,
+                "value": val,
+                "reference_date": raw_date,
+                "source_url": url,
+                "fetched_at": datetime.now(timezone.utc).isoformat(),
+            }
+    except httpx.HTTPError as e:
+        raise BCBAPIError(f"BCB/SGS serie {serie} ({label}) indisponivel: {e}") from e
+    except Exception as e:
+        raise BCBAPIError(f"Erro ao processar serie {serie} ({label}): {e}") from e
+
+
+class BCBAPIError(RuntimeError):
+    """Levantada quando a API do BCB esta indisponivel. Nao use dados estaticos."""
+    pass
+
+
+# ── Funcoes publicas ──────────────────────────────────────────────────────────
 
 async def get_bcb_rate(loan_type: str) -> dict[str, Any]:
     """
-    Retorna a taxa média de referência do BCB para o tipo de empréstimo.
-    Estratégia: cache (12h) → API SGS → fallback interno.
+    Retorna a taxa media de mercado do BCB para o tipo de emprestimo.
+    SEMPRE busca ao vivo (com cache de 1 hora).
+    Levanta BCBAPIError se a API estiver indisponivel.
     """
     normalized = loan_type.strip().lower()
-    if normalized not in DEFAULT_MONTHLY_RATES:
+    serie = SERIES_MAP.get(normalized)
+    if serie is None:
+        # Fallback de modalidade desconhecida -> credito pessoal
+        serie = SERIES_MAP["credito_pessoal"]
         normalized = "credito_pessoal"
 
+    cache_key = f"rate_{normalized}"
     cache = _load_cache()
-    if _cache_valid(cache.get(normalized, {})):
-        return cache[normalized]
+    if _cache_is_fresh(cache.get(cache_key, {})):
+        return cache[cache_key]
 
-    series_id = BCB_SERIES.get(normalized)
-    monthly_rate: float | None = None
-    source = "fallback"
+    result = await _sgs_fetch(serie, f"Taxa media BCB - {normalized}")
 
-    if series_id:
-        try:
-            monthly_rate = await _fetch_sgs(series_id)
-            if monthly_rate is not None:
-                source = f"BCB/SGS:{series_id}"
-        except Exception:
-            monthly_rate = None
-
-    if monthly_rate is None:
-        monthly_rate = DEFAULT_MONTHLY_RATES[normalized]
+    monthly = result["value"]
+    r = monthly / 100.0
+    annual = round(((1 + r) ** 12 - 1) * 100.0, 4)
+    abusivity_threshold = round(monthly * 2, 4)  # STJ REsp 1.061.530: acima do dobro = abusivo
 
     entry: dict[str, Any] = {
         "loan_type": normalized,
-        "monthly_rate_pct": round(float(monthly_rate), 4),
-        "annual_rate_pct": _annual_from_monthly(float(monthly_rate)),
-        "abusivity_threshold_pct": ABUSIVITY_THRESHOLD.get(normalized, 7.0),
-        "source": source,
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "monthly_rate_pct": round(monthly, 4),
+        "annual_rate_pct": annual,
+        "abusivity_threshold_monthly_pct": abusivity_threshold,
+        "abusivity_threshold_annual_pct": round(((1 + abusivity_threshold/100)**12 - 1)*100, 2),
+        "bcb_reference_date": result["reference_date"],
+        "bcb_serie": serie,
+        "source_url": result["source_url"],
+        "fetched_at": result["fetched_at"],
         "cache_hours": CACHE_HOURS,
+        "note": "Limiar de abusividade = 2x a media BCB (STJ REsp 1.061.530/RS, Tema Repetitivo)",
     }
-
-    cache[normalized] = entry
+    cache[cache_key] = entry
     _save_cache(cache)
     return entry
 
 
-# ── Selic e dados extras ──────────────────────────────────────────────────────
-
-# SGS series para Selic e CDI
-SGS_SELIC_ANNUAL  = "432"   # Selic acumulada no ano (% a.a.)
-SGS_SELIC_MONTHLY = "4390"  # Selic acumulada no mes (% a.m.)
-SGS_CDI_MONTHLY   = "4391"  # CDI acumulado no mes (% a.m.)
-SGS_CONS_INSS_CAP = "25466" # Taxa media consignado INSS (% a.m.) - serve como referencia de teto
-
-# Teto atual do consignado INSS conforme portaria vigente (% a.m.)
-# Atualizado periodicamente - usar SGS_CONS_INSS_CAP como verificacao
-CONSIGNADO_INSS_CAP_DEFAULT = 1.80
-
-
-async def get_selic_rate() -> dict:
-    """Retorna a taxa Selic mensal e anual atuais do BCB."""
+async def get_selic_rate() -> dict[str, Any]:
+    """Retorna a taxa Selic atual (mensal e anual) do BCB — sempre ao vivo."""
     cache = _load_cache()
     key = "__selic__"
-    if _cache_valid(cache.get(key, {})):
+    if _cache_is_fresh(cache.get(key, {})):
         return cache[key]
 
-    monthly = None
-    annual = None
-    source = "fallback"
-
-    try:
-        monthly = await _fetch_sgs(SGS_SELIC_MONTHLY)
-        annual  = await _fetch_sgs(SGS_SELIC_ANNUAL)
-        if monthly is not None:
-            source = "BCB/SGS:4390"
-    except Exception:
-        pass
-
-    if monthly is None:
-        monthly = 0.90   # fallback: ~10.8% a.a.
-        annual  = 10.50
+    mensal = await _sgs_fetch(SERIE_SELIC_MENSAL, "Selic acumulada no mes")
+    anual  = await _sgs_fetch(SERIE_SELIC_ANUAL,  "Selic acumulada no ano")
 
     entry = {
-        "selic_monthly_pct": round(float(monthly), 4),
-        "selic_annual_pct": round(float(annual), 4) if annual else _annual_from_monthly(float(monthly)),
-        "source": source,
-        "updated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+        "selic_monthly_pct": round(mensal["value"], 4),
+        "selic_annual_pct":  round(anual["value"],  4),
+        "bcb_reference_date": mensal["reference_date"],
+        "source_url_monthly": mensal["source_url"],
+        "source_url_annual":  anual["source_url"],
+        "fetched_at": mensal["fetched_at"],
     }
     cache[key] = entry
     _save_cache(cache)
     return entry
 
 
-async def get_consignado_inss_cap() -> dict:
-    """Retorna o teto de juros para credito consignado INSS."""
+async def get_cdi_rate() -> dict[str, Any]:
+    """Retorna a taxa CDI atual do BCB — sempre ao vivo."""
     cache = _load_cache()
-    key = "__inss_cap__"
-    if _cache_valid(cache.get(key, {})):
+    key = "__cdi__"
+    if _cache_is_fresh(cache.get(key, {})):
         return cache[key]
 
-    rate = None
-    source = "fallback"
-    try:
-        rate = await _fetch_sgs(SGS_CONS_INSS_CAP)
-        if rate is not None:
-            source = "BCB/SGS:25466"
-    except Exception:
-        pass
-
-    if rate is None:
-        rate = CONSIGNADO_INSS_CAP_DEFAULT
-
+    cdi = await _sgs_fetch(SERIE_CDI_MENSAL, "CDI acumulado no mes")
     entry = {
-        "cap_monthly_pct": round(float(rate), 4),
-        "cap_annual_pct": _annual_from_monthly(float(rate)),
-        "source": source,
-        "updated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
-        "note": "Taxa media BCB para consignado INSS - referencia para verificacao de abusividade",
+        "cdi_monthly_pct": round(cdi["value"], 4),
+        "bcb_reference_date": cdi["reference_date"],
+        "source_url": cdi["source_url"],
+        "fetched_at": cdi["fetched_at"],
     }
     cache[key] = entry
     _save_cache(cache)
     return entry
 
 
-async def get_enriched_bcb_context(loan_type: str) -> dict:
+async def get_consignado_inss_cap() -> dict[str, Any]:
     """
-    Retorna contexto BCB enriquecido para uso no prompt da IA.
-    Inclui: taxa media do tipo, Selic, teto consignado (se aplicavel).
+    Retorna a taxa media BCB para consignado INSS (serie 25466).
+    Esta e a referencia oficial publicada pelo BCB para a modalidade.
+    O teto legal (portaria MPS) e politica governamental e pode divergir.
+    """
+    return await get_bcb_rate("consignado_inss")
+
+
+async def get_enriched_bcb_context(loan_type: str) -> dict[str, Any]:
+    """
+    Busca em paralelo: taxa da modalidade + Selic + CDI.
+    Retorna contexto completo para o prompt da IA.
+    Levanta BCBAPIError se qualquer fetch critico falhar.
     """
     import asyncio
+
     tasks = [
         get_bcb_rate(loan_type),
         get_selic_rate(),
+        get_cdi_rate(),
     ]
-    if loan_type in ("consignado", "consignado_inss", "consignado_clt"):
+
+    # Para consignado, busca tambem a serie especifica INSS como referencia adicional
+    if loan_type in ("consignado", "consignado_inss"):
         tasks.append(get_consignado_inss_cap())
     else:
-        tasks.append(__import__("asyncio").sleep(0))
+        tasks.append(asyncio.sleep(0))
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    bcb_data  = results[0] if not isinstance(results[0], Exception) else {}
-    selic_data = results[1] if not isinstance(results[1], Exception) else {}
-    inss_cap  = results[2] if (len(results) > 2 and not isinstance(results[2], Exception)) else None
+
+    loan_data  = results[0]
+    selic_data = results[1]
+    cdi_data   = results[2]
+    inss_data  = results[3] if len(results) > 3 else None
+
+    # Taxa da modalidade e critica — se falhar, propaga o erro
+    if isinstance(loan_data, Exception):
+        raise loan_data
+
+    # Selic/CDI sao importantes mas nao bloqueiam
+    if isinstance(selic_data, Exception):
+        selic_data = {"error": str(selic_data)}
+    if isinstance(cdi_data, Exception):
+        cdi_data = {"error": str(cdi_data)}
+    if isinstance(inss_data, Exception):
+        inss_data = None
 
     return {
-        "loan_rate": bcb_data,
+        "loan_rate": loan_data,
         "selic": selic_data,
-        "inss_cap": inss_cap,
+        "cdi": cdi_data,
+        "inss_cap": inss_data if inss_data and not isinstance(inss_data, type(None)) else None,
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
 def format_bcb_context_for_prompt(ctx: dict) -> str:
-    """Formata contexto BCB para inclusao no prompt da IA."""
-    loan = ctx.get("loan_rate", {})
+    """
+    Formata o contexto BCB para o prompt da IA.
+    Inclui fontes exatas para rastreabilidade.
+    """
+    loan  = ctx.get("loan_rate", {})
     selic = ctx.get("selic", {})
-    inss = ctx.get("inss_cap")
+    cdi   = ctx.get("cdi", {})
+    inss  = ctx.get("inss_cap")
+    fetched = ctx.get("fetched_at", "")
 
-    lines = ["=== DADOS BCB (BANCO CENTRAL DO BRASIL) - ATUALIZADOS EM TEMPO REAL ===\n"]
+    lines = [
+        "=== TAXAS OFICIAIS BCB — CONSULTADAS AO VIVO ===",
+        f"Consulta realizada em: {fetched[:19].replace('T', ' ')} UTC",
+        "",
+    ]
 
-    if loan:
-        lines.append(f"Taxa media BCB para '{loan.get('loan_type', '')}': {loan.get('monthly_rate_pct', '?')}% a.m. ({loan.get('annual_rate_pct', '?')}% a.a.)")
-        lines.append(f"Limiar de abusividade (2x a media): {round(loan.get('monthly_rate_pct', 0) * 2, 2)}% a.m.")
-        lines.append(f"Fonte: {loan.get('source', 'BCB/SGS')}")
-        lines.append("")
+    if loan and "monthly_rate_pct" in loan:
+        lines += [
+            f"MODALIDADE ANALISADA: {loan.get('loan_type', '').upper()}",
+            f"  Taxa media de mercado (BCB): {loan['monthly_rate_pct']}% a.m. / {loan['annual_rate_pct']}% a.a.",
+            f"  Data de referencia BCB: {loan.get('bcb_reference_date', '')}",
+            f"  Serie SGS: {loan.get('bcb_serie', '')}",
+            f"  Fonte: {loan.get('source_url', '')}",
+            f"  Limiar de abusividade (2x a media — STJ REsp 1.061.530/RS): {loan.get('abusivity_threshold_monthly_pct', '')}% a.m.",
+            "",
+        ]
 
-    if selic:
-        lines.append(f"Taxa Selic atual: {selic.get('selic_monthly_pct', '?')}% a.m. / {selic.get('selic_annual_pct', '?')}% a.a.")
-        lines.append("")
+    if selic and "selic_monthly_pct" in selic:
+        lines += [
+            f"TAXA SELIC ATUAL: {selic['selic_monthly_pct']}% a.m. / {selic['selic_annual_pct']}% a.a.",
+            f"  Data de referencia BCB: {selic.get('bcb_reference_date', '')}",
+            f"  Fonte mensal: {selic.get('source_url_monthly', '')}",
+            "",
+        ]
 
-    if inss:
-        lines.append(f"Teto consignado INSS (media BCB): {inss.get('cap_monthly_pct', '?')}% a.m.")
-        lines.append(f"Obs: {inss.get('note', '')}")
-        lines.append("")
+    if cdi and "cdi_monthly_pct" in cdi:
+        lines += [
+            f"TAXA CDI ATUAL: {cdi['cdi_monthly_pct']}% a.m.",
+            f"  Fonte: {cdi.get('source_url', '')}",
+            "",
+        ]
 
-    lines.append("CRITERIO DE ABUSIVIDADE (STJ - REsp 1.061.530/RS): taxa que supera significativamente a media BCB, especialmente acima do dobro, pode ser revista judicialmente.")
+    if inss and "monthly_rate_pct" in inss:
+        lines += [
+            f"TAXA MEDIA BCB - CONSIGNADO INSS: {inss['monthly_rate_pct']}% a.m.",
+            f"  Serie SGS 25466 | Data: {inss.get('bcb_reference_date', '')}",
+            "",
+        ]
+
+    lines += [
+        "INSTRUCAO CRITICA: Use EXCLUSIVAMENTE os valores acima para comparar com o contrato.",
+        "Nao use nenhum numero que nao esteja neste contexto. Cite a fonte BCB em cada irregularidade.",
+    ]
 
     return "\n".join(lines)

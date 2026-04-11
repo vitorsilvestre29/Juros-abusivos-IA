@@ -205,6 +205,77 @@ NORMAS_BCB: list[dict] = [
 ]
 
 
+async def fetch_stj_sumula_text(numero: str) -> str | None:
+    """
+    Tenta buscar o texto oficial de uma sumula diretamente do portal STJ.
+    URL: https://www.stj.jus.br/docs_internet/SumulasSTJ.pdf (ou via pesquisa)
+    Retorna None se indisponivel (nao critico — sumulas sao texto de lei estavel).
+    """
+    try:
+        url = f"https://jurisprudencia.stj.jus.br/SCON/sumanot/toc.jsp?livre=@cod=%27{numero}%27"
+        async with httpx.AsyncClient(timeout=8, follow_redirects=True) as client:
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                # Extrai o texto da sumula do HTML
+                import re as _re
+                match = _re.search(r'<p[^>]*class="[^"]*sumula[^"]*"[^>]*>(.*?)</p>', resp.text, _re.DOTALL | _re.IGNORECASE)
+                if match:
+                    raw = _re.sub(r"<[^>]+>", "", match.group(1)).strip()
+                    if len(raw) > 20:
+                        return raw
+    except Exception:
+        pass
+    return None
+
+
+async def fetch_stj_recent_cases(loan_type: str) -> list[dict]:
+    """
+    Busca decisoes recentes no STJ sobre juros abusivos para o tipo de contrato.
+    Endpoint: https://jurisprudencia.stj.jus.br/SCON/julgados/pesquisar
+    Retorna lista vazia se indisponivel.
+    """
+    query_map = {
+        "consignado_inss":       "juros abusivos consignado INSS aposentados beneficio",
+        "consignado_clt":        "juros abusivos consignado privado CLT servidor",
+        "credito_pessoal":       "juros abusivos credito pessoal banco taxa mercado",
+        "financiamento_imovel":  "juros abusivos financiamento habitacional imobiliario SFH",
+        "financiamento_veiculo": "juros abusivos CDC financiamento veiculo alienacao fiduciaria",
+        "cartao_credito":        "juros abusivos rotativo cartao credito banco",
+        "cheque_especial":       "juros abusivos cheque especial conta corrente",
+        "capital_giro":          "juros abusivos capital giro empresa conta garantida",
+        "outros":                "juros abusivos contratos bancarios revisao contratual",
+    }
+    query = query_map.get(loan_type, "juros abusivos contratos bancarios")
+    results = []
+    try:
+        url = "https://jurisprudencia.stj.jus.br/SCON/julgados/pesquisar"
+        params = {
+            "b": "ACOR", "f": "S", "tt": "I", "p": "true",
+            "l": "8", "i": "1", "operador": "E", "thesaurus": "JURIDICO",
+            "q": query,
+        }
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+            resp = await client.get(url, params=params)
+            if resp.status_code == 200:
+                import re as _re
+                # Extrai referencias de acordaos (REsp, AgInt, HC, etc.)
+                refs = _re.findall(
+                    r"(REsp|AREsp|AgInt|AgRg|HC|RHC|CC|MS)\s+(?:no\s+)?([\d\.]+)[/\\]([A-Z]{2})",
+                    resp.text
+                )
+                seen = set()
+                for tipo, num, uf in refs:
+                    ref = f"{tipo} {num}/{uf}"
+                    if ref not in seen:
+                        seen.add(ref)
+                        results.append({"referencia": ref, "fonte": "STJ/Portal-ao-vivo"})
+                    if len(results) >= 6:
+                        break
+    except Exception as e:
+        print(f"[stj_service] fetch_stj_recent_cases ({loan_type}): {e}")
+    return results
+
+
 def get_jurisprudencia_for_loan_type(loan_type: str) -> dict[str, Any]:
     """Retorna sumulas, leading cases e normas relevantes para o tipo de emprestimo."""
     normalized = loan_type.strip().lower().replace(" ", "_")
@@ -257,27 +328,24 @@ async def fetch_stj_recent(query: str = "juros abusivos contratos bancarios") ->
 async def get_stj_context(loan_type: str) -> dict[str, Any]:
     """
     Retorna contexto juridico completo para uso no prompt de IA.
-    Combina banco curado + tentativa de busca em tempo real no STJ.
+    1. Busca decisoes recentes diretamente no portal STJ ao vivo
+    2. Combina com banco curado de Sumulas e Leading Cases
+    Sumulas STJ sao texto de lei — so mudam via publicacao formal no DJe.
     """
     curated = get_jurisprudencia_for_loan_type(loan_type)
 
-    # Tenta enriquecer com decisoes recentes (nao bloqueia se falhar)
+    # Busca decisoes recentes ao vivo no STJ
     try:
-        query_map = {
-            "consignado": "juros abusivos consignado INSS aposentados",
-            "credito_pessoal": "juros abusivos credito pessoal banco",
-            "financiamento_veiculo": "juros abusivos CDC financiamento veiculo",
-            "financiamento_imovel": "juros abusivos financiamento habitacional SFH",
-            "cartao_credito": "juros abusivos rotativo cartao credito",
-            "cheque_especial": "juros abusivos cheque especial",
-            "capital_giro": "juros abusivos capital de giro empresa",
-        }
-        query = query_map.get(loan_type, "juros abusivos contratos bancarios")
-        recent = await asyncio.wait_for(fetch_stj_recent(query), timeout=8)
+        recent = await asyncio.wait_for(fetch_stj_recent_cases(loan_type), timeout=9)
         curated["decisoes_recentes_stj"] = recent
-    except Exception:
+        print(f"[stj_service] {len(recent)} decisoes recentes buscadas ao vivo para '{loan_type}'")
+    except Exception as e:
+        print(f"[stj_service] busca ao vivo indisponivel (nao critico): {e}")
         curated["decisoes_recentes_stj"] = []
 
+    curated["fonte_sumulas"] = "Banco curado — Sumulas STJ sao texto de lei, atualizadas via DJe"
+    curated["fonte_leading_cases"] = "Teses vinculantes de Recursos Repetitivos STJ"
+    curated["fonte_decisoes_recentes"] = "Portal STJ — jurisprudencia.stj.jus.br — consultado ao vivo"
     return curated
 
 

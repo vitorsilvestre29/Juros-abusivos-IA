@@ -15,7 +15,7 @@ import io
 from datetime import datetime
 from typing import Optional
 
-from services.bcb_service import get_bcb_rate, get_enriched_bcb_context, format_bcb_context_for_prompt
+from services.bcb_service import get_bcb_rate, get_enriched_bcb_context, format_bcb_context_for_prompt, BCBAPIError
 from services.stj_service import get_stj_context, format_stj_context_for_prompt
 from models import AnalysisStatus
 
@@ -270,27 +270,48 @@ async def run_full_analysis(
             else:
                 image_pages = [base64.standard_b64encode(file_bytes).decode("utf-8")]
 
-            # 2. Taxa BCB + Selic + STJ em paralelo
-            bcb_ctx_data, stj_ctx_data = await asyncio.gather(
-                get_enriched_bcb_context(loan_type),
-                get_stj_context(loan_type),
-                return_exceptions=True,
-            )
-            if isinstance(bcb_ctx_data, Exception):
-                bcb_ctx_data = {}
-            if isinstance(stj_ctx_data, Exception):
-                stj_ctx_data = {}
+            # 2. Busca taxas BCB AO VIVO + contexto STJ em paralelo
+            # BCBAPIError e levantada se a API do BCB estiver indisponivel — nao existem fallbacks
+            stj_ctx_data = {}
+            try:
+                stj_ctx_data_raw = await asyncio.wait_for(get_stj_context(loan_type), timeout=10)
+                stj_ctx_data = stj_ctx_data_raw
+            except Exception as stj_err:
+                print(f"[analysis] STJ context nao disponivel (nao critico): {stj_err}")
+
+            # BCB e CRITICO: sem taxa real nao fazemos analise
+            try:
+                bcb_ctx_data = await asyncio.wait_for(
+                    get_enriched_bcb_context(loan_type), timeout=20
+                )
+            except BCBAPIError as e:
+                raise RuntimeError(
+                    f"API do Banco Central (BCB) indisponivel no momento. "
+                    f"Nao e possivel realizar a analise sem as taxas oficiais de mercado. "
+                    f"Detalhe tecnico: {e}"
+                ) from e
+            except asyncio.TimeoutError:
+                raise RuntimeError(
+                    "Timeout ao consultar a API do Banco Central (BCB). "
+                    "Tente novamente em alguns minutos."
+                )
 
             bcb_loan = bcb_ctx_data.get("loan_rate", {})
-            reference_rate = bcb_loan.get("monthly_rate_pct", 0.0)
-            if reference_rate == 0.0:
-                fallback = await get_bcb_rate(loan_type)
-                reference_rate = fallback.get("monthly_rate_pct", 4.0)
+            reference_rate = bcb_loan.get("monthly_rate_pct")
+            if not reference_rate:
+                raise RuntimeError(
+                    "BCB retornou taxa zerada ou ausente para a modalidade solicitada. "
+                    "Analise interrompida para garantir precisao dos dados."
+                )
 
             bcb_prompt_ctx = format_bcb_context_for_prompt(bcb_ctx_data)
-            stj_prompt_ctx = format_stj_context_for_prompt(stj_ctx_data)
+            stj_prompt_ctx = format_stj_context_for_prompt(stj_ctx_data) if stj_ctx_data else ""
 
-            print(f"[analysis] BCB rate fetched: {reference_rate}% a.m. | STJ cases: {len(stj_ctx_data.get('leading_cases', []))}")
+            print(
+                f"[analysis] BCB rate: {reference_rate}% a.m. "
+                f"(serie {bcb_loan.get('bcb_serie')}, ref {bcb_loan.get('bcb_reference_date')}) "
+                f"| STJ cases: {len(stj_ctx_data.get('leading_cases', []))}"
+            )
 
             # 3. Analise Claude com contexto enriquecido
             ai_result = await analyze_contract(
