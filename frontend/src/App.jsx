@@ -18,17 +18,17 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Publico */}
+        {/* Publico - sem restricao */}
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/cadastro" element={<Register />} />
+        <Route path="/upload" element={<UploadContract />} />
+        <Route path="/analise/:contractId" element={<AnalysisResult />} />
+        <Route path="/pagamento/:analysisId" element={<Payment />} />
+        <Route path="/laudo/:analysisId" element={<Report />} />
 
-        {/* Privado */}
+        {/* Privado - requer conta cadastrada */}
         <Route path="/app" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-        <Route path="/upload" element={<PrivateRoute><UploadContract /></PrivateRoute>} />
-        <Route path="/analise/:contractId" element={<PrivateRoute><AnalysisResult /></PrivateRoute>} />
-        <Route path="/pagamento/:analysisId" element={<PrivateRoute><Payment /></PrivateRoute>} />
-        <Route path="/laudo/:analysisId" element={<PrivateRoute><Report /></PrivateRoute>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

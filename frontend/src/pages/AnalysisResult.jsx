@@ -12,14 +12,12 @@ export default function AnalysisResult() {
   const nav = useNavigate()
   const rawUser = localStorage.getItem('user')
   const currentUser = rawUser ? JSON.parse(rawUser) : null
-  const isGuest = !!currentUser?.is_guest
+  const isGuest = currentUser ? currentUser.is_guest === true : true
   const [status, setStatus] = useState(null)
   const [pricing, setPricing] = useState({ price_brl: 20, includes: [] })
   const [dots, setDots] = useState('.')
 
-  useEffect(() => {
-    getPricing().then(r => setPricing(r.data)).catch(() => {})
-  }, [])
+  useEffect(() => { getPricing().then(r => setPricing(r.data)).catch(() => {}) }, [])
 
   useEffect(() => {
     let interval
@@ -33,9 +31,7 @@ export default function AnalysisResult() {
             nav('/laudo/' + res.data.analysis_id, { replace: true })
           }
         }
-      } catch (e) {
-        clearInterval(interval)
-      }
+      } catch (e) { clearInterval(interval) }
     }
     poll()
     interval = setInterval(poll, 3000)
@@ -50,8 +46,11 @@ export default function AnalysisResult() {
   }, [status])
 
   if (status === null) return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <p className="text-gray-400">Carregando...</p>
+    <div style={{ minHeight: '100vh', background: '#F0F4FB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ textAlign: 'center', color: '#94A3B8' }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div>
+        <p style={{ fontFamily: "'Merriweather', serif", fontSize: 18, color: '#10233F' }}>Carregando...</p>
+      </div>
     </div>
   )
 
@@ -59,134 +58,168 @@ export default function AnalysisResult() {
   const isFailed = status.status === 'failed'
   const isDone = status.status === 'completed'
   const hasIssues = status.has_issues === true
+  const navLinkStyle = { color: '#94A3B8', textDecoration: 'none', fontSize: 14, fontWeight: 500, padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)' }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
-          <Link to={isGuest ? '/cadastro' : '/app'} className="text-gray-400 hover:text-gray-600 text-sm">
-            {isGuest ? 'Criar conta para salvar' : 'Minhas analises'}
+    <div style={{ minHeight: '100vh', background: '#F0F4FB' }}>
+      <nav style={{ background: '#10233F', boxShadow: '0 2px 16px rgba(0,0,0,0.18)', position: 'sticky', top: 0, zIndex: 100 }}>
+        <div style={{ maxWidth: 780, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Link to="/" style={{ fontFamily: "'Merriweather', serif", color: '#FF9F1C', fontSize: 20, fontWeight: 700, textDecoration: 'none' }}>
+            Juros Abusivos
           </Link>
-          <span className="text-gray-300"> | </span>
-          <span className="text-blue-900 font-bold">Juros Abusivos IA</span>
+          <Link to={isGuest ? '/cadastro' : '/app'} style={navLinkStyle}>
+            {isGuest ? 'Salvar meu historico' : 'Minhas analises'}
+          </Link>
         </div>
-      </header>
+      </nav>
 
-      <main className="max-w-3xl mx-auto px-4 py-10 mobile-safe">
+      <main style={{ maxWidth: 720, margin: '0 auto', padding: '52px 24px' }}>
 
         {isProcessing && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center shadow-sm">
-            <div className="text-5xl mb-4 animate-pulse">&#128269;</div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">Analisando seu contrato{dots}</h2>
-            <p className="text-gray-500 text-sm mb-6">
+          <div style={{ background: '#FFFFFF', borderRadius: 24, border: '1px solid #E2EBF8', padding: '56px 40px', textAlign: 'center', boxShadow: '0 4px 24px rgba(12,26,46,0.07)' }}>
+            <div style={{ width: 80, height: 80, background: '#FFF4E5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontSize: 36 }}>🔍</div>
+            <h2 style={{ fontFamily: "'Merriweather', serif", fontSize: 26, fontWeight: 700, color: '#10233F', marginBottom: 10 }}>
+              Analisando seu contrato{dots}
+            </h2>
+            <p style={{ color: '#56677B', fontSize: 15, marginBottom: 36, lineHeight: 1.7 }}>
               Nosso sistema esta analisando o contrato e verificando as normas do Banco Central. Aguarde.
             </p>
-            <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-700 text-left space-y-2">
-              <p>&#10003; Extracao do texto do contrato</p>
-              <p>&#10003; Consulta as taxas do Banco Central (BCB)</p>
-              <p className="opacity-60">&#8987; Identificando irregularidades...</p>
-              <p className="opacity-30">&#8987; Calculando impacto financeiro...</p>
+            <div style={{ background: '#F0F4FB', borderRadius: 16, padding: '20px 24px', textAlign: 'left', maxWidth: 400, margin: '0 auto' }}>
+              {[
+                { label: 'Extracao do texto do contrato', done: true },
+                { label: 'Consulta as taxas do Banco Central (BCB)', done: true },
+                { label: 'Identificando irregularidades...', done: false },
+                { label: 'Calculando impacto financeiro...', done: false, faded: true },
+              ].map((s, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: i < 3 ? 12 : 0, opacity: s.faded ? 0.35 : 1 }}>
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: s.done ? '#FF9F1C' : '#E2EBF8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12, color: s.done ? '#10233F' : '#94A3B8' }}>
+                    {s.done ? '✓' : '⏳'}
+                  </div>
+                  <span style={{ color: s.done ? '#10233F' : '#94A3B8', fontSize: 14, fontWeight: s.done ? 600 : 400 }}>{s.label}</span>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
         {isFailed && (
-          <div className="bg-white rounded-2xl border border-red-200 p-8 text-center shadow-sm">
-            <h2 className="text-xl font-bold text-red-700 mb-2">Nao foi possivel analisar</h2>
-            <p className="text-gray-500 text-sm mb-4">{status.error || 'Verifique se o arquivo esta legivel e tente novamente.'}</p>
-            <button onClick={() => nav('/upload')} className="bg-blue-900 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-blue-800 transition">
+          <div style={{ background: '#FFFFFF', borderRadius: 24, border: '1px solid #FECACA', padding: '48px 40px', textAlign: 'center', boxShadow: '0 4px 24px rgba(12,26,46,0.07)' }}>
+            <div style={{ fontSize: 44, marginBottom: 16 }}>❌</div>
+            <h2 style={{ fontFamily: "'Merriweather', serif", fontSize: 24, fontWeight: 700, color: '#B91C1C', marginBottom: 10 }}>Nao foi possivel analisar</h2>
+            <p style={{ color: '#56677B', fontSize: 15, marginBottom: 28 }}>{status.error || 'Verifique se o arquivo esta legivel e tente novamente.'}</p>
+            <button onClick={() => nav('/upload')} style={{ background: '#10233F', color: '#FFFFFF', border: 'none', borderRadius: 12, padding: '13px 32px', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Manrope', sans-serif" }}>
               Tentar novamente
             </button>
           </div>
         )}
 
         {isDone && status.paid === false && (
-          <div className="space-y-4">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
+            {/* banner resultado */}
             {hasIssues ? (
-              <div className="bg-red-700 rounded-2xl p-6 text-white text-center shadow-md">
-                <div className="text-4xl mb-3">&#9888;</div>
-                <h1 className="text-2xl font-bold mb-2">Irregularidades identificadas</h1>
-                <p className="text-red-100 text-sm">
-                  Nossa analise identificou <strong className="text-white">irregularidades no seu contrato</strong> de {status.loan_type_label}.
+              <div style={{ background: 'linear-gradient(135deg, #7F1D1D, #B91C1C)', borderRadius: 20, padding: '32px 36px', color: '#FFFFFF', boxShadow: '0 4px 20px rgba(185,28,28,0.25)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
+                  <div style={{ width: 52, height: 52, background: 'rgba(255,255,255,0.12)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>⚠️</div>
+                  <div>
+                    <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 }}>Resultado da analise</p>
+                    <h1 style={{ fontFamily: "'Merriweather', serif", fontSize: 26, fontWeight: 800, margin: 0 }}>Irregularidades identificadas</h1>
+                  </div>
+                </div>
+                <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 15, lineHeight: 1.7, margin: 0 }}>
+                  Nossa analise identificou <strong style={{ color: '#FFFFFF' }}>irregularidades no seu contrato</strong> de {status.loan_type_label}.
                   Acesse o laudo para saber quais sao, o impacto financeiro e como agir.
                 </p>
               </div>
             ) : (
-              <div className="bg-green-700 rounded-2xl p-6 text-white text-center shadow-md">
-                <div className="text-4xl mb-3">&#128203;</div>
-                <h1 className="text-2xl font-bold mb-2">Analise concluida</h1>
-                <p className="text-green-100 text-sm">
+              <div style={{ background: 'linear-gradient(135deg, #14532D, #15803D)', borderRadius: 20, padding: '32px 36px', color: '#FFFFFF', boxShadow: '0 4px 20px rgba(21,128,61,0.25)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
+                  <div style={{ width: 52, height: 52, background: 'rgba(255,255,255,0.12)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>📋</div>
+                  <div>
+                    <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 }}>Resultado da analise</p>
+                    <h1 style={{ fontFamily: "'Merriweather', serif", fontSize: 26, fontWeight: 800, margin: 0 }}>Analise concluida</h1>
+                  </div>
+                </div>
+                <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 15, lineHeight: 1.7, margin: 0 }}>
                   Finalizamos a analise do seu contrato de {status.loan_type_label}.
                   Acesse o laudo tecnico para ver o resultado completo com a confirmacao tecnica por escrito.
                 </p>
               </div>
             )}
 
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <h2 className="text-xl font-bold text-gray-800 mb-1">
+            {/* paywall card */}
+            <div style={{ background: '#FFFFFF', border: '1px solid #E2EBF8', borderRadius: 24, padding: '36px', boxShadow: '0 4px 24px rgba(12,26,46,0.07)', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg, #FF9F1C, #F5B942)' }} />
+
+              <h2 style={{ fontFamily: "'Merriweather', serif", fontSize: 22, fontWeight: 700, color: '#10233F', marginBottom: 6 }}>
                 {hasIssues ? 'Veja o que encontramos no seu contrato' : 'Obtenha o Laudo Tecnico Completo'}
               </h2>
-              <p className="text-gray-500 text-sm mb-5">
+              <p style={{ color: '#56677B', fontSize: 14, marginBottom: 24, lineHeight: 1.7 }}>
                 {hasIssues
                   ? 'O laudo detalha cada irregularidade com fundamento legal, calculo do valor cobrado a mais e orientacoes para acao revisional.'
-                  : 'O laudo e um documento tecnico que comprova a situacao do seu contrato perante as normas do BCB. Util para comprovacao e seguranca juridica.'}
+                  : 'O laudo e um documento tecnico que comprova a situacao do seu contrato perante as normas do BCB.'}
               </p>
-              <ul className="space-y-2 mb-6">
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 24 }}>
                 {(hasIssues ? [
-                  'Irregularidades detalhadas com fundamento legal',
-                  'Calculo preciso do valor cobrado a mais',
-                  'Comparacao com taxas medias do Banco Central',
+                  'Irregularidades com fundamento legal',
+                  'Calculo do valor cobrado a mais',
+                  'Comparacao com taxas do BCB',
                   'PDF pronto para o advogado',
                   'Orientacao para acao revisional',
+                  'Acesso imediato apos pagamento',
                 ] : [
-                  'Resultado completo e detalhado da analise',
-                  'Confirmacao tecnica das clausulas do contrato',
-                  'Comparacao com taxas medias do Banco Central',
+                  'Resultado completo e detalhado',
+                  'Confirmacao tecnica das clausulas',
+                  'Comparacao com taxas do BCB',
                   'Documento PDF com validade tecnica',
-                  'Parecer sobre conformidade com normas BCB',
+                  'Parecer sobre conformidade BCB',
+                  'Acesso imediato apos pagamento',
                 ]).map((item, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                    <span className="text-green-500">&#10003;</span>
-                    <span>{item}</span>
-                  </li>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 20, height: 20, background: '#FFF4E5', border: '1.5px solid #FF9F1C', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <span style={{ color: '#FF9F1C', fontSize: 11, fontWeight: 700 }}>✓</span>
+                    </div>
+                    <span style={{ color: '#374151', fontSize: 13 }}>{item}</span>
+                  </div>
                 ))}
-              </ul>
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-5 text-xs text-amber-800">
-                <strong>Nota legal:</strong> Este laudo e uma analise tecnica e matematica, nao assessoria juridica. Para acao revisional, consulte um advogado.
               </div>
 
-              <div className="bg-[#FFF4E5] border-2 border-[#FFB347] rounded-xl p-4 mb-5 text-[#7A4300]">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-base">⚠️</span>
-                  <strong className="text-xs uppercase tracking-wide">Aviso legal importante antes do pagamento</strong>
-                </div>
-                <p className="text-xs leading-relaxed">
-                  Os laudos gerados por esta plataforma sao de natureza tecnico-matematica e tem carater meramente informativo. A interpretacao juridica e o ajuizamento de qualquer acao revisional devem ser realizados exclusivamente por advogado habilitado, conforme o Estatuto da OAB (Lei 8.906/94). A plataforma nao presta consultoria juridica.
+              <div style={{ background: '#FFF9F0', border: '1px solid rgba(255,159,28,0.25)', borderLeft: '4px solid #FF9F1C', borderRadius: 10, padding: '12px 16px', marginBottom: 24 }}>
+                <p style={{ color: '#8A4C00', fontSize: 12, lineHeight: 1.65, margin: 0 }}>
+                  <strong>Nota legal:</strong> Este laudo e uma analise tecnica e matematica, nao assessoria juridica. Para acao revisional, consulte um advogado.
                 </p>
               </div>
 
-              <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4 mb-4 border border-gray-100">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F0F4FB', borderRadius: 14, padding: '18px 20px', marginBottom: 20, border: '1px solid #E2EBF8' }}>
                 <div>
-                  <p className="text-sm font-semibold text-gray-700">Laudo Tecnico Completo</p>
-                  <p className="text-xs text-gray-400">Pagamento unico - Acesso imediato</p>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: '#10233F', marginBottom: 2 }}>Laudo Tecnico Completo</p>
+                  <p style={{ fontSize: 13, color: '#94A3B8' }}>Pagamento unico — Acesso imediato via PIX</p>
                 </div>
-                <span className="text-2xl font-bold text-blue-900">{fmt(pricing.price_brl)}</span>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontFamily: "'Merriweather', serif", fontSize: 36, fontWeight: 800, color: '#10233F' }}>{fmt(pricing.price_brl)}</p>
+                </div>
               </div>
+
               <button
                 onClick={() => nav('/pagamento/' + status.analysis_id)}
-                className="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-4 rounded-xl transition text-lg"
+                style={{ width: '100%', background: '#10233F', color: '#FFFFFF', border: 'none', borderRadius: 14, fontSize: 17, fontWeight: 700, padding: '16px', cursor: 'pointer', fontFamily: "'Manrope', sans-serif", boxShadow: '0 4px 16px rgba(12,26,46,0.2)' }}
               >
-                {hasIssues ? 'Ver irregularidades e pagar com PIX' : 'Acessar laudo e pagar com PIX'}
+                {hasIssues ? 'Ver irregularidades — Pagar com PIX' : 'Acessar laudo — Pagar com PIX'}
               </button>
-              <p className="text-center text-xs text-gray-400 mt-3">
-                Pagamento seguro via PIX - Acesso imediato apos confirmacao
+              <p style={{ textAlign: 'center', fontSize: 13, color: '#94A3B8', marginTop: 14 }}>
+                Pagamento seguro via PIX — Acesso imediato apos confirmacao
               </p>
-            </div>
 
+              {isGuest && (
+                <div style={{ marginTop: 20, borderTop: '1px solid #E2EBF8', paddingTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <p style={{ color: '#56677B', fontSize: 13 }}>Quer salvar este resultado? Crie uma conta gratuita.</p>
+                  <Link to="/cadastro" style={{ color: '#FF9F1C', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>Criar conta →</Link>
+                </div>
+              )}
+            </div>
           </div>
         )}
-
       </main>
     </div>
   )
