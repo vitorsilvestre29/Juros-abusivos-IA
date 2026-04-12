@@ -166,6 +166,15 @@ export default function UploadContract() {
               style={{ width: '100%', padding: '11px 14px', border: `1.5px solid ${G.border}`, borderRadius: 8, fontSize: 15, fontFamily: sans, color: G.text, outline: 'none', boxSizing: 'border-box', background: G.bg }} />
           </div>
 
+          {/* LGPD Notice */}
+          <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid ' + G.goldBorder, borderRadius: 10, padding: '12px 16px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, marginTop: 1 }}><path d="M12 2L3 7v5c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z" fill={G.gold}/></svg>
+            <p style={{ color: G.muted, fontSize: 12, lineHeight: 1.6, margin: 0, fontFamily: sans }}>
+              Seus dados sao protegidos conforme a <strong style={{ color: G.text }}>LGPD (Lei 13.709/2018)</strong>. O documento e usado exclusivamente para esta analise e excluido em 90 dias.{' '}
+              <a href="/privacidade" target="_blank" rel="noreferrer" style={{ color: G.gold, textDecoration: 'none', fontWeight: 600 }}>Ver Politica de Privacidade</a>
+            </p>
+          </div>
+
           <button type="submit" disabled={loading || file === null}
             style={{ ...btnBase, width: '100%', padding: '15px', background: (loading || file === null) ? '#9CA3AF' : G.dark, color: G.white, borderRadius: 8, fontSize: 15, fontWeight: 700, boxShadow: (loading || file === null) ? 'none' : '0 4px 16px rgba(14,17,23,0.2)', letterSpacing: 0.2 }}>
             {loading ? 'Enviando para analise...' : 'Analisar contrato'}

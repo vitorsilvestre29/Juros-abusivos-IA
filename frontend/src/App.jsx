@@ -10,6 +10,7 @@ import Report from './pages/Report'
 import Ranking from './pages/Ranking'
 import Blog from './pages/Blog'
 import Comparador from './pages/Comparador'
+import Privacidade from './pages/Privacidade'
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token')
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/ranking" element={<Ranking />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/comparador" element={<Comparador />} />
+        <Route path="/privacidade" element={<Privacidade />} />
 
         {/* Privado - requer conta cadastrada */}
         <Route path="/app" element={<PrivateRoute><Dashboard /></PrivateRoute>} />

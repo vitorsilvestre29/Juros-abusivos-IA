@@ -283,6 +283,47 @@ export default function Landing() {
         </div>
       </section>
 
+
+      {/* LGPD SECTION */}
+      <section style={{ background: G.bg, padding: '64px 32px', borderTop: '1px solid ' + G.border }}>
+        <div style={{ maxWidth: 860, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 36 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: G.goldPale, border: '1px solid ' + G.goldBorder, borderRadius: 100, padding: '6px 18px', marginBottom: 16 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2L3 7v5c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z" fill={G.gold}/></svg>
+              <span style={{ color: G.gold, fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: sans }}>LGPD</span>
+            </div>
+            <h2 style={{ fontFamily: serif, fontSize: 30, fontWeight: 700, color: G.text, marginBottom: 10, letterSpacing: '-0.3px' }}>
+              Seus dados protegidos por lei
+            </h2>
+            <p style={{ color: G.muted, fontSize: 15, maxWidth: 520, margin: '0 auto', lineHeight: 1.7 }}>
+              Operamos em total conformidade com a Lei Geral de Protecao de Dados (Lei 13.709/2018). Sua privacidade nao e opcional.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 28 }}>
+            {[
+              { icon: '🔒', title: 'Dados criptografados', desc: 'Toda comunicacao e transmitida com criptografia TLS. Seus contratos nunca ficam expostos.' },
+              { icon: '🚫', title: 'Zero venda de dados', desc: 'Nunca vendemos, alugamos ou compartilhamos seus dados com terceiros para fins comerciais.' },
+              { icon: '🗑️', title: 'Exclusao garantida', desc: 'Documentos enviados sao deletados automaticamente em 90 dias. Solicite exclusao a qualquer momento.' },
+              { icon: '⚖️', title: 'Direitos assegurados', desc: 'Acesso, correcao, portabilidade e exclusao dos seus dados garantidos conforme arts. 17-22 da LGPD.' },
+            ].map((item, i) => (
+              <div key={i} style={{ background: G.white, border: '1px solid ' + G.border, borderRadius: 14, padding: '22px 20px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                <div style={{ fontSize: 24, marginBottom: 10 }}>{item.icon}</div>
+                <p style={{ fontWeight: 700, color: G.text, fontSize: 14, marginBottom: 6, fontFamily: sans }}>{item.title}</p>
+                <p style={{ color: G.muted, fontSize: 13, lineHeight: 1.65, margin: 0 }}>{item.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ textAlign: 'center' }}>
+            <Link to="/privacidade" style={{ color: G.gold, textDecoration: 'none', fontSize: 14, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, borderBottom: '1px solid ' + G.goldBorder, paddingBottom: 2, fontFamily: sans }}>
+              Ler nossa Politica de Privacidade completa
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={G.gold} strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* LEGAL DISCLAIMER */}
       <div style={{ background: '#0A0D13', borderTop: `1px solid rgba(201,168,76,0.1)`, padding: '16px 32px' }}>
         <p style={{ color: '#374151', fontSize: 11, textAlign: 'center', maxWidth: 900, margin: '0 auto', lineHeight: 1.6 }}>
@@ -313,9 +354,9 @@ export default function Landing() {
               </div>
               <div>
                 <p style={{ color: '#6B7280', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 14 }}>Legal</p>
-                {['Aviso legal', 'Privacidade (LGPD)', 'Termos de uso'].map(l => (
-                  <div key={l} style={{ marginBottom: 9 }}><span style={{ color: '#374151', fontSize: 13, cursor: 'pointer' }}>{l}</span></div>
-                ))}
+                <div style={{ marginBottom: 9 }}><Link to="/privacidade" style={{ color: '#374151', textDecoration: 'none', fontSize: 13 }}>Privacidade (LGPD)</Link></div>
+                <div style={{ marginBottom: 9 }}><span style={{ color: '#374151', fontSize: 13, cursor: 'default' }}>Termos de uso</span></div>
+                <div style={{ marginBottom: 9 }}><span style={{ color: '#374151', fontSize: 13, cursor: 'default' }}>Aviso legal</span></div>
               </div>
             </div>
           </div>
