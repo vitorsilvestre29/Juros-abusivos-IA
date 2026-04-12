@@ -71,7 +71,7 @@ export default function Payment() {
     <div style={{ minHeight: '100vh', background: bg, fontFamily: sans }}>
       <nav style={{ background: N, boxShadow: '0 2px 12px rgba(13,33,55,0.25)', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: 700, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link to="/" style={{ fontFamily: serif, color: O, fontSize: 20, fontWeight: 700, textDecoration: 'none' }}>Juros Abusivos</Link>
+          <Link to="/" style={{ fontFamily: serif, color: O, fontSize: 20, fontWeight: 700, textDecoration: 'none' }}>LaudoJuros</Link>
           <Link to={isGuest ? '/cadastro' : '/app'} style={navLinkStyle}>
             {isGuest ? 'Salvar meu historico' : 'Minhas analises'}
           </Link>

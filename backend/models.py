@@ -92,6 +92,9 @@ class Analysis(Base):
 
     contract: Mapped["Contract"] = relationship("Contract", back_populates="analysis")
     payment: Mapped["Payment"] = relationship("Payment", back_populates="analysis", uselist=False)
+    telemetry: Mapped["AnalysisTelemetry"] = relationship(
+        "AnalysisTelemetry", back_populates="analysis", uselist=False
+    )
 
 
 class Payment(Base):
@@ -117,3 +120,25 @@ class Payment(Base):
 
     user: Mapped["User"] = relationship("User", back_populates="payments")
     analysis: Mapped["Analysis"] = relationship("Analysis", back_populates="payment")
+
+
+class AnalysisTelemetry(Base):
+    """Telemetria de custo/uso por analise para controle operacional."""
+    __tablename__ = "analysis_telemetry"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    analysis_id: Mapped[int] = mapped_column(Integer, ForeignKey("analyses.id"), unique=True, index=True)
+
+    model_name: Mapped[str] = mapped_column(String(80), default="claude-sonnet-4-6")
+    max_output_tokens: Mapped[int] = mapped_column(Integer, default=2000)
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    estimated_cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    estimated_cost_brl: Mapped[float] = mapped_column(Float, default=0.0)
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(20), default=AnalysisStatus.FAILED)
+    error_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    analysis: Mapped["Analysis"] = relationship("Analysis", back_populates="telemetry")

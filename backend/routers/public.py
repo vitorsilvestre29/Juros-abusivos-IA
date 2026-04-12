@@ -1,12 +1,24 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from models import LOAN_TYPES, Analysis, Contract
+from datetime import datetime, timedelta, timezone
+from models import LOAN_TYPES, Analysis, Contract, AnalysisTelemetry
 from database import get_db
 import os, json
 
 
 router = APIRouter()
+
+
+def _require_ops_key(x_ops_key: str | None):
+    expected = os.getenv("OPS_METRICS_KEY", "").strip()
+    if not expected:
+        raise HTTPException(
+            status_code=503,
+            detail="OPS_METRICS_KEY nao configurada no backend.",
+        )
+    if (x_ops_key or "").strip() != expected:
+        raise HTTPException(status_code=401, detail="Acesso nao autorizado.")
 
 
 @router.get("/health")
@@ -94,3 +106,79 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
     except Exception as e:
         return {"total_analyses": 0, "total_with_issues": 0, "pct_with_issues": 0, "total_impact_brl": 0}
 
+
+@router.get("/ops/ai-metrics")
+async def get_ai_metrics(
+    days: int = 7,
+    x_ops_key: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Metricas operacionais da IA para ajuste de custo x qualidade.
+    Protegido por header: X-Ops-Key (OPS_METRICS_KEY no backend).
+    """
+    _require_ops_key(x_ops_key)
+
+    if days < 1:
+        days = 1
+    if days > 30:
+        days = 30
+
+    now = datetime.now(timezone.utc)
+    today_start = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
+    period_start = today_start - timedelta(days=days - 1)
+
+    base = select(AnalysisTelemetry).where(AnalysisTelemetry.created_at >= period_start)
+    rows_result = await db.execute(base)
+    rows = rows_result.scalars().all()
+
+    total = len(rows)
+    completed = [r for r in rows if r.status == "completed"]
+    failed = [r for r in rows if r.status == "failed"]
+
+    def _sum(field: str, items: list[AnalysisTelemetry]) -> float:
+        return float(sum(float(getattr(x, field) or 0.0) for x in items))
+
+    def _avg(field: str, items: list[AnalysisTelemetry]) -> float:
+        if not items:
+            return 0.0
+        return round(_sum(field, items) / len(items), 6)
+
+    by_token_bucket: dict[int, list[AnalysisTelemetry]] = {}
+    for row in rows:
+        key = int(row.max_output_tokens or 0)
+        by_token_bucket.setdefault(key, []).append(row)
+
+    cohorts = []
+    for max_tokens, items in sorted(by_token_bucket.items(), key=lambda x: x[0]):
+        total_items = len(items)
+        failed_items = len([i for i in items if i.status == "failed"])
+        cohorts.append({
+            "max_output_tokens": max_tokens,
+            "total": total_items,
+            "failed": failed_items,
+            "failure_rate_pct": round((failed_items / total_items) * 100, 2) if total_items else 0.0,
+            "avg_input_tokens": _avg("input_tokens", items),
+            "avg_output_tokens": _avg("output_tokens", items),
+            "avg_cost_brl": _avg("estimated_cost_brl", items),
+            "avg_duration_ms": _avg("duration_ms", items),
+        })
+
+    return {
+        "period_days": days,
+        "from_utc": period_start.isoformat(),
+        "to_utc": now.isoformat(),
+        "totals": {
+            "analyses": total,
+            "completed": len(completed),
+            "failed": len(failed),
+            "failure_rate_pct": round((len(failed) / total) * 100, 2) if total else 0.0,
+            "sum_cost_brl": round(_sum("estimated_cost_brl", rows), 6),
+            "sum_cost_usd": round(_sum("estimated_cost_usd", rows), 6),
+            "avg_cost_brl": _avg("estimated_cost_brl", rows),
+            "avg_input_tokens": _avg("input_tokens", rows),
+            "avg_output_tokens": _avg("output_tokens", rows),
+            "avg_duration_ms": _avg("duration_ms", rows),
+        },
+        "cohorts_by_max_output_tokens": cohorts,
+    }

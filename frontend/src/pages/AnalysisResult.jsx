@@ -71,7 +71,7 @@ export default function AnalysisResult() {
     <div style={{ minHeight: '100vh', background: bg, fontFamily: sans }}>
       <header style={{ background: white, borderBottom: '1px solid ' + border, boxShadow: '0 1px 4px rgba(13,33,55,0.06)' }}>
         <div style={{ maxWidth: 760, margin: '0 auto', padding: '0 24px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link to="/" style={{ fontFamily: serif, color: O, fontSize: 18, fontWeight: 700, textDecoration: 'none' }}>Juros Abusivos</Link>
+          <Link to="/" style={{ fontFamily: serif, color: O, fontSize: 18, fontWeight: 700, textDecoration: 'none' }}>LaudoJuros</Link>
           <Link to={isGuest ? '/cadastro' : '/app'} style={{ color: muted, textDecoration: 'none', fontSize: 13, fontWeight: 500 }}>
             {isGuest ? 'Criar conta para salvar' : 'Minhas analises'}
           </Link>

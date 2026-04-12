@@ -12,8 +12,8 @@ Mapeamento de modalidades para series SGS (oficiais, publicados pelo BCB):
   consignado_inss      -> SGS 25466  (Credito pessoal consignado - INSS, % a.m.)
   consignado_clt       -> SGS 25475  (Credito pessoal consignado - privado, % a.m.)
   credito_pessoal      -> SGS 20714  (Credito pessoal nao consignado, % a.m.)
-  financiamento_imovel -> SGS 433    (Financiamento habitacional, % a.m.)
-  financiamento_veiculo-> SGS 25480  (Credito veiculos PF - CDC, % a.m.)
+  credito_habitacional -> SGS 25497  (Financiamento habitacional / imobiliario PF, % a.m.)
+  cdc_veiculo         -> SGS 25480   (Credito veiculos PF - CDC, % a.m.)
   cartao_credito       -> SGS 20739  (Cartao de credito rotativo total, % a.m.)
   cheque_especial      -> SGS 20668  (Cheque especial - PF, % a.m.)
   capital_giro         -> SGS 20616  (Capital de giro ate 365 dias, % a.m.)
@@ -31,7 +31,7 @@ from typing import Any
 
 import httpx
 
-# Cache muito curto: 1 hora — dados precisam ser frescos
+# Cache curto para endpoints auxiliares; no pipeline principal a consulta pode ser forçada ao vivo.
 CACHE_HOURS = 1
 CACHE_FILE  = Path(os.getenv("BCB_CACHE_FILE", "/tmp/bcb_rates_cache.json"))
 
@@ -55,13 +55,15 @@ SERIES_MAP: dict[str, str] = {
     # Fonte: https://dadosabertos.bcb.gov.br/dataset/20714-taxa-media-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-fisicas---credito-p
     "credito_pessoal":      "20714",
 
-    # Financiamento imobiliario - PF - taxas de mercado: SGS 25497
+    # Credito habitacional / financiamento imobiliario - PF: SGS 25497
     # Fonte: https://dadosabertos.bcb.gov.br/dataset/25497-taxa-media-mensal-de-juros-das-operacoes-de-credito-com-recursos-direcionados---pessoas-fisic
-    "financiamento_imovel": "25497",
+    "credito_habitacional": "25497",
+    "financiamento_imovel": "25497",  # alias legado
 
-    # CDC / Financiamento de veiculos - PF: SGS 25480
+    # CDC / Financiamento de veiculo - PF: SGS 25480
     # Fonte: https://dadosabertos.bcb.gov.br/dataset/25480-taxa-media-mensal-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-fisicas---cre
-    "financiamento_veiculo":"25480",
+    "cdc_veiculo":          "25480",
+    "financiamento_veiculo":"25480",  # alias legado
 
     # Cartao de credito rotativo total - PF: SGS 20739
     # Fonte: https://dadosabertos.bcb.gov.br/dataset/20739-taxa-media-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-fisicas---cartao-de-
@@ -154,22 +156,22 @@ class BCBAPIError(RuntimeError):
 
 # ── Funcoes publicas ──────────────────────────────────────────────────────────
 
-async def get_bcb_rate(loan_type: str) -> dict[str, Any]:
+async def get_bcb_rate(loan_type: str, force_refresh: bool = False) -> dict[str, Any]:
     """
     Retorna a taxa media de mercado do BCB para o tipo de emprestimo.
-    SEMPRE busca ao vivo (com cache de 1 hora).
-    Levanta BCBAPIError se a API estiver indisponivel.
+    Se force_refresh=True, ignora cache e consulta a API publica ao vivo.
+    Levanta BCBAPIError se a API estiver indisponivel ou se o tipo for invalido.
     """
     normalized = loan_type.strip().lower()
     serie = SERIES_MAP.get(normalized)
     if serie is None:
-        # Fallback de modalidade desconhecida -> credito pessoal
-        serie = SERIES_MAP["credito_pessoal"]
-        normalized = "credito_pessoal"
+        raise BCBAPIError(
+            f"Tipo de contrato invalido para consulta BCB: '{loan_type}'."
+        )
 
     cache_key = f"rate_{normalized}"
     cache = _load_cache()
-    if _cache_is_fresh(cache.get(cache_key, {})):
+    if (not force_refresh) and _cache_is_fresh(cache.get(cache_key, {})):
         return cache[cache_key]
 
     result = await _sgs_fetch(serie, f"Taxa media BCB - {normalized}")
@@ -197,11 +199,11 @@ async def get_bcb_rate(loan_type: str) -> dict[str, Any]:
     return entry
 
 
-async def get_selic_rate() -> dict[str, Any]:
+async def get_selic_rate(force_refresh: bool = False) -> dict[str, Any]:
     """Retorna a taxa Selic atual (mensal e anual) do BCB — sempre ao vivo."""
     cache = _load_cache()
     key = "__selic__"
-    if _cache_is_fresh(cache.get(key, {})):
+    if (not force_refresh) and _cache_is_fresh(cache.get(key, {})):
         return cache[key]
 
     mensal = await _sgs_fetch(SERIE_SELIC_MENSAL, "Selic acumulada no mes")
@@ -220,11 +222,11 @@ async def get_selic_rate() -> dict[str, Any]:
     return entry
 
 
-async def get_cdi_rate() -> dict[str, Any]:
+async def get_cdi_rate(force_refresh: bool = False) -> dict[str, Any]:
     """Retorna a taxa CDI atual do BCB — sempre ao vivo."""
     cache = _load_cache()
     key = "__cdi__"
-    if _cache_is_fresh(cache.get(key, {})):
+    if (not force_refresh) and _cache_is_fresh(cache.get(key, {})):
         return cache[key]
 
     cdi = await _sgs_fetch(SERIE_CDI_MENSAL, "CDI acumulado no mes")
@@ -239,16 +241,16 @@ async def get_cdi_rate() -> dict[str, Any]:
     return entry
 
 
-async def get_consignado_inss_cap() -> dict[str, Any]:
+async def get_consignado_inss_cap(force_refresh: bool = False) -> dict[str, Any]:
     """
     Retorna a taxa media BCB para consignado INSS (serie 25466).
     Esta e a referencia oficial publicada pelo BCB para a modalidade.
     O teto legal (portaria MPS) e politica governamental e pode divergir.
     """
-    return await get_bcb_rate("consignado_inss")
+    return await get_bcb_rate("consignado_inss", force_refresh=force_refresh)
 
 
-async def get_enriched_bcb_context(loan_type: str) -> dict[str, Any]:
+async def get_enriched_bcb_context(loan_type: str, force_refresh: bool = False) -> dict[str, Any]:
     """
     Busca em paralelo: taxa da modalidade + Selic + CDI.
     Retorna contexto completo para o prompt da IA.
@@ -257,14 +259,14 @@ async def get_enriched_bcb_context(loan_type: str) -> dict[str, Any]:
     import asyncio
 
     tasks = [
-        get_bcb_rate(loan_type),
-        get_selic_rate(),
-        get_cdi_rate(),
+        get_bcb_rate(loan_type, force_refresh=force_refresh),
+        get_selic_rate(force_refresh=force_refresh),
+        get_cdi_rate(force_refresh=force_refresh),
     ]
 
     # Para consignado, busca tambem a serie especifica INSS como referencia adicional
     if loan_type in ("consignado", "consignado_inss"):
-        tasks.append(get_consignado_inss_cap())
+        tasks.append(get_consignado_inss_cap(force_refresh=force_refresh))
     else:
         tasks.append(asyncio.sleep(0))
 

@@ -12,13 +12,13 @@ const serif = "'Merriweather', Georgia, serif"
 const sans = "'Manrope', system-ui, sans-serif"
 
 const LOAN_LABELS = {
-  credito_pessoal: 'Credito Pessoal',
-  consignado: 'Consignado',
-  financiamento_veiculo: 'Financiamento de Veiculo',
-  financiamento_imovel: 'Financiamento de Imovel',
+  consignado_inss: 'Consignado INSS',
+  consignado_clt: 'Consignado CLT (desconto em folha)',
+  credito_pessoal: 'Credito Pessoal (bancario direto)',
+  credito_habitacional: 'Credito Habitacional / Financiamento Imobiliario',
+  cdc_veiculo: 'CDC Veiculo / Financiamento de Veiculo',
   cartao_credito: 'Cartao de Credito',
-  cheque_especial: 'Cheque Especial',
-  capital_giro: 'Capital de Giro',
+  outros: 'Outros',
 }
 
 export default function UploadContract() {
@@ -63,7 +63,7 @@ export default function UploadContract() {
     <div style={{ minHeight: '100vh', background: bg, fontFamily: sans }}>
       <nav style={{ background: N, boxShadow: '0 2px 12px rgba(13,33,55,0.25)', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link to="/" style={{ fontFamily: serif, color: O, fontSize: 20, fontWeight: 700, textDecoration: 'none' }}>Juros Abusivos</Link>
+          <Link to="/" style={{ fontFamily: serif, color: O, fontSize: 20, fontWeight: 700, textDecoration: 'none' }}>LaudoJuros</Link>
           <Link to={isGuest ? '/cadastro' : '/app'} style={{ color: '#7E9BB5', textDecoration: 'none', fontSize: 14 }}>
             {isGuest ? 'Criar conta para salvar' : 'Minhas analises'}
           </Link>
@@ -75,7 +75,13 @@ export default function UploadContract() {
           <h1 style={{ fontFamily: serif, fontSize: 34, fontWeight: 700, color: N, marginBottom: 10 }}>
             Enviar contrato para analise
           </h1>
-          <p style={{ color: muted, fontSize: 16 }}>PDF ou imagem do contrato de emprestimo ou financiamento</p>
+          <p style={{ color: muted, fontSize: 16 }}>Envie apenas o PDF do contrato de emprestimo ou financiamento</p>
+        </div>
+
+        <div style={{ background: '#FFF4E5', border: '1px solid #F5E8C8', borderLeft: '4px solid ' + O, borderRadius: 10, padding: '14px 16px', marginBottom: 24 }}>
+          <p style={{ color: '#8A4C00', fontSize: 12, lineHeight: 1.65, margin: 0 }}>
+            <strong>Aviso importante:</strong> Para maior precisao, envie o PDF original do banco. PDFs gerados a partir de foto/escaneamento podem reduzir a qualidade da leitura e impactar a analise.
+          </p>
         </div>
 
         {error && (
@@ -97,8 +103,7 @@ export default function UploadContract() {
               transition: 'all 0.2s', marginBottom: 32
             }}
           >
-            <input ref={fileRef} type="file" accept=".pdf,image/*" style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
-            <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }} id="camera-input" onChange={e => handleFile(e.target.files[0])} />
+            <input ref={fileRef} type="file" accept=".pdf,application/pdf" style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
             {file ? (
               <>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
@@ -109,7 +114,7 @@ export default function UploadContract() {
               <>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>📎</div>
                 <p style={{ fontWeight: 700, color: N, fontSize: 16, marginBottom: 6 }}>Arraste o arquivo ou clique para selecionar</p>
-                <p style={{ color: '#7E8FA5', fontSize: 13 }}>PDF, JPG ou PNG — Maximo 20MB</p>
+                <p style={{ color: '#7E8FA5', fontSize: 13 }}>Apenas PDF — Maximo 20MB</p>
               </>
             )}
           </div>

@@ -43,7 +43,7 @@ export default function Register() {
       <div style={{ width: '100%', maxWidth: 420 }}>
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
           <Link to="/" style={{ fontFamily: serif, color: O, fontSize: 22, fontWeight: 700, textDecoration: 'none', display: 'block', marginBottom: 8 }}>
-            Juros Abusivos
+            LaudoJuros
           </Link>
           <p style={{ color: muted, fontSize: 14 }}>Analise tecnica de contratos de credito</p>
         </div>

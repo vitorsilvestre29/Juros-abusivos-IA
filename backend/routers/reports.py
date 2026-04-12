@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 import json
 
 from database import get_db
@@ -24,9 +25,14 @@ async def get_report_preview(
     Disponível para qualquer análise concluída, mesmo sem pagamento.
     """
     result = await db.execute(
-        select(Analysis).where(
+        select(Analysis)
+        .where(
             Analysis.id == analysis_id,
             Analysis.user_id == current_user.id,
+        )
+        .options(
+            selectinload(Analysis.payment),
+            selectinload(Analysis.contract),
         )
     )
     analysis = result.scalar_one_or_none()
@@ -77,9 +83,14 @@ async def get_full_report_json(
     Usado pelo frontend para exibir o relatório na tela.
     """
     result = await db.execute(
-        select(Analysis).where(
+        select(Analysis)
+        .where(
             Analysis.id == analysis_id,
             Analysis.user_id == current_user.id,
+        )
+        .options(
+            selectinload(Analysis.payment),
+            selectinload(Analysis.contract),
         )
     )
     analysis = result.scalar_one_or_none()
@@ -93,7 +104,10 @@ async def get_full_report_json(
         )
 
     if not analysis.ai_result_json:
-        raise HTTPException(status_code=500, detail="Dados da análise não disponíveis")
+        raise HTTPException(
+            status_code=425,
+            detail="Pagamento confirmado. Estamos finalizando seu laudo completo.",
+        )
 
     ai_result = json.loads(analysis.ai_result_json)
 
@@ -136,9 +150,14 @@ async def download_report_pdf(
         raise HTTPException(status_code=401, detail="Credenciais invalidas")
 
     result = await db.execute(
-        select(Analysis).where(
+        select(Analysis)
+        .where(
             Analysis.id == analysis_id,
             Analysis.user_id == current_user.id,
+        )
+        .options(
+            selectinload(Analysis.payment),
+            selectinload(Analysis.contract),
         )
     )
     analysis = result.scalar_one_or_none()
@@ -154,7 +173,10 @@ async def download_report_pdf(
     # Gera o PDF se ainda não existir
     if not analysis.report_pdf:
         if not analysis.ai_result_json:
-            raise HTTPException(status_code=500, detail="Dados da análise indisponíveis")
+            raise HTTPException(
+                status_code=425,
+                detail="Pagamento confirmado. Estamos finalizando seu laudo completo.",
+            )
 
         from services.report_service import generate_report_pdf
         ai_result = json.loads(analysis.ai_result_json)

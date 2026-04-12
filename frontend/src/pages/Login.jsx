@@ -43,7 +43,7 @@ export default function Login() {
       {/* Lado esquerdo - decorativo */}
       <div style={{ flex: 1, background: 'linear-gradient(160deg, ' + N + ', #163552)', display: 'none', alignItems: 'center', justifyContent: 'center', padding: 60, flexDirection: 'column' }} className="hidden md:flex">
         <div style={{ maxWidth: 380 }}>
-          <div style={{ fontFamily: serif, color: O, fontSize: 28, fontWeight: 700, marginBottom: 40 }}>Juros Abusivos</div>
+          <div style={{ fontFamily: serif, color: O, fontSize: 28, fontWeight: 700, marginBottom: 40 }}>LaudoJuros</div>
           <h2 style={{ fontFamily: serif, color: white, fontSize: 36, fontWeight: 700, lineHeight: 1.25, marginBottom: 20 }}>
             Analise tecnica especializada de contratos
           </h2>
@@ -66,7 +66,7 @@ export default function Login() {
         <div style={{ width: '100%', maxWidth: 400 }}>
           <div style={{ textAlign: 'center', marginBottom: 40 }}>
             <Link to="/" style={{ fontFamily: serif, color: O, fontSize: 22, fontWeight: 700, textDecoration: 'none', display: 'block', marginBottom: 8 }}>
-              Juros Abusivos
+              LaudoJuros
             </Link>
             <p style={{ color: muted, fontSize: 14 }}>Analise tecnica de contratos de credito</p>
           </div>

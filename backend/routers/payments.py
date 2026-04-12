@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from datetime import datetime
 import os
 import json
@@ -11,6 +12,7 @@ from routers.auth import get_current_user
 from models import User
 from services.payment_service import create_pix_payment
 from services.report_service import generate_report_pdf
+from services.analysis_service import run_full_analysis
 
 router = APIRouter()
 
@@ -27,10 +29,12 @@ async def create_payment(
     """
     # Verifica se a análise existe e pertence ao usuário
     result = await db.execute(
-        select(Analysis).where(
+        select(Analysis)
+        .where(
             Analysis.id == analysis_id,
             Analysis.user_id == current_user.id,
         )
+        .options(selectinload(Analysis.payment))
     )
     analysis = result.scalar_one_or_none()
     if not analysis:
@@ -167,8 +171,8 @@ async def mercadopago_webhook(
     payment.paid_at = datetime.utcnow()
     await db.commit()
 
-    # Gera o PDF em background
-    background_tasks.add_task(_generate_pdf_after_payment, payment.analysis_id)
+    # Gera analise completa + PDF em background
+    background_tasks.add_task(_generate_full_report_after_payment, payment.analysis_id)
 
     return {"ok": True}
 
@@ -202,30 +206,55 @@ async def confirm_mock_payment(
     payment.paid_at = datetime.utcnow()
     await db.commit()
 
-    background_tasks.add_task(_generate_pdf_after_payment, payment.analysis_id)
+    background_tasks.add_task(_generate_full_report_after_payment, payment.analysis_id)
 
     return {"message": "Pagamento confirmado (mock)", "analysis_id": payment.analysis_id}
 
 
-async def _generate_pdf_after_payment(analysis_id: int):
-    """Gera o PDF do laudo e salva no banco após confirmação do pagamento."""
+async def _generate_full_report_after_payment(analysis_id: int):
+    """Pos-pagamento: executa analise completa premium e gera o PDF."""
     from database import AsyncSessionLocal
+
     async with AsyncSessionLocal() as db:
-        result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
+        result = await db.execute(
+            select(Analysis)
+            .where(Analysis.id == analysis_id)
+            .options(selectinload(Analysis.contract))
+        )
         analysis = result.scalar_one_or_none()
-        if not analysis or not analysis.ai_result_json:
+        if not analysis or not analysis.contract:
             return
-        if analysis.report_pdf:
-            return  # já gerado
 
         try:
-            ai_result = json.loads(analysis.ai_result_json)
+            # Executa analise completa apenas apos pagamento.
+            if not analysis.ai_result_json:
+                user_result = await db.execute(select(User).where(User.id == analysis.user_id))
+                user = user_result.scalar_one_or_none()
+                await run_full_analysis(
+                    contract_id=analysis.contract_id,
+                    analysis_id=analysis.id,
+                    file_bytes=analysis.contract.file_data,
+                    file_type=analysis.contract.file_type,
+                    loan_type=analysis.contract.loan_type,
+                    user_email=user.email if user else "",
+                    user_phone=analysis.contract.user_phone or "",
+                )
 
-            # Busca dados do contrato para o relatório
-            contract_result = await db.execute(
-                select(Analysis).where(Analysis.id == analysis_id)
-            )
-            # Gera o PDF
+                reload_result = await db.execute(
+                    select(Analysis)
+                    .where(Analysis.id == analysis_id)
+                    .options(selectinload(Analysis.contract))
+                )
+                analysis = reload_result.scalar_one_or_none()
+                if not analysis:
+                    return
+
+            if not analysis.ai_result_json:
+                return
+            if analysis.report_pdf:
+                return
+
+            ai_result = json.loads(analysis.ai_result_json)
             pdf_bytes = await generate_report_pdf(
                 ai_result=ai_result,
                 loan_type=analysis.contract.loan_type if analysis.contract else "credito_pessoal",
@@ -237,4 +266,4 @@ async def _generate_pdf_after_payment(analysis_id: int):
             analysis.report_generated_at = datetime.utcnow()
             await db.commit()
         except Exception as e:
-            print(f"Erro ao gerar PDF para análise {analysis_id}: {e}")
+            print(f"Erro no pos-pagamento da analise {analysis_id}: {e}")

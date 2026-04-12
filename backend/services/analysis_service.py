@@ -12,14 +12,77 @@ import json
 import os
 import base64
 import io
+from time import perf_counter
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
-from services.bcb_service import get_bcb_rate, get_enriched_bcb_context, format_bcb_context_for_prompt, BCBAPIError
+from services.bcb_service import get_enriched_bcb_context, format_bcb_context_for_prompt, BCBAPIError
 from services.stj_service import get_stj_context, format_stj_context_for_prompt
+from services.ops_alert_service import send_ops_alert
 from models import AnalysisStatus
 
 MOCK_MODE = os.getenv("MOCK_MODE", "false").lower() == "true"
+MODEL_NAME = "claude-sonnet-4-6"
+
+
+def _max_output_tokens() -> int:
+    """
+    Controle via ambiente para ajuste gradual de custo x qualidade.
+    Default: 2000.
+    """
+    raw = os.getenv("AI_MAX_OUTPUT_TOKENS", "2000")
+    try:
+        value = int(raw)
+    except Exception:
+        return 2000
+    # Evita configuracoes perigosas/acidentais.
+    if value < 500:
+        return 500
+    if value > 4096:
+        return 4096
+    return value
+
+
+def _precheck_max_output_tokens() -> int:
+    raw = os.getenv("AI_PRECHECK_MAX_OUTPUT_TOKENS", "120")
+    try:
+        value = int(raw)
+    except Exception:
+        return 120
+    if value < 40:
+        return 40
+    if value > 300:
+        return 300
+    return value
+
+
+def _input_cost_per_mtok_usd() -> float:
+    try:
+        return float(os.getenv("AI_INPUT_COST_PER_MTOK_USD", "3.0"))
+    except Exception:
+        return 3.0
+
+
+def _output_cost_per_mtok_usd() -> float:
+    try:
+        return float(os.getenv("AI_OUTPUT_COST_PER_MTOK_USD", "15.0"))
+    except Exception:
+        return 15.0
+
+
+def _usd_brl_rate() -> float:
+    try:
+        return float(os.getenv("AI_USD_BRL_EXCHANGE_RATE", "5.0"))
+    except Exception:
+        return 5.0
+
+
+def _estimate_cost(input_tokens: int, output_tokens: int) -> tuple[float, float]:
+    input_usd = (max(input_tokens, 0) / 1_000_000.0) * _input_cost_per_mtok_usd()
+    output_usd = (max(output_tokens, 0) / 1_000_000.0) * _output_cost_per_mtok_usd()
+    usd = round(input_usd + output_usd, 8)
+    brl = round(usd * _usd_brl_rate(), 8)
+    return usd, brl
 
 
 # ── Extracao de texto ─────────────────────────────────────────────────────────
@@ -120,6 +183,38 @@ def _mock_result(loan_type: str, reference_rate: float) -> dict:
     }
 
 
+def _is_anthropic_credit_error(err: Exception) -> bool:
+    msg = str(err or "").lower()
+    indicators = [
+        "credit",
+        "credits",
+        "billing",
+        "quota",
+        "insufficient",
+        "balance",
+        "rate limit",
+        "429",
+    ]
+    return any(k in msg for k in indicators)
+
+
+def _friendly_error_message(err: Exception) -> str:
+    if isinstance(err, BCBAPIError):
+        return (
+            "Nao conseguimos consultar as taxas oficiais do Banco Central no momento. "
+            "Tente novamente em alguns minutos."
+        )
+    if _is_anthropic_credit_error(err):
+        return (
+            "As analises estao temporariamente indisponiveis por alta demanda no provedor de IA. "
+            "Ja estamos normalizando. Tente novamente em breve."
+        )
+    return (
+        "Nao foi possivel concluir a analise agora. "
+        "Tente novamente em alguns minutos."
+    )
+
+
 async def analyze_contract(
     contract_text: str,
     loan_type: str,
@@ -127,9 +222,12 @@ async def analyze_contract(
     image_pages: Optional[list] = None,
     bcb_context: str = "",
     stj_context: str = "",
-) -> dict:
+) -> tuple[dict, dict[str, int]]:
     if MOCK_MODE:
-        return _mock_result(loan_type, reference_rate)
+        return _mock_result(loan_type, reference_rate), {
+            "input_tokens": 0,
+            "output_tokens": 0,
+        }
 
     import anthropic
 
@@ -194,8 +292,8 @@ Responda SOMENTE em JSON valido com esta estrutura:
         }]
 
     resp = await client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=2000,
+        model=MODEL_NAME,
+        max_tokens=_max_output_tokens(),
         system=system_prompt,
         messages=messages,
     )
@@ -206,7 +304,64 @@ Responda SOMENTE em JSON valido com esta estrutura:
     elif "```" in raw:
         raw = raw.split("```")[1].split("```")[0].strip()
 
-    return json.loads(raw)
+    usage = getattr(resp, "usage", None)
+    input_tokens = 0
+    output_tokens = 0
+    if usage is not None:
+        input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
+        output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
+
+    return json.loads(raw), {
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+    }
+
+
+async def precheck_contract_has_issues(
+    contract_text: str,
+    loan_type: str,
+    reference_rate: float,
+) -> bool:
+    """
+    Pre-analise barata para converter: responde apenas TEM/NAO irregularidades.
+    """
+    if MOCK_MODE:
+        return True
+
+    import anthropic
+
+    client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    limited_text = (contract_text or "")[:4500]
+
+    system_prompt = (
+        "Voce classifica contratos de credito no Brasil.\n"
+        "Com base no texto e na taxa media BCB informada, responda somente se ha indicio de irregularidade.\n"
+        "Responda EXATAMENTE em JSON valido no formato: {\"has_issues\": true|false}\n"
+        "Sem explicacoes adicionais."
+    )
+
+    user_prompt = (
+        f"Tipo de contrato: {loan_type}\n"
+        f"Taxa media BCB de referencia: {reference_rate:.4f}% a.m.\n"
+        "Analise apenas de forma preliminar (sem laudo completo).\n\n"
+        f"Texto do contrato:\n{limited_text}"
+    )
+
+    resp = await client.messages.create(
+        model=MODEL_NAME,
+        max_tokens=_precheck_max_output_tokens(),
+        system=system_prompt,
+        messages=[{"role": "user", "content": user_prompt}],
+    )
+
+    raw = (resp.content[0].text or "").strip()
+    if "```json" in raw:
+        raw = raw.split("```json")[1].split("```")[0].strip()
+    elif "```" in raw:
+        raw = raw.split("```")[1].split("```")[0].strip()
+
+    data = json.loads(raw)
+    return bool(data.get("has_issues", False))
 
 
 # ── Calculo de impacto ────────────────────────────────────────────────────────
@@ -230,17 +385,17 @@ def calculate_financial_impact(ai_result: dict, reference_rate: float) -> dict:
     }
 
 
-# ── Pipeline principal ────────────────────────────────────────────────────────
-
-async def run_full_analysis(
+async def run_pre_analysis(
     contract_id: int,
     analysis_id: int,
     file_bytes: bytes,
     file_type: str,
     loan_type: str,
-    user_email: str,
-    user_phone: str = "",
 ) -> None:
+    """
+    Pre-analise antes do pagamento: define apenas se ha ou nao indicios de irregularidades.
+    Nao gera laudo completo nem detalhes premium.
+    """
     from database import AsyncSessionLocal
     from models import Analysis
     from sqlalchemy import select
@@ -253,6 +408,83 @@ async def run_full_analysis(
 
         analysis.status = AnalysisStatus.PROCESSING
         await db.commit()
+
+        try:
+            extracted_text = ""
+            if file_type == "pdf":
+                extracted_text = extract_text_from_pdf(file_bytes)
+                if len((extracted_text or "").strip()) < 200:
+                    extracted_text = ocr_pdf(file_bytes)
+
+            if len((extracted_text or "").strip()) < 60:
+                raise RuntimeError("Nao foi possivel extrair texto suficiente do PDF para pre-analise.")
+
+            bcb_rate_data = await asyncio.wait_for(
+                get_enriched_bcb_context(loan_type, force_refresh=not MOCK_MODE), timeout=20
+            )
+            reference_rate = float((bcb_rate_data.get("loan_rate") or {}).get("monthly_rate_pct") or 0.0)
+            if reference_rate <= 0:
+                raise RuntimeError("Taxa BCB indisponivel para pre-analise.")
+
+            has_issues = await precheck_contract_has_issues(
+                contract_text=extracted_text,
+                loan_type=loan_type,
+                reference_rate=reference_rate,
+            )
+
+            analysis.status = AnalysisStatus.COMPLETED
+            analysis.has_issues = has_issues
+            analysis.irregularities_count = 1 if has_issues else 0
+            analysis.impact_brl = 0.0
+            analysis.bcb_rate_pct = reference_rate
+            analysis.completed_at = datetime.utcnow()
+            # Importante: detalhes premium permanecem bloqueados ate pagamento.
+            analysis.ai_result_json = None
+            await db.commit()
+
+        except Exception as e:
+            analysis.status = AnalysisStatus.FAILED
+            analysis.error_message = _friendly_error_message(e)[:500]
+            await db.commit()
+            await send_ops_alert(
+                event="pre_analysis_failed",
+                message="Falha na pre-analise antes do pagamento.",
+                metadata={
+                    "analysis_id": analysis_id,
+                    "contract_id": contract_id,
+                    "raw_error": str(e)[:300],
+                },
+            )
+
+
+# ── Pipeline principal ────────────────────────────────────────────────────────
+
+async def run_full_analysis(
+    contract_id: int,
+    analysis_id: int,
+    file_bytes: bytes,
+    file_type: str,
+    loan_type: str,
+    user_email: str,
+    user_phone: str = "",
+) -> None:
+    from database import AsyncSessionLocal
+    from models import Analysis, AnalysisTelemetry
+    from sqlalchemy import select
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
+        analysis = result.scalar_one_or_none()
+        if not analysis:
+            return
+
+        analysis.status = AnalysisStatus.PROCESSING
+        await db.commit()
+
+        input_tokens = 0
+        output_tokens = 0
+        duration_ms = 0
+        max_output_tokens = _max_output_tokens()
 
         try:
             # 1. Extracao de texto
@@ -282,7 +514,7 @@ async def run_full_analysis(
             # BCB e CRITICO: sem taxa real nao fazemos analise
             try:
                 bcb_ctx_data = await asyncio.wait_for(
-                    get_enriched_bcb_context(loan_type), timeout=20
+                    get_enriched_bcb_context(loan_type, force_refresh=not MOCK_MODE), timeout=20
                 )
             except BCBAPIError as e:
                 raise RuntimeError(
@@ -314,7 +546,8 @@ async def run_full_analysis(
             )
 
             # 3. Analise Claude com contexto enriquecido
-            ai_result = await analyze_contract(
+            started_at = perf_counter()
+            ai_result, usage = await analyze_contract(
                 contract_text=extracted_text,
                 loan_type=loan_type,
                 reference_rate=reference_rate,
@@ -322,6 +555,9 @@ async def run_full_analysis(
                 bcb_context=bcb_prompt_ctx,
                 stj_context=stj_prompt_ctx,
             )
+            duration_ms = int((perf_counter() - started_at) * 1000)
+            input_tokens = int((usage or {}).get("input_tokens", 0) or 0)
+            output_tokens = int((usage or {}).get("output_tokens", 0) or 0)
 
             # 4. Impacto financeiro
             impact_data = calculate_financial_impact(ai_result, reference_rate)
@@ -345,10 +581,73 @@ async def run_full_analysis(
             analysis.completed_at = datetime.utcnow()
             await db.commit()
 
+            telemetry_result = await db.execute(
+                select(AnalysisTelemetry).where(AnalysisTelemetry.analysis_id == analysis_id)
+            )
+            telemetry = telemetry_result.scalar_one_or_none()
+            if telemetry is None:
+                telemetry = AnalysisTelemetry(analysis_id=analysis_id)
+                db.add(telemetry)
+
+            estimated_usd, estimated_brl = _estimate_cost(input_tokens, output_tokens)
+            telemetry.model_name = MODEL_NAME
+            telemetry.max_output_tokens = max_output_tokens
+            telemetry.input_tokens = input_tokens
+            telemetry.output_tokens = output_tokens
+            telemetry.estimated_cost_usd = estimated_usd
+            telemetry.estimated_cost_brl = estimated_brl
+            telemetry.duration_ms = duration_ms
+            telemetry.status = AnalysisStatus.COMPLETED
+            telemetry.error_type = None
+            await db.commit()
+
         except Exception as e:
             analysis.status = AnalysisStatus.FAILED
-            analysis.error_message = str(e)[:500]
+            analysis.error_message = _friendly_error_message(e)[:500]
             await db.commit()
+
+            telemetry_result = await db.execute(
+                select(AnalysisTelemetry).where(AnalysisTelemetry.analysis_id == analysis_id)
+            )
+            telemetry = telemetry_result.scalar_one_or_none()
+            if telemetry is None:
+                telemetry = AnalysisTelemetry(analysis_id=analysis_id)
+                db.add(telemetry)
+
+            estimated_usd, estimated_brl = _estimate_cost(input_tokens, output_tokens)
+            telemetry.model_name = MODEL_NAME
+            telemetry.max_output_tokens = max_output_tokens
+            telemetry.input_tokens = input_tokens
+            telemetry.output_tokens = output_tokens
+            telemetry.estimated_cost_usd = estimated_usd
+            telemetry.estimated_cost_brl = estimated_brl
+            telemetry.duration_ms = duration_ms
+            telemetry.status = AnalysisStatus.FAILED
+            telemetry.error_type = type(e).__name__[:80]
+            await db.commit()
+
+            if _is_anthropic_credit_error(e):
+                await send_ops_alert(
+                    event="ai_provider_quota_or_credit_issue",
+                    message="Falha de analise por limite de credito/quota da IA.",
+                    metadata={
+                        "analysis_id": analysis_id,
+                        "contract_id": contract_id,
+                        "user_email": user_email,
+                        "raw_error": str(e)[:300],
+                    },
+                )
+            else:
+                await send_ops_alert(
+                    event="ai_analysis_failed",
+                    message="Falha na analise de contrato.",
+                    metadata={
+                        "analysis_id": analysis_id,
+                        "contract_id": contract_id,
+                        "user_email": user_email,
+                        "raw_error": str(e)[:300],
+                    },
+                )
             print(f"[analysis_service] Erro na analise {analysis_id}: {e}")
 
 # ── Notificacao WhatsApp via Z-API ────────────────────────────────────────────

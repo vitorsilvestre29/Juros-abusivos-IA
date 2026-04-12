@@ -64,7 +64,7 @@ export default function Landing() {
       {/* NAV */}
       <nav style={{ background: N, boxShadow: '0 2px 12px rgba(13,33,55,0.25)', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px', height: 68, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontFamily: serif, color: O, fontSize: 22, fontWeight: 700, letterSpacing: '-0.3px' }}>Juros Abusivos</span>
+          <span style={{ fontFamily: serif, color: O, fontSize: 22, fontWeight: 700, letterSpacing: '-0.3px' }}>LaudoJuros</span>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <Link to="/comparador" style={{ color: '#7E9BB5', textDecoration: 'none', fontSize: 13, fontWeight: 500, padding: '6px 12px' }}>Comparador</Link>
             <Link to="/ranking" style={{ color: '#7E9BB5', textDecoration: 'none', fontSize: 13, fontWeight: 500, padding: '6px 12px' }}>Ranking</Link>
@@ -227,7 +227,7 @@ export default function Landing() {
       <footer style={{ background: N, padding: '24px', textAlign: 'center' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <p style={{ color: '#3B4D63', fontSize: 13, margin: 0 }}>
-            {String.fromCharCode(169)} {new Date().getFullYear()} Juros Abusivos — Plataforma de analise tecnica de contratos de credito
+            {String.fromCharCode(169)} {new Date().getFullYear()} LaudoJuros — Plataforma de analise tecnica de contratos de credito
           </p>
           <div style={{ display: 'flex', gap: 20 }}>
             <Link to="/privacidade" style={{ color: '#5E7085', fontSize: 12, textDecoration: 'none' }}>Privacidade (LGPD)</Link>

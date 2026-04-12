@@ -9,16 +9,14 @@ from database import get_db
 from models import Contract, Analysis, AnalysisStatus, LOAN_TYPES
 from routers.auth import get_current_user
 from models import User
-from services.analysis_service import run_full_analysis
+from services.analysis_service import run_pre_analysis
+from services.ai_ops_service import check_ai_capacity
+from services.ops_alert_service import send_ops_alert
 
 router = APIRouter()
 
 ALLOWED_TYPES = {
     "application/pdf",
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/webp",
 }
 MAX_FILE_MB = 20
 
@@ -35,11 +33,39 @@ async def upload_contract(
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(
             status_code=400,
-            detail="Formato invalido. Envie PDF, JPG ou PNG.",
+            detail=(
+                "Formato invalido. Envie apenas PDF. "
+                "Para maior precisao, prefira o PDF original do banco "
+                "(PDF escaneado pode reduzir a qualidade da analise)."
+            ),
         )
 
     if loan_type not in LOAN_TYPES:
-        loan_type = "credito_pessoal"
+        raise HTTPException(
+            status_code=400,
+            detail="Tipo de contrato invalido.",
+        )
+
+    capacity = await check_ai_capacity(db)
+    if not capacity.get("allowed", True):
+        await send_ops_alert(
+            event="ai_capacity_blocked",
+            message="Nova analise bloqueada por politica de capacidade diaria da IA.",
+            metadata={
+                "reason": capacity.get("reason"),
+                "usage_today": capacity.get("usage_today"),
+                "daily_limit": capacity.get("daily_limit"),
+                "daily_budget_brl": capacity.get("daily_budget_brl"),
+                "estimated_cost_per_analysis_brl": capacity.get("estimated_cost_per_analysis_brl"),
+            },
+        )
+        raise HTTPException(
+            status_code=503,
+            detail=capacity.get(
+                "user_message",
+                "Analises temporariamente indisponiveis. Tente novamente mais tarde.",
+            ),
+        )
 
     file_bytes = await file.read()
     if len(file_bytes) > MAX_FILE_MB * 1024 * 1024:
@@ -72,14 +98,12 @@ async def upload_contract(
     await db.refresh(analysis)
 
     background_tasks.add_task(
-        run_full_analysis,
+        run_pre_analysis,
         contract_id=contract.id,
         analysis_id=analysis.id,
         file_bytes=file_bytes,
         file_type=file_type,
         loan_type=loan_type,
-        user_email=current_user.email,
-        user_phone=user_phone.strip() if user_phone else "",
     )
 
     return {

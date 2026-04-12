@@ -72,3 +72,20 @@ Variável de ambiente no Vercel:
 
 - Backend: Railway (a partir da pasta backend)
 - Frontend: Vercel (a partir da pasta frontend)
+
+## Observabilidade de custo IA
+
+Variaveis uteis no backend:
+
+- `AI_MAX_OUTPUT_TOKENS` (default `2000`)
+- `AI_PRECHECK_MAX_OUTPUT_TOKENS` (default `120`, usado na pre-analise antes do pagamento)
+- `AI_INPUT_COST_PER_MTOK_USD` (default `3.0`)
+- `AI_OUTPUT_COST_PER_MTOK_USD` (default `15.0`)
+- `AI_USD_BRL_EXCHANGE_RATE` (default `5.0`)
+- `OPS_METRICS_KEY` (obrigatoria para endpoint de metricas ops)
+- `ALERT_WEBHOOK_URL` e `ALERT_COOLDOWN_SECONDS` (alertas operacionais)
+
+Endpoint de metricas:
+
+- `GET /api/public/ops/ai-metrics?days=7`
+- Header obrigatorio: `X-Ops-Key: <OPS_METRICS_KEY>`

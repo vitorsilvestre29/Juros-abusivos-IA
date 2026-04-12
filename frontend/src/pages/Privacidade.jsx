@@ -32,7 +32,7 @@ export default function Privacidade() {
       <nav style={{ background: N, borderBottom: '1px solid ' + OBorder, position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: 860, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link to="/" style={{ fontFamily: serif, color: O, fontSize: 20, fontWeight: 700, textDecoration: 'none', letterSpacing: '-0.5px' }}>
-            Juros Abusivos
+            LaudoJuros
           </Link>
           <Link to="/" style={{ color: mutedDark, textDecoration: 'none', fontSize: 13, fontWeight: 500, padding: '7px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)' }}>
             Voltar ao inicio
@@ -51,7 +51,7 @@ export default function Privacidade() {
             Politica de Privacidade
           </h1>
           <p style={{ color: muted, fontSize: 15, lineHeight: 1.7 }}>
-            Esta politica descreve como a <strong style={{ color: N }}>Juros Abusivos</strong> coleta, usa, armazena e protege seus dados pessoais, em conformidade com a <strong style={{ color: N }}>Lei n. 13.709/2018 (Lei Geral de Protecao de Dados — LGPD)</strong>.
+            Esta politica descreve como a <strong style={{ color: N }}>LaudoJuros</strong> coleta, usa, armazena e protege seus dados pessoais, em conformidade com a <strong style={{ color: N }}>Lei n. 13.709/2018 (Lei Geral de Protecao de Dados — LGPD)</strong>.
           </p>
           <p style={{ color: mutedDark, fontSize: 13, marginTop: 12 }}>Ultima atualizacao: {updated}</p>
         </div>
@@ -70,7 +70,7 @@ export default function Privacidade() {
         <Section title="1. Quem e o Controlador dos seus dados">
           <p style={{ marginBottom: 12 }}>O controlador responsavel pelo tratamento dos seus dados pessoais e:</p>
           <div style={{ background: '#F8F9FC', border: '1px solid ' + border, borderRadius: 12, padding: '18px 22px', marginTop: 4 }}>
-            <p style={{ color: N, fontWeight: 700, marginBottom: 4 }}>Juros Abusivos</p>
+            <p style={{ color: N, fontWeight: 700, marginBottom: 4 }}>LaudoJuros</p>
             <p>Plataforma digital de analise tecnica de contratos de credito</p>
             <p>Contato: <a href="mailto:privacidade@jurosabusivos.com.br" style={{ color: O, textDecoration: 'none' }}>privacidade@jurosabusivos.com.br</a></p>
           </div>
