@@ -1,6 +1,16 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
+const N = '#0D2137'
+const O = '#E8920A'
+const OL = '#FEF3E2'
+const bg = '#F8F9FC'
+const white = '#FFFFFF'
+const border = '#D5E2F2'
+const muted = '#566880'
+const serif = "'Merriweather', Georgia, serif"
+const sans = "'Manrope', system-ui, sans-serif"
+
 const ARTICLES = [
   {
     slug: 'o-que-e-juro-abusivo',
@@ -14,7 +24,7 @@ const ARTICLES = [
       'Juros abusivos sao aqueles cobrados em desacordo com as taxas praticadas pelo mercado ou que contrariam as normas do Banco Central do Brasil (BCB). O Superior Tribunal de Justica (STJ) ja consolidou entendimento atraves da Sumula 296 de que a mera estipulacao de juros em percentual superior ao previsto em lei nao e abusiva, mas sim aquela que foge aos parametros razoaveis de mercado.',
       'Para identificar juros abusivos em seu contrato, voce deve comparar a taxa contratada com a taxa media de mercado divulgada mensalmente pelo Banco Central. Se a taxa do seu contrato for significativamente superior (o STJ costuma considerar acima do dobro da media), ha forte indicativo de abusividade.',
       'Os tipos mais comuns de cobrancas abusivas incluem: juros compostos capitalizados diariamente, tarifas nao informadas previamente, seguros obrigatorios embutidos sem consentimento e multas acima de 2% ao mes para contratos de consumo.',
-      'A nossa IA analisa esses parametros automaticamente, comparando as clausulas do seu contrato com as taxas vigentes do BCB e a jurisprudencia do STJ, fornecendo um laudo tecnico completo em minutos.',
+      'Nosso sistema analisa esses parametros automaticamente, comparando as clausulas do seu contrato com as taxas vigentes do BCB e a jurisprudencia do STJ, fornecendo um laudo tecnico completo em minutos.',
     ],
   },
   {
@@ -29,7 +39,7 @@ const ARTICLES = [
       'O financiamento de veiculos e um dos contratos mais frequentemente revisados pela Justica brasileira. Com taxas medias que variam entre 1,4% e 2,8% ao mes conforme o BCB, qualquer cobranca acima desse patamar pode ser questionada.',
       'A revisao contratual e cabivel quando: a taxa de juros efetiva (CET - Custo Efetivo Total) e superior ao dobro da media do mercado; ha cobranca de tarifa de abertura de credito (TAC) ou tarifa de emissao de boleto nao prevista no contrato; o seguro do veiculo e obrigatorio e embutido sem que o consumidor tenha alternativa.',
       'O prazo para ajuizar acao revisional e de 5 anos, contados a partir da data de cada parcela paga indevidamente (prescricao quinquenal). Isso significa que mesmo contratos mais antigos podem ser revisados para as ultimas 60 parcelas.',
-      'Para iniciar o processo, e necessario ter o contrato original, os extratos de pagamento e um laudo tecnico que demonstre a abusividade. Nossa IA gera exatamente esse laudo, identificando clausulas problematicas e calculando o valor do excesso cobrado.',
+      'Para iniciar o processo, e necessario ter o contrato original, os extratos de pagamento e um laudo tecnico que demonstre a abusividade. Nosso sistema gera exatamente esse laudo, identificando clausulas problematicas e calculando o valor do excesso cobrado.',
     ],
   },
   {
@@ -44,7 +54,7 @@ const ARTICLES = [
       'O credito consignado tem taxa de juros controlada pelo INSS e Banco Central, com limite maximo estabelecido periodicamente. Mesmo assim, e um dos produtos com mais reclamacoes no Procon e Banco Central.',
       'As irregularidades mais comuns sao: 1) Desconto superior a 35% da renda liquida mensal (limite legal para consignado); 2) Contratacao sem o pleno consentimento do titular, especialmente em casos de portabilidade forjada; 3) Seguros nao solicitados embutidos nas parcelas; 4) Taxa efetiva superior ao limite estabelecido pelo INSS para o mes da contratacao.',
       'O caso mais grave e o da fraude em consignado, onde o desconto aparece no contracheque sem que o beneficiario tenha contratado o emprestimo. Nesses casos, ha responsabilidade solidaria do banco e do INSS, e o valor pode ser recuperado integralmente.',
-      'Nossa IA identifica essas irregularidades automaticamente ao analisar o contrato, cruzando as clausulas com os limites vigentes do INSS e BCB na data da contratacao.',
+      'Nosso sistema identifica essas irregularidades automaticamente ao analisar o contrato, cruzando as clausulas com os limites vigentes do INSS e BCB na data da contratacao.',
     ],
   },
   {

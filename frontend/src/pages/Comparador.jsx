@@ -1,6 +1,16 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
+const N = '#0D2137'
+const O = '#E8920A'
+const OL = '#FEF3E2'
+const bg = '#F8F9FC'
+const white = '#FFFFFF'
+const border = '#D5E2F2'
+const muted = '#566880'
+const serif = "'Merriweather', Georgia, serif"
+const sans = "'Manrope', system-ui, sans-serif"
+
 const BCB_RATES = {
   credito_pessoal: { label: 'Credito Pessoal', rate: 5.87, unit: '% a.m.' },
   consignado: { label: 'Consignado', rate: 1.72, unit: '% a.m.' },

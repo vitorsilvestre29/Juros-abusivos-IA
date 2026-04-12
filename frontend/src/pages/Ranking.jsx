@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 
+const N = '#0D2137'
+const O = '#E8920A'
+const OL = '#FEF3E2'
+const bg = '#F8F9FC'
+const white = '#FFFFFF'
+const border = '#D5E2F2'
+const muted = '#566880'
+const serif = "'Merriweather', Georgia, serif"
+const sans = "'Manrope', system-ui, sans-serif"
+
 const LOAN_LABELS = {
   credito_pessoal: 'Credito Pessoal',
   consignado: 'Consignado',
@@ -80,7 +90,7 @@ export default function Ranking() {
             Ranking de Contratos Abusivos
           </h1>
           <p style={{ color: '#56677B', fontSize: 17, maxWidth: 540, margin: '0 auto' }}>
-            Veja quais tipos de contrato concentram mais irregularidades detectadas pela nossa IA
+            Veja quais tipos de contrato concentram mais irregularidades detectadas pelo nosso sistema
           </p>
         </div>
 
