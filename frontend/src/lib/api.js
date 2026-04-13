@@ -34,7 +34,6 @@ api.interceptors.response.use(
     if (err.response?.status === 401) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
-      window.location.href = '/login'
     }
     return Promise.reject(err)
   }
@@ -48,6 +47,23 @@ export const login = (email, password) => {
 }
 export const register = (name, email, password) => api.post('/auth/register', { name, email, password })
 export const startGuestSession = () => api.post('/auth/guest')
+export const ensureGuestSession = async () => {
+  const token = localStorage.getItem('token')
+  if (token) return true
+
+  try {
+    const res = await startGuestSession()
+    localStorage.setItem('token', res.data.access_token)
+    localStorage.setItem('user', JSON.stringify({
+      name: res.data.user_name,
+      email: res.data.user_email,
+      is_guest: res.data.is_guest === true,
+    }))
+    return true
+  } catch {
+    return false
+  }
+}
 export const getMe = () => api.get('/auth/me')
 
 export const getLoanTypes = () => api.get('/public/loan-types')
