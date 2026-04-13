@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { startGuestSession } from '../lib/api'
 import useIsMobile from '../lib/useIsMobile'
+import { useState } from 'react'
 
 const N = '#0D2137'
 const O = '#E8920A'
@@ -60,8 +61,10 @@ const navItems = [
 export default function Landing() {
   const nav = useNavigate()
   const isMobile = useIsMobile()
+  const [startError, setStartError] = useState('')
 
   async function handleStartAnalysis() {
+    setStartError('')
     const hasToken = localStorage.getItem('token')
     if (hasToken) {
       nav('/upload')
@@ -77,7 +80,7 @@ export default function Landing() {
       }))
       nav('/upload')
     } catch {
-      nav('/login')
+      setStartError('Nao foi possivel iniciar no momento. Tente novamente em alguns segundos.')
     }
   }
 
@@ -104,9 +107,9 @@ export default function Landing() {
               </Link>
             ))}
             <Link to="/login" style={{ color: '#7E9BB5', textDecoration: 'none', fontSize: 14, fontWeight: 500, padding: isMobile ? '8px 0' : '8px 16px' }}>Entrar</Link>
-            <Link to="/cadastro" style={{ background: O, color: N, textDecoration: 'none', fontSize: 14, fontWeight: 700, padding: isMobile ? '10px 16px' : '9px 20px', borderRadius: 8, marginLeft: isMobile ? 'auto' : 0 }}>
+            <button onClick={handleStartAnalysis} style={{ background: O, color: N, textDecoration: 'none', fontSize: 14, fontWeight: 700, padding: isMobile ? '10px 16px' : '9px 20px', borderRadius: 8, marginLeft: isMobile ? 'auto' : 0, border: 'none', cursor: 'pointer', fontFamily: sans }}>
               Comecar agora
-            </Link>
+            </button>
           </div>
         </div>
       </nav>
@@ -132,6 +135,11 @@ export default function Landing() {
             </button>
             <span style={{ color: '#5E7085', fontSize: 13, alignSelf: 'center', width: isMobile ? '100%' : 'auto' }}>Laudo completo por R$ 9,99</span>
           </div>
+          {startError && (
+            <p style={{ color: '#FCA5A5', fontSize: 13, margin: '0 auto 14px', maxWidth: 520 }}>
+              {startError}
+            </p>
+          )}
           <div style={{ background: 'rgba(255,244,229,0.95)', border: '1px solid rgba(232,146,10,0.4)', borderLeft: '5px solid ' + O, borderRadius: 10, padding: isMobile ? '14px' : '12px 16px', textAlign: 'left', maxWidth: 680, margin: '0 auto' }}>
             <p style={{ color: '#7A4300', fontSize: isMobile ? 11 : 12, lineHeight: 1.65, margin: 0 }}>
               <strong>Aviso legal:</strong> Os laudos gerados por esta plataforma sao de natureza tecnico-matematica e tem carater meramente informativo. A interpretacao juridica e o ajuizamento de qualquer acao revisional devem ser realizados exclusivamente por advogado habilitado, conforme o Estatuto da OAB (Lei 8.906/94). A plataforma nao presta consultoria juridica.
