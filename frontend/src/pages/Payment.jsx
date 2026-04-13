@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { createPayment, getPaymentStatus, confirmMockPayment } from '../lib/api'
+import useIsMobile from '../lib/useIsMobile'
 
 const MOCK_MODE = import.meta.env.VITE_MOCK_MODE === 'true'
 
@@ -18,6 +19,7 @@ const sans = "'Manrope', system-ui, sans-serif"
 export default function Payment() {
   const { analysisId } = useParams()
   const nav = useNavigate()
+  const isMobile = useIsMobile()
   const rawUser = localStorage.getItem('user')
   const currentUser = rawUser ? JSON.parse(rawUser) : null
   const isGuest = currentUser ? currentUser.is_guest === true : true
@@ -70,20 +72,20 @@ export default function Payment() {
   return (
     <div style={{ minHeight: '100vh', background: bg, fontFamily: sans }}>
       <nav style={{ background: N, boxShadow: '0 2px 12px rgba(13,33,55,0.25)', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ maxWidth: 700, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ maxWidth: 700, margin: '0 auto', padding: isMobile ? '12px 16px' : '0 24px', minHeight: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
           <Link to="/" style={{ fontFamily: serif, color: O, fontSize: 20, fontWeight: 700, textDecoration: 'none' }}>LaudoJuros</Link>
-          <Link to={isGuest ? '/cadastro' : '/app'} style={navLinkStyle}>
+          <Link to={isGuest ? '/cadastro' : '/app'} style={{ ...navLinkStyle, width: isMobile ? '100%' : 'auto', textAlign: 'center' }}>
             {isGuest ? 'Salvar meu historico' : 'Minhas analises'}
           </Link>
         </div>
       </nav>
 
-      <main style={{ maxWidth: 540, margin: '0 auto', padding: '52px 24px' }}>
+      <main style={{ maxWidth: 540, margin: '0 auto', padding: isMobile ? '36px 16px 48px' : '52px 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
           <div style={{ display: 'inline-block', background: OL, border: '1px solid rgba(232,146,10,0.3)', borderRadius: 100, padding: '6px 18px', marginBottom: 16 }}>
             <span style={{ color: O, fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase' }}>Pagamento seguro</span>
           </div>
-          <h1 style={{ fontFamily: serif, fontSize: 32, fontWeight: 700, color: N, marginBottom: 8 }}>Pagamento via PIX</h1>
+          <h1 style={{ fontFamily: serif, fontSize: isMobile ? 28 : 32, fontWeight: 700, color: N, marginBottom: 8 }}>Pagamento via PIX</h1>
           <p style={{ color: muted, fontSize: 15 }}>Acesso imediato apos confirmacao</p>
         </div>
 
@@ -94,21 +96,21 @@ export default function Payment() {
         )}
 
         {loading && (
-          <div style={{ background: white, border: '1px solid ' + border, borderRadius: 24, padding: '60px', textAlign: 'center', color: '#94A3B8', boxShadow: '0 4px 24px rgba(13,33,55,0.06)' }}>
+          <div style={{ background: white, border: '1px solid ' + border, borderRadius: 24, padding: isMobile ? '36px 20px' : '60px', textAlign: 'center', color: '#94A3B8', boxShadow: '0 4px 24px rgba(13,33,55,0.06)' }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>⏳</div>
             <p>Gerando QR Code PIX...</p>
           </div>
         )}
 
         {hasPayment && (
-          <div style={{ background: white, border: '1px solid ' + border, borderRadius: 24, padding: '36px', boxShadow: '0 4px 24px rgba(13,33,55,0.07)', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ background: white, border: '1px solid ' + border, borderRadius: 24, padding: isMobile ? '24px 18px' : '36px', boxShadow: '0 4px 24px rgba(13,33,55,0.07)', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg, ' + O + ', #F5B942)' }} />
 
             <div style={{ textAlign: 'center', padding: '20px 0 28px', borderBottom: '1px solid ' + border, marginBottom: 28 }}>
               <p style={{ color: muted, fontSize: 13, marginBottom: 6 }}>Laudo Tecnico Completo</p>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 4, flexWrap: 'wrap' }}>
                 <span style={{ color: muted, fontSize: 18, marginTop: 10, fontWeight: 600 }}>R$</span>
-                <span style={{ fontFamily: serif, fontSize: 60, fontWeight: 800, color: N, lineHeight: 1 }}>
+                <span style={{ fontFamily: serif, fontSize: isMobile ? 48 : 60, fontWeight: 800, color: N, lineHeight: 1 }}>
                   {new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(payment.amount_brl || 9.99)}
                 </span>
               </div>
@@ -117,7 +119,7 @@ export default function Payment() {
             {payment.qr_code_base64 && (
               <div style={{ textAlign: 'center', marginBottom: 24 }}>
                 <div style={{ display: 'inline-block', background: white, border: '1px solid ' + border, borderRadius: 16, padding: 12, boxShadow: '0 2px 12px rgba(13,33,55,0.08)' }}>
-                  <img src={'data:image/png;base64,' + payment.qr_code_base64} alt="QR Code PIX" style={{ width: 180, height: 180, display: 'block' }} />
+                  <img src={'data:image/png;base64,' + payment.qr_code_base64} alt="QR Code PIX" style={{ width: isMobile ? 160 : 180, height: isMobile ? 160 : 180, display: 'block' }} />
                 </div>
                 <p style={{ color: '#94A3B8', fontSize: 13, marginTop: 10 }}>Escaneie com o aplicativo do seu banco</p>
               </div>
@@ -126,11 +128,11 @@ export default function Payment() {
             {payment.qr_code && (
               <div style={{ marginBottom: 20 }}>
                 <p style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>PIX copia e cola</p>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <div style={{ flex: 1, background: bg, border: '1px solid ' + border, borderRadius: 10, padding: '11px 14px', fontSize: 12, color: muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ display: 'flex', gap: 8, flexDirection: isMobile ? 'column' : 'row' }}>
+                  <div style={{ flex: 1, background: bg, border: '1px solid ' + border, borderRadius: 10, padding: '11px 14px', fontSize: 12, color: muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: isMobile ? 'normal' : 'nowrap', wordBreak: 'break-all' }}>
                     {payment.qr_code}
                   </div>
-                  <button onClick={copyCode} style={{ background: copied ? '#15803D' : N, color: white, border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: sans, transition: 'background 0.2s' }}>
+                  <button onClick={copyCode} style={{ background: copied ? '#15803D' : N, color: white, border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: sans, transition: 'background 0.2s', width: isMobile ? '100%' : 'auto' }}>
                     {copied ? 'Copiado' : 'Copiar'}
                   </button>
                 </div>

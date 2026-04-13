@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { getContractStatus, getPricing } from '../lib/api'
+import useIsMobile from '../lib/useIsMobile'
 
 const N = '#0D2137'
 const O = '#E8920A'
@@ -19,6 +20,7 @@ function fmt(val) {
 export default function AnalysisResult() {
   const { contractId } = useParams()
   const nav = useNavigate()
+  const isMobile = useIsMobile()
   const rawUser = localStorage.getItem('user')
   const currentUser = rawUser ? JSON.parse(rawUser) : null
   const isGuest = currentUser ? currentUser.is_guest === true : true
@@ -42,12 +44,14 @@ export default function AnalysisResult() {
             nav('/laudo/' + res.data.analysis_id, { replace: true })
           }
         }
-      } catch (e) { clearInterval(interval) }
+      } catch {
+        clearInterval(interval)
+      }
     }
     poll()
     interval = setInterval(poll, 3000)
     return () => clearInterval(interval)
-  }, [contractId])
+  }, [contractId, nav])
 
   useEffect(() => {
     if (status && (status.status === 'processing' || status.status === 'pending')) {
@@ -56,11 +60,13 @@ export default function AnalysisResult() {
     }
   }, [status])
 
-  if (status === null) return (
-    <div style={{ minHeight: '100vh', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: sans }}>
-      <p style={{ color: muted }}>Carregando...</p>
-    </div>
-  )
+  if (status === null) {
+    return (
+      <div style={{ minHeight: '100vh', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: sans }}>
+        <p style={{ color: muted }}>Carregando...</p>
+      </div>
+    )
+  }
 
   const isProcessing = status.status === 'pending' || status.status === 'processing'
   const isFailed = status.status === 'failed'
@@ -70,20 +76,19 @@ export default function AnalysisResult() {
   return (
     <div style={{ minHeight: '100vh', background: bg, fontFamily: sans }}>
       <header style={{ background: white, borderBottom: '1px solid ' + border, boxShadow: '0 1px 4px rgba(13,33,55,0.06)' }}>
-        <div style={{ maxWidth: 760, margin: '0 auto', padding: '0 24px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ maxWidth: 760, margin: '0 auto', padding: isMobile ? '12px 16px' : '0 24px', minHeight: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
           <Link to="/" style={{ fontFamily: serif, color: O, fontSize: 18, fontWeight: 700, textDecoration: 'none' }}>LaudoJuros</Link>
-          <Link to={isGuest ? '/cadastro' : '/app'} style={{ color: muted, textDecoration: 'none', fontSize: 13, fontWeight: 500 }}>
+          <Link to={isGuest ? '/cadastro' : '/app'} style={{ color: muted, textDecoration: 'none', fontSize: 13, fontWeight: 500, width: isMobile ? '100%' : 'auto' }}>
             {isGuest ? 'Criar conta para salvar' : 'Minhas analises'}
           </Link>
         </div>
       </header>
 
-      <main style={{ maxWidth: 680, margin: '0 auto', padding: '40px 24px' }}>
-
+      <main style={{ maxWidth: 680, margin: '0 auto', padding: isMobile ? '28px 16px 40px' : '40px 24px' }}>
         {isProcessing && (
-          <div style={{ background: white, borderRadius: 20, border: '1px solid ' + border, padding: '48px 32px', textAlign: 'center', boxShadow: '0 4px 16px rgba(13,33,55,0.06)' }}>
+          <div style={{ background: white, borderRadius: 20, border: '1px solid ' + border, padding: isMobile ? '32px 20px' : '48px 32px', textAlign: 'center', boxShadow: '0 4px 16px rgba(13,33,55,0.06)' }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
-            <h2 style={{ fontFamily: serif, fontSize: 22, fontWeight: 700, color: N, marginBottom: 10 }}>Analisando seu contrato{dots}</h2>
+            <h2 style={{ fontFamily: serif, fontSize: isMobile ? 20 : 22, fontWeight: 700, color: N, marginBottom: 10 }}>Analisando seu contrato{dots}</h2>
             <p style={{ color: muted, fontSize: 14, marginBottom: 28, lineHeight: 1.6 }}>
               Nosso sistema esta verificando o contrato e consultando as normas do Banco Central. Aguarde.
             </p>
@@ -93,8 +98,8 @@ export default function AnalysisResult() {
                 { label: 'Consulta as taxas do Banco Central (BCB)', done: true },
                 { label: 'Identificando irregularidades...', done: false },
                 { label: 'Calculando impacto financeiro...', done: false },
-              ].map((step, i) => (
-                <p key={i} style={{ color: step.done ? '#1E40AF' : '#93C5FD', fontSize: 14, marginBottom: i < 3 ? 8 : 0, opacity: step.done ? 1 : 0.5 }}>
+              ].map(step => (
+                <p key={step.label} style={{ color: step.done ? '#1E40AF' : '#93C5FD', fontSize: 14, marginBottom: 8, opacity: step.done ? 1 : 0.5 }}>
                   {step.done ? '✓' : '⏳'} {step.label}
                 </p>
               ))}
@@ -103,8 +108,8 @@ export default function AnalysisResult() {
         )}
 
         {isFailed && (
-          <div style={{ background: white, borderRadius: 20, border: '1px solid #FECACA', padding: '40px 32px', textAlign: 'center', boxShadow: '0 4px 16px rgba(13,33,55,0.06)' }}>
-            <h2 style={{ fontFamily: serif, fontSize: 22, fontWeight: 700, color: '#B91C1C', marginBottom: 10 }}>Nao foi possivel analisar</h2>
+          <div style={{ background: white, borderRadius: 20, border: '1px solid #FECACA', padding: isMobile ? '32px 20px' : '40px 32px', textAlign: 'center', boxShadow: '0 4px 16px rgba(13,33,55,0.06)' }}>
+            <h2 style={{ fontFamily: serif, fontSize: isMobile ? 20 : 22, fontWeight: 700, color: '#B91C1C', marginBottom: 10 }}>Nao foi possivel analisar</h2>
             <p style={{ color: muted, fontSize: 14, marginBottom: 24, lineHeight: 1.6 }}>{status.error || 'Verifique se o arquivo esta legivel e tente novamente.'}</p>
             <button onClick={() => nav('/upload')} style={{ background: N, color: white, border: 'none', padding: '12px 28px', borderRadius: 10, fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: sans }}>
               Tentar novamente
@@ -114,29 +119,20 @@ export default function AnalysisResult() {
 
         {isDone && status.paid === false && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ background: hasIssues ? '#DC2626' : '#15803D', borderRadius: 20, padding: isMobile ? '22px 18px' : '28px', textAlign: 'center', boxShadow: hasIssues ? '0 4px 16px rgba(185,28,28,0.25)' : '0 4px 16px rgba(21,128,61,0.25)' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>{hasIssues ? '⚠️' : '📋'}</div>
+              <h1 style={{ fontFamily: serif, fontSize: isMobile ? 22 : 24, fontWeight: 700, color: white, marginBottom: 10 }}>
+                {hasIssues ? 'Irregularidades identificadas' : 'Analise concluida'}
+              </h1>
+              <p style={{ color: hasIssues ? '#FCA5A5' : '#86EFAC', fontSize: 14, lineHeight: 1.6, margin: 0 }}>
+                {hasIssues
+                  ? `Nossa analise identificou irregularidades no seu contrato de ${status.loan_type_label}. Acesse o laudo para saber quais sao, o impacto financeiro e como agir.`
+                  : `Finalizamos a analise do seu contrato de ${status.loan_type_label}. Acesse o laudo tecnico para ver o resultado completo.`}
+              </p>
+            </div>
 
-            {hasIssues ? (
-              <div style={{ background: '#DC2626', borderRadius: 20, padding: '28px', textAlign: 'center', boxShadow: '0 4px 16px rgba(185,28,28,0.25)' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
-                <h1 style={{ fontFamily: serif, fontSize: 24, fontWeight: 700, color: white, marginBottom: 10 }}>Irregularidades identificadas</h1>
-                <p style={{ color: '#FCA5A5', fontSize: 14, lineHeight: 1.6 }}>
-                  Nossa analise identificou <strong style={{ color: white }}>irregularidades no seu contrato</strong> de {status.loan_type_label}.
-                  Acesse o laudo para saber quais sao, o impacto financeiro e como agir.
-                </p>
-              </div>
-            ) : (
-              <div style={{ background: '#15803D', borderRadius: 20, padding: '28px', textAlign: 'center', boxShadow: '0 4px 16px rgba(21,128,61,0.25)' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
-                <h1 style={{ fontFamily: serif, fontSize: 24, fontWeight: 700, color: white, marginBottom: 10 }}>Analise concluida</h1>
-                <p style={{ color: '#86EFAC', fontSize: 14, lineHeight: 1.6 }}>
-                  Finalizamos a analise do seu contrato de {status.loan_type_label}.
-                  Acesse o laudo tecnico para ver o resultado completo.
-                </p>
-              </div>
-            )}
-
-            <div style={{ background: white, borderRadius: 20, border: '1px solid ' + border, padding: '28px', boxShadow: '0 4px 16px rgba(13,33,55,0.06)' }}>
-              <h2 style={{ fontFamily: serif, fontSize: 20, fontWeight: 700, color: N, marginBottom: 8 }}>
+            <div style={{ background: white, borderRadius: 20, border: '1px solid ' + border, padding: isMobile ? '22px 18px' : '28px', boxShadow: '0 4px 16px rgba(13,33,55,0.06)' }}>
+              <h2 style={{ fontFamily: serif, fontSize: isMobile ? 18 : 20, fontWeight: 700, color: N, marginBottom: 8 }}>
                 {hasIssues ? 'Veja o que encontramos no seu contrato' : 'Obtenha o Laudo Tecnico Completo'}
               </h2>
               <p style={{ color: muted, fontSize: 14, marginBottom: 20, lineHeight: 1.6 }}>
@@ -158,8 +154,8 @@ export default function AnalysisResult() {
                   'Comparacao com taxas medias do Banco Central',
                   'Documento PDF com validade tecnica',
                   'Parecer sobre conformidade com normas BCB',
-                ]).map((item, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+                ]).map(item => (
+                  <div key={item} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
                     <span style={{ color: '#15803D', fontSize: 14, flexShrink: 0, marginTop: 1 }}>✓</span>
                     <span style={{ color: muted, fontSize: 14, lineHeight: 1.5 }}>{item}</span>
                   </div>
@@ -172,26 +168,26 @@ export default function AnalysisResult() {
                 </p>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: bg, border: '1px solid ' + border, borderRadius: 12, padding: '16px 18px', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', flexDirection: isMobile ? 'column' : 'row', gap: 10, background: bg, border: '1px solid ' + border, borderRadius: 12, padding: '16px 18px', marginBottom: 16 }}>
                 <div>
                   <p style={{ fontWeight: 700, color: N, fontSize: 14, margin: 0, marginBottom: 2 }}>Laudo Tecnico Completo</p>
-                  <p style={{ color: muted, fontSize: 12, margin: 0 }}>Pagamento unico — Acesso imediato</p>
+                  <p style={{ color: muted, fontSize: 12, margin: 0 }}>Pagamento unico - Acesso imediato</p>
                 </div>
                 <span style={{ fontFamily: serif, fontSize: 24, fontWeight: 800, color: N }}>{fmt(pricing.price_brl)}</span>
               </div>
 
-              <button onClick={() => nav('/pagamento/' + status.analysis_id)}
-                style={{ width: '100%', background: N, color: white, border: 'none', fontWeight: 700, padding: '15px', borderRadius: 12, fontSize: 16, cursor: 'pointer', fontFamily: sans, boxShadow: '0 4px 16px rgba(13,33,55,0.2)' }}>
+              <button
+                onClick={() => nav('/pagamento/' + status.analysis_id)}
+                style={{ width: '100%', background: N, color: white, border: 'none', fontWeight: 700, padding: '15px', borderRadius: 12, fontSize: 16, cursor: 'pointer', fontFamily: sans, boxShadow: '0 4px 16px rgba(13,33,55,0.2)' }}
+              >
                 {hasIssues ? 'Ver irregularidades e pagar com PIX' : 'Acessar laudo e pagar com PIX'}
               </button>
               <p style={{ textAlign: 'center', fontSize: 12, color: muted, marginTop: 12 }}>
-                Pagamento seguro via PIX — Acesso imediato apos confirmacao
+                Pagamento seguro via PIX - Acesso imediato apos confirmacao
               </p>
             </div>
-
           </div>
         )}
-
       </main>
     </div>
   )

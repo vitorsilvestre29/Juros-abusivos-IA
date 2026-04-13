@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { uploadContract, getLoanTypes } from '../lib/api'
+import useIsMobile from '../lib/useIsMobile'
 
 const N = '#0D2137'
 const O = '#E8920A'
@@ -23,6 +24,7 @@ const LOAN_LABELS = {
 
 export default function UploadContract() {
   const nav = useNavigate()
+  const isMobile = useIsMobile()
   const rawUser = localStorage.getItem('user')
   const currentUser = rawUser ? JSON.parse(rawUser) : null
   const isGuest = currentUser ? currentUser.is_guest === true : true
@@ -62,20 +64,20 @@ export default function UploadContract() {
   return (
     <div style={{ minHeight: '100vh', background: bg, fontFamily: sans }}>
       <nav style={{ background: N, boxShadow: '0 2px 12px rgba(13,33,55,0.25)', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', padding: isMobile ? '12px 16px' : '0 24px', minHeight: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
           <Link to="/" style={{ fontFamily: serif, color: O, fontSize: 20, fontWeight: 700, textDecoration: 'none' }}>LaudoJuros</Link>
-          <Link to={isGuest ? '/cadastro' : '/app'} style={{ color: '#7E9BB5', textDecoration: 'none', fontSize: 14 }}>
+          <Link to={isGuest ? '/cadastro' : '/app'} style={{ color: '#7E9BB5', textDecoration: 'none', fontSize: 14, width: isMobile ? '100%' : 'auto' }}>
             {isGuest ? 'Criar conta para salvar' : 'Minhas analises'}
           </Link>
         </div>
       </nav>
 
-      <main style={{ maxWidth: 680, margin: '0 auto', padding: '56px 24px' }}>
+      <main style={{ maxWidth: 680, margin: '0 auto', padding: isMobile ? '36px 16px 48px' : '56px 24px' }}>
         <div style={{ marginBottom: 40, textAlign: 'center' }}>
-          <h1 style={{ fontFamily: serif, fontSize: 34, fontWeight: 700, color: N, marginBottom: 10 }}>
+          <h1 style={{ fontFamily: serif, fontSize: isMobile ? 28 : 34, fontWeight: 700, color: N, marginBottom: 10 }}>
             Enviar contrato para analise
           </h1>
-          <p style={{ color: muted, fontSize: 16 }}>Envie apenas o PDF do contrato de emprestimo ou financiamento</p>
+          <p style={{ color: muted, fontSize: isMobile ? 14 : 16, lineHeight: 1.6 }}>Envie apenas o PDF do contrato de emprestimo ou financiamento</p>
         </div>
 
         <div style={{ background: '#FFF4E5', border: '1px solid #F5E8C8', borderLeft: '4px solid ' + O, borderRadius: 10, padding: '14px 16px', marginBottom: 24 }}>
@@ -98,7 +100,7 @@ export default function UploadContract() {
             onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]) }}
             style={{
               border: dragging ? '2px dashed ' + O : file ? '2px dashed #1A6B3C' : '2px dashed ' + border,
-              borderRadius: 16, padding: '48px 32px', textAlign: 'center', cursor: 'pointer',
+              borderRadius: 16, padding: isMobile ? '32px 18px' : '48px 32px', textAlign: 'center', cursor: 'pointer',
               background: dragging ? '#FFF4E5' : file ? '#F0FDF4' : white,
               transition: 'all 0.2s', marginBottom: 32
             }}
@@ -123,9 +125,9 @@ export default function UploadContract() {
             <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: N, marginBottom: 14, textTransform: 'uppercase', letterSpacing: 0.5 }}>
               Tipo de contrato
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(190px, 1fr))', gap: 10 }}>
               {loanTypes.map(lt => (
-                <label key={lt.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', border: loanType === lt.id ? '2px solid ' + O : '1.5px solid ' + border, borderRadius: 10, cursor: 'pointer', background: loanType === lt.id ? '#FFF4E5' : white, transition: 'all 0.15s' }}>
+                <label key={lt.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', border: loanType === lt.id ? '2px solid ' + O : '1.5px solid ' + border, borderRadius: 10, cursor: 'pointer', background: loanType === lt.id ? '#FFF4E5' : white, transition: 'all 0.15s' }}>
                   <input type="radio" name="loan_type" value={lt.id} checked={loanType === lt.id} onChange={() => setLoanType(lt.id)} style={{ accentColor: O }} />
                   <span style={{ fontSize: 13, color: loanType === lt.id ? '#8A4C00' : '#374151', fontWeight: loanType === lt.id ? 600 : 400 }}>{lt.label}</span>
                 </label>
