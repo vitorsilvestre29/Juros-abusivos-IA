@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { createPayment, getPaymentStatus, confirmMockPayment } from '../lib/api'
 import useIsMobile from '../lib/useIsMobile'
+import { trackEvent } from '../lib/metaPixel'
 
 const MOCK_MODE = import.meta.env.VITE_MOCK_MODE === 'true'
 
@@ -28,6 +29,18 @@ export default function Payment() {
   const [loading, setLoading] = useState(true)
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState('')
+  const purchaseTrackedRef = useRef(false)
+
+  function trackPurchase() {
+    if (purchaseTrackedRef.current) return
+    trackEvent('Purchase', {
+      analysis_id: analysisId,
+      payment_id: payment?.payment_id,
+      value: payment?.amount_brl ?? 9.99,
+      currency: 'BRL',
+    })
+    purchaseTrackedRef.current = true
+  }
 
   useEffect(() => {
     createPayment(analysisId)
@@ -40,11 +53,15 @@ export default function Payment() {
     const interval = setInterval(async () => {
       try {
         const r = await getPaymentStatus(payment.payment_id)
-        if (r.data.status === 'paid') { clearInterval(interval); nav('/laudo/' + analysisId, { replace: true }) }
+        if (r.data.status === 'paid') {
+          trackPurchase()
+          clearInterval(interval)
+          nav('/laudo/' + analysisId, { replace: true })
+        }
       } catch (e) {}
     }, 4000)
     return () => clearInterval(interval)
-  }, [payment])
+  }, [payment, analysisId])
 
   function copyCode() {
     if (payment && payment.qr_code) {
@@ -58,6 +75,7 @@ export default function Payment() {
     setConfirming(true)
     try {
       await confirmMockPayment(payment.payment_id)
+      trackPurchase()
       nav('/laudo/' + analysisId, { replace: true })
     } catch (e) {
       setError('Erro ao confirmar pagamento mock.')

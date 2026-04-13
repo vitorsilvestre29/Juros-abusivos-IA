@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -11,6 +12,7 @@ import Ranking from './pages/Ranking'
 import Blog from './pages/Blog'
 import Comparador from './pages/Comparador'
 import Privacidade from './pages/Privacidade'
+import { initMetaPixel, trackPageView } from './lib/metaPixel'
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token')
@@ -18,9 +20,24 @@ function PrivateRoute({ children }) {
   return children
 }
 
+function PixelTracker() {
+  const location = useLocation()
+
+  useEffect(() => {
+    initMetaPixel()
+  }, [])
+
+  useEffect(() => {
+    trackPageView()
+  }, [location.pathname, location.search, location.hash])
+
+  return null
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <PixelTracker />
       <Routes>
         {/* Publico - sem restricao */}
         <Route path="/" element={<Landing />} />

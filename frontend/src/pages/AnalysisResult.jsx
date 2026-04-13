@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { getContractStatus, getPricing } from '../lib/api'
 import useIsMobile from '../lib/useIsMobile'
+import { trackEvent } from '../lib/metaPixel'
 
 const N = '#0D2137'
 const O = '#E8920A'
@@ -72,6 +73,15 @@ export default function AnalysisResult() {
   const isFailed = status.status === 'failed'
   const isDone = status.status === 'completed'
   const hasIssues = status.has_issues === true
+  const goToPayment = () => {
+    trackEvent('InitiateCheckout', {
+      analysis_id: status.analysis_id,
+      loan_type: status.loan_type_label || 'desconhecido',
+      value: pricing?.price_brl ?? 0,
+      currency: 'BRL',
+    })
+    nav('/pagamento/' + status.analysis_id)
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: bg, fontFamily: sans }}>
@@ -177,7 +187,7 @@ export default function AnalysisResult() {
               </div>
 
               <button
-                onClick={() => nav('/pagamento/' + status.analysis_id)}
+                onClick={goToPayment}
                 style={{ width: '100%', background: N, color: white, border: 'none', fontWeight: 700, padding: '15px', borderRadius: 12, fontSize: 16, cursor: 'pointer', fontFamily: sans, boxShadow: '0 4px 16px rgba(13,33,55,0.2)' }}
               >
                 {hasIssues ? 'Ver irregularidades e pagar com PIX' : 'Acessar laudo e pagar com PIX'}
