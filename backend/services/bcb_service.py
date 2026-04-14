@@ -132,8 +132,14 @@ async def _sgs_fetch(serie: str, label: str) -> dict[str, Any]:
             if not data:
                 raise ValueError(f"BCB retornou lista vazia para serie {serie}")
             row = data[-1]  # ultimo registro
-            raw_val = str(row.get("valor", "")).replace(".", "").replace(",", ".")
-            val = float(raw_val)
+            raw_val = str(row.get("valor", "")).strip()
+            if "." in raw_val and "," in raw_val:
+                normalized_val = raw_val.replace(".", "").replace(",", ".")
+            elif "," in raw_val:
+                normalized_val = raw_val.replace(",", ".")
+            else:
+                normalized_val = raw_val
+            val = float(normalized_val)
             raw_date = row.get("data", "")
             return {
                 "serie": serie,

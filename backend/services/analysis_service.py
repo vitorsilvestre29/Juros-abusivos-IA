@@ -26,6 +26,16 @@ from models import AnalysisStatus
 MOCK_MODE = os.getenv("MOCK_MODE", "false").lower() == "true"
 MODEL_NAME = "claude-sonnet-4-6"
 
+MOCK_REFERENCE_RATES: dict[str, float] = {
+    "consignado_inss": 1.80,
+    "consignado_clt": 2.10,
+    "credito_pessoal": 8.90,
+    "credito_habitacional": 1.05,
+    "cdc_veiculo": 3.20,
+    "cartao_credito": 15.40,
+    "outros": 8.90,
+}
+
 
 def _max_output_tokens() -> int:
     """
@@ -171,6 +181,46 @@ def _detect_contract_type_by_text(contract_text: str) -> tuple[str | None, float
     second_score = ordered_scores[1] if len(ordered_scores) > 1 else 0.0
     confidence = winner_score / max(winner_score + second_score, 1.0)
     return winner, confidence
+
+
+def _mock_reference_rate_for(loan_type: str) -> float:
+    normalized = (loan_type or "").strip().lower()
+    return float(MOCK_REFERENCE_RATES.get(normalized, MOCK_REFERENCE_RATES["outros"]))
+
+
+def _build_mock_bcb_context(loan_type: str) -> dict[str, Any]:
+    reference_rate = _mock_reference_rate_for(loan_type)
+    annual_rate = round(((1 + (reference_rate / 100.0)) ** 12 - 1) * 100.0, 4)
+    return {
+        "loan_rate": {
+            "loan_type": loan_type,
+            "monthly_rate_pct": reference_rate,
+            "annual_rate_pct": annual_rate,
+            "abusivity_threshold_monthly_pct": round(reference_rate * 2, 4),
+            "abusivity_threshold_annual_pct": round(((1 + ((reference_rate * 2) / 100.0)) ** 12 - 1) * 100.0, 2),
+            "bcb_reference_date": "01/02/2026",
+            "bcb_serie": "mock",
+            "source_url": "mock://bcb",
+            "fetched_at": datetime.utcnow().isoformat(),
+            "note": "Mock mode ativo: referencia deterministica para testes.",
+        },
+        "selic": {
+            "selic_monthly_pct": 1.05,
+            "selic_annual_pct": 13.34,
+            "bcb_reference_date": "01/02/2026",
+            "source_url_monthly": "mock://selic",
+            "source_url_annual": "mock://selic",
+            "fetched_at": datetime.utcnow().isoformat(),
+        },
+        "cdi": {
+            "cdi_monthly_pct": 1.01,
+            "bcb_reference_date": "01/02/2026",
+            "source_url": "mock://cdi",
+            "fetched_at": datetime.utcnow().isoformat(),
+        },
+        "inss_cap": None,
+        "fetched_at": datetime.utcnow().isoformat(),
+    }
 
 
 def _build_loan_type_warning(selected_loan_type: str, contract_text: str) -> tuple[str | None, str | None]:
@@ -1016,9 +1066,12 @@ async def run_pre_analysis(
             analysis.error_message = warning_message
             await db.commit()
 
-            bcb_rate_data = await asyncio.wait_for(
-                get_enriched_bcb_context(loan_type, force_refresh=not MOCK_MODE), timeout=20
-            )
+            if MOCK_MODE:
+                bcb_rate_data = _build_mock_bcb_context(loan_type)
+            else:
+                bcb_rate_data = await asyncio.wait_for(
+                    get_enriched_bcb_context(loan_type, force_refresh=not MOCK_MODE), timeout=20
+                )
             reference_rate = float((bcb_rate_data.get("loan_rate") or {}).get("monthly_rate_pct") or 0.0)
             if reference_rate <= 0:
                 raise RuntimeError("Taxa BCB indisponivel para pre-analise.")
@@ -1103,28 +1156,31 @@ async def run_full_analysis(
             # 2. Busca taxas BCB AO VIVO + contexto STJ em paralelo
             # BCBAPIError e levantada se a API do BCB estiver indisponivel — nao existem fallbacks
             stj_ctx_data = {}
-            try:
-                stj_ctx_data_raw = await asyncio.wait_for(get_stj_context(loan_type), timeout=10)
-                stj_ctx_data = stj_ctx_data_raw
-            except Exception as stj_err:
-                print(f"[analysis] STJ context nao disponivel (nao critico): {stj_err}")
+            if MOCK_MODE:
+                bcb_ctx_data = _build_mock_bcb_context(loan_type)
+            else:
+                try:
+                    stj_ctx_data_raw = await asyncio.wait_for(get_stj_context(loan_type), timeout=10)
+                    stj_ctx_data = stj_ctx_data_raw
+                except Exception as stj_err:
+                    print(f"[analysis] STJ context nao disponivel (nao critico): {stj_err}")
 
-            # BCB e CRITICO: sem taxa real nao fazemos analise
-            try:
-                bcb_ctx_data = await asyncio.wait_for(
-                    get_enriched_bcb_context(loan_type, force_refresh=not MOCK_MODE), timeout=20
-                )
-            except BCBAPIError as e:
-                raise RuntimeError(
-                    f"API do Banco Central (BCB) indisponivel no momento. "
-                    f"Nao e possivel realizar a analise sem as taxas oficiais de mercado. "
-                    f"Detalhe tecnico: {e}"
-                ) from e
-            except asyncio.TimeoutError:
-                raise RuntimeError(
-                    "Timeout ao consultar a API do Banco Central (BCB). "
-                    "Tente novamente em alguns minutos."
-                )
+                # BCB e CRITICO: sem taxa real nao fazemos analise
+                try:
+                    bcb_ctx_data = await asyncio.wait_for(
+                        get_enriched_bcb_context(loan_type, force_refresh=not MOCK_MODE), timeout=20
+                    )
+                except BCBAPIError as e:
+                    raise RuntimeError(
+                        f"API do Banco Central (BCB) indisponivel no momento. "
+                        f"Nao e possivel realizar a analise sem as taxas oficiais de mercado. "
+                        f"Detalhe tecnico: {e}"
+                    ) from e
+                except asyncio.TimeoutError:
+                    raise RuntimeError(
+                        "Timeout ao consultar a API do Banco Central (BCB). "
+                        "Tente novamente em alguns minutos."
+                    )
 
             bcb_loan = bcb_ctx_data.get("loan_rate", {})
             reference_rate = bcb_loan.get("monthly_rate_pct")
