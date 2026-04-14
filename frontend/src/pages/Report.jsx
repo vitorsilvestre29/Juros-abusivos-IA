@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getFullReport, getReportDownloadUrl } from '../lib/api'
 
@@ -41,10 +41,10 @@ export default function Report() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [processingAfterPayment, setProcessingAfterPayment] = useState(false)
+  const retryRef = useRef(null)
+  const retryCountRef = useRef(0)
 
   useEffect(() => {
-    let interval
-
     async function loadReport() {
       try {
         const r = await getFullReport(analysisId)
@@ -52,24 +52,35 @@ export default function Report() {
         setProcessingAfterPayment(false)
         setError('')
         setLoading(false)
-        if (interval) clearInterval(interval)
+        if (retryRef.current) {
+          clearTimeout(retryRef.current)
+          retryRef.current = null
+        }
+        retryCountRef.current = 0
       } catch (err) {
         const status = err.response?.status
         if (status === 425) {
           setProcessingAfterPayment(true)
           setLoading(true)
           setError('')
-          if (!interval) interval = setInterval(loadReport, 4000)
+          const nextDelay = Math.min(30000, 4000 * Math.max(1, retryCountRef.current + 1))
+          if (retryRef.current) clearTimeout(retryRef.current)
+          retryRef.current = setTimeout(loadReport, nextDelay)
+          retryCountRef.current += 1
           return
         }
-        setError(status === 402 ? 'Pagamento necessario para acessar o laudo.' : 'Erro ao carregar laudo.')
+        if (status === 422) {
+          setError(err.response?.data?.detail || 'Falha ao gerar o laudo completo.')
+        } else {
+          setError(status === 402 ? 'Pagamento necessario para acessar o laudo.' : 'Erro ao carregar laudo.')
+        }
         setLoading(false)
       }
     }
 
     loadReport()
     return () => {
-      if (interval) clearInterval(interval)
+      if (retryRef.current) clearTimeout(retryRef.current)
     }
   }, [analysisId])
 
