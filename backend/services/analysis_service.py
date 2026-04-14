@@ -13,6 +13,7 @@ import os
 import base64
 import io
 import re
+import unicodedata
 from time import perf_counter
 from datetime import datetime
 from typing import Any, Optional
@@ -20,7 +21,7 @@ from typing import Any, Optional
 from services.bcb_service import get_enriched_bcb_context, format_bcb_context_for_prompt, BCBAPIError
 from services.stj_service import get_stj_context, format_stj_context_for_prompt
 from services.ops_alert_service import send_ops_alert
-from models import AnalysisStatus
+from models import AnalysisStatus, LOAN_TYPES
 
 MOCK_MODE = os.getenv("MOCK_MODE", "false").lower() == "true"
 MODEL_NAME = "claude-sonnet-4-6"
@@ -117,6 +118,80 @@ def _analysis_model_candidates() -> list[str]:
             seen.add(model)
             unique.append(model)
     return unique or [MODEL_NAME]
+
+
+def _normalize_text_for_match(text: str) -> str:
+    if not text:
+        return ""
+    txt = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+    txt = txt.lower()
+    txt = re.sub(r"\s+", " ", txt)
+    return txt
+
+
+def _detect_contract_type_by_text(contract_text: str) -> tuple[str | None, float]:
+    text = _normalize_text_for_match(contract_text)[:12000]
+    if not text:
+        return None, 0.0
+
+    rules: dict[str, list[str]] = {
+        "consignado_inss": [
+            "inss", "beneficio previdenciario", "aposentadoria", "pensionista", "margem consignavel"
+        ],
+        "consignado_clt": [
+            "desconto em folha", "folha de pagamento", "empregador", "holerite", "consignado privado"
+        ],
+        "credito_pessoal": [
+            "emprestimo pessoal", "credito pessoal", "parcelas fixas", "cec", "contrato de emprestimo"
+        ],
+        "credito_habitacional": [
+            "financiamento imobiliario", "alienacao fiduciaria do imovel", "sistema financeiro da habitacao",
+            "sfh", "sfi", "imovel"
+        ],
+        "cdc_veiculo": [
+            "veiculo", "automovel", "renavam", "chassi", "financiamento de veiculo", "alienacao fiduciaria do veiculo"
+        ],
+        "cartao_credito": [
+            "cartao de credito", "fatura", "limite de credito", "pagamento minimo", "rotativo", "anuidade"
+        ],
+    }
+
+    scores: dict[str, float] = {k: 0.0 for k in rules.keys()}
+    for loan_kind, keywords in rules.items():
+        for keyword in keywords:
+            if keyword in text:
+                scores[loan_kind] += 1.0
+
+    winner = max(scores, key=scores.get)
+    winner_score = scores[winner]
+    if winner_score <= 0:
+        return None, 0.0
+
+    ordered_scores = sorted(scores.values(), reverse=True)
+    second_score = ordered_scores[1] if len(ordered_scores) > 1 else 0.0
+    confidence = winner_score / max(winner_score + second_score, 1.0)
+    return winner, confidence
+
+
+def _build_loan_type_warning(selected_loan_type: str, contract_text: str) -> tuple[str | None, str | None]:
+    predicted, confidence = _detect_contract_type_by_text(contract_text)
+    if not predicted or predicted == "outros":
+        return None, None
+    if selected_loan_type == predicted:
+        return None, None
+
+    # So avisa quando o sinal textual estiver minimamente forte.
+    if confidence < 0.55:
+        return None, None
+
+    selected_label = LOAN_TYPES.get(selected_loan_type, selected_loan_type)
+    predicted_label = LOAN_TYPES.get(predicted, predicted)
+    message = (
+        "Aviso: identificamos possivel divergencia no tipo de contrato informado. "
+        f"Selecionado: {selected_label}. Sinais no documento: {predicted_label}. "
+        "Para maior precisao da analise, recomendamos reenviar o contrato com a modalidade correta."
+    )
+    return message, predicted
 
 
 # ── Extracao de texto ─────────────────────────────────────────────────────────
@@ -793,6 +868,13 @@ async def run_pre_analysis(
 
             if len((extracted_text or "").strip()) < 60:
                 raise RuntimeError("Nao foi possivel extrair texto suficiente do PDF para pre-analise.")
+
+            warning_message, _suggested = _build_loan_type_warning(
+                selected_loan_type=loan_type,
+                contract_text=extracted_text,
+            )
+            analysis.error_message = warning_message
+            await db.commit()
 
             bcb_rate_data = await asyncio.wait_for(
                 get_enriched_bcb_context(loan_type, force_refresh=not MOCK_MODE), timeout=20

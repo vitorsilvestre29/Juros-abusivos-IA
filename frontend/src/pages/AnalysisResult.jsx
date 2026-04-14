@@ -73,6 +73,7 @@ export default function AnalysisResult() {
   const isFailed = status.status === 'failed'
   const isDone = status.status === 'completed'
   const hasIssues = status.has_issues === true
+  const warningMessage = status.warning_message || ''
   const goToPayment = () => {
     trackEvent('InitiateCheckout', {
       analysis_id: status.analysis_id,
@@ -95,6 +96,14 @@ export default function AnalysisResult() {
       </header>
 
       <main style={{ maxWidth: 680, margin: '0 auto', padding: isMobile ? '28px 16px 40px' : '40px 24px' }}>
+        {warningMessage && (
+          <div style={{ background: '#FFF4E5', border: '1px solid #F5E8C8', borderLeft: '4px solid ' + O, borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+            <p style={{ color: '#8A4C00', fontSize: 13, lineHeight: 1.65, margin: 0 }}>
+              <strong>Aviso sobre o tipo de contrato:</strong> {warningMessage}
+            </p>
+          </div>
+        )}
+
         {isProcessing && (
           <div style={{ background: white, borderRadius: 20, border: '1px solid ' + border, padding: isMobile ? '32px 20px' : '48px 32px', textAlign: 'center', boxShadow: '0 4px 16px rgba(13,33,55,0.06)' }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>

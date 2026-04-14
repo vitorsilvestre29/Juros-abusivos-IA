@@ -194,6 +194,8 @@ async def get_analysis_status(
 
     if analysis.status == AnalysisStatus.FAILED:
         response["error"] = analysis.error_message
+    elif analysis.error_message:
+        response["warning_message"] = analysis.error_message
 
     if analysis.status == AnalysisStatus.COMPLETED:
         response["has_issues"] = analysis.has_issues
