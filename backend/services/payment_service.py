@@ -23,6 +23,14 @@ def _safe_payer_email(user_email: str) -> str:
     return "pagamentos@laudojuros.com.br"
 
 
+def _naive_utc(dt_value: datetime | None) -> datetime | None:
+    if dt_value is None:
+        return None
+    if dt_value.tzinfo is None:
+        return dt_value
+    return dt_value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
 async def create_pix_payment(
     amount: float,
     user_email: str,
@@ -42,7 +50,7 @@ async def create_pix_payment(
             "qr_code": MOCK_QR_CODE,
             "qr_code_base64": MOCK_QR_BASE64,
             "ticket_url": None,
-            "expires_at": expires,
+            "expires_at": _naive_utc(expires),
             "status": "pending",
         }
 
@@ -96,7 +104,7 @@ async def create_pix_payment(
         "qr_code": txn.get("qr_code", ""),
         "qr_code_base64": txn.get("qr_code_base64", ""),
         "ticket_url": txn.get("ticket_url", None),
-        "expires_at": expires_at,
+        "expires_at": _naive_utc(expires_at),
         "status": data.get("status", "pending"),
     }
 
