@@ -13,6 +13,16 @@ MOCK_QR_CODE = "00020126580014br.gov.bcb.pix0136fakepix-uuid-1234-5678-abcd-ef01
 MOCK_QR_BASE64 = ""  # sem imagem em mock
 
 
+def _safe_payer_email(user_email: str) -> str:
+    email = (user_email or "").strip()
+    if "@" in email and "." in email.split("@")[-1] and not email.endswith("@guest.local"):
+        return email
+    fallback = os.getenv("MERCADOPAGO_PAYER_EMAIL", "").strip()
+    if "@" in fallback and "." in fallback.split("@")[-1]:
+        return fallback
+    return "pagamentos@laudojuros.com.br"
+
+
 async def create_pix_payment(
     amount: float,
     user_email: str,
@@ -45,7 +55,7 @@ async def create_pix_payment(
         "description": description[:255],
         "payment_method_id": "pix",
         "payer": {
-            "email": user_email,
+            "email": _safe_payer_email(user_email),
             "first_name": user_name.split()[0] if user_name else "Cliente",
         },
         "external_reference": str(analysis_id),
