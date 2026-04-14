@@ -576,17 +576,36 @@ def _normalize_ai_result(parsed: Any, loan_type: str, reference_rate: float) -> 
                     "descricao": str(item.get("descricao", "")).strip(),
                     "gravidade": gravidade,
                     "valor_estimado": _as_float(item.get("valor_estimado", 0.0), 0.0),
+                    "trecho_contrato": str(item.get("trecho_contrato", "")).strip(),
+                    "fundamento_legal": str(item.get("fundamento_legal", "")).strip(),
+                    "valor_cobrado": str(item.get("valor_cobrado", "")).strip(),
                 }
             )
+
+    dados_cliente_raw = data.get("dados_cliente", {})
+    dados_cliente = {
+        "nome": "",
+        "cpf": "",
+    }
+    if isinstance(dados_cliente_raw, dict):
+        dados_cliente["nome"] = str(dados_cliente_raw.get("nome", "")).strip()
+        dados_cliente["cpf"] = str(dados_cliente_raw.get("cpf", "")).strip()
 
     return {
         "tipo_contrato": str(data.get("tipo_contrato", loan_type)).strip() or loan_type,
         "banco_credor": str(data.get("banco_credor", "")).strip(),
+        "numero_contrato": str(data.get("numero_contrato", "")).strip(),
+        "data_contrato": str(data.get("data_contrato", "")).strip(),
         "valor_contratado": _as_float(data.get("valor_contratado", 0.0), 0.0),
         "taxa_mensal_contratada": _as_float(data.get("taxa_mensal_contratada", 0.0), 0.0),
         "taxa_anual_contratada": _as_float(data.get("taxa_anual_contratada", 0.0), 0.0),
+        "cet_mensal": str(data.get("cet_mensal", "")).strip(),
+        "cet_anual": str(data.get("cet_anual", "")).strip(),
         "taxa_referencia_bcb": _as_float(data.get("taxa_referencia_bcb", reference_rate), reference_rate),
         "prazo_meses": _as_int(data.get("prazo_meses", 0), 0),
+        "valor_parcela": str(data.get("valor_parcela", "")).strip(),
+        "valor_total_devido": str(data.get("valor_total_devido", "")).strip(),
+        "dados_cliente": dados_cliente,
         "irregularidades": irregularidades_norm,
         "resumo_tecnico": str(data.get("resumo_tecnico", "")).strip(),
         "recomendacao": str(data.get("recomendacao", "")).strip(),
@@ -709,11 +728,25 @@ def _analysis_tool_schema(reference_rate: float) -> dict:
         "properties": {
             "tipo_contrato": {"type": "string"},
             "banco_credor": {"type": "string"},
+            "numero_contrato": {"type": "string"},
+            "data_contrato": {"type": "string"},
             "valor_contratado": {"type": "number"},
             "taxa_mensal_contratada": {"type": "number"},
             "taxa_anual_contratada": {"type": "number"},
+            "cet_mensal": {"type": "string"},
+            "cet_anual": {"type": "string"},
             "taxa_referencia_bcb": {"type": "number"},
             "prazo_meses": {"type": "integer"},
+            "valor_parcela": {"type": "string"},
+            "valor_total_devido": {"type": "string"},
+            "dados_cliente": {
+                "type": "object",
+                "properties": {
+                    "nome": {"type": "string"},
+                    "cpf": {"type": "string"},
+                },
+                "required": ["nome", "cpf"],
+            },
             "irregularidades": {
                 "type": "array",
                 "items": {
@@ -723,6 +756,9 @@ def _analysis_tool_schema(reference_rate: float) -> dict:
                         "descricao": {"type": "string"},
                         "gravidade": {"type": "string", "enum": ["alta", "media", "baixa"]},
                         "valor_estimado": {"type": "number"},
+                        "trecho_contrato": {"type": "string"},
+                        "fundamento_legal": {"type": "string"},
+                        "valor_cobrado": {"type": "string"},
                     },
                     "required": ["tipo", "descricao", "gravidade", "valor_estimado"],
                 },
@@ -788,17 +824,27 @@ async def _repair_ai_json_with_model(
         "{\n"
         "  \"tipo_contrato\": \"string\",\n"
         "  \"banco_credor\": \"string\",\n"
+        "  \"numero_contrato\": \"string\",\n"
+        "  \"data_contrato\": \"string\",\n"
         "  \"valor_contratado\": 0.00,\n"
         "  \"taxa_mensal_contratada\": 0.00,\n"
         "  \"taxa_anual_contratada\": 0.00,\n"
+        "  \"cet_mensal\": \"string\",\n"
+        "  \"cet_anual\": \"string\",\n"
         f"  \"taxa_referencia_bcb\": {reference_rate},\n"
         "  \"prazo_meses\": 0,\n"
+        "  \"valor_parcela\": \"string\",\n"
+        "  \"valor_total_devido\": \"string\",\n"
+        "  \"dados_cliente\": {\"nome\": \"string\", \"cpf\": \"string\"},\n"
         "  \"irregularidades\": [\n"
         "    {\n"
         "      \"tipo\": \"string\",\n"
         "      \"descricao\": \"string\",\n"
         "      \"gravidade\": \"alta|media|baixa\",\n"
-        "      \"valor_estimado\": 0.00\n"
+        "      \"valor_estimado\": 0.00,\n"
+        "      \"trecho_contrato\": \"string\",\n"
+        "      \"fundamento_legal\": \"string\",\n"
+        "      \"valor_cobrado\": \"string\"\n"
         "    }\n"
         "  ],\n"
         "  \"resumo_tecnico\": \"string\",\n"
@@ -856,6 +902,10 @@ INSTRUCOES:
 - Verifique tarifas cobradas contra a lista permitida pela Resolucao CMN 4.881/2021
 - Verifique se o CET foi informado conforme Resolucao CMN 3.517/2007
 - Para consignado: verifique se o desconto respeita o limite de 35% do beneficio
+- Extraia do contrato, sempre que estiverem disponiveis: numero do contrato, data do contrato, valor total liberado,
+  valor da parcela, total a pagar, CET mensal/anual, nome e CPF do contratante.
+- Em cada irregularidade, inclua o trecho contratual relevante, o fundamento legal ou normativo e o valor cobrado,
+  quando esses dados estiverem presentes no documento.
 - `resumo_tecnico` deve ter ao menos 2 frases completas e explicar os principais achados.
 - `recomendacao` deve ter ao menos 1 frase completa, objetiva e acionavel.
 
@@ -865,17 +915,30 @@ Estrutura obrigatoria:
 {{
   "tipo_contrato": "string",
   "banco_credor": "string",
+  "numero_contrato": "string",
+  "data_contrato": "string",
   "valor_contratado": 0.00,
   "taxa_mensal_contratada": 0.00,
   "taxa_anual_contratada": 0.00,
+  "cet_mensal": "string",
+  "cet_anual": "string",
   "taxa_referencia_bcb": {reference_rate},
   "prazo_meses": 0,
+  "valor_parcela": "string",
+  "valor_total_devido": "string",
+  "dados_cliente": {{
+    "nome": "string",
+    "cpf": "string"
+  }},
   "irregularidades": [
     {{
       "tipo": "string",
       "descricao": "string",
       "gravidade": "alta|media|baixa",
-      "valor_estimado": 0.00
+      "valor_estimado": 0.00,
+      "trecho_contrato": "string",
+      "fundamento_legal": "string",
+      "valor_cobrado": "string"
     }}
   ],
   "resumo_tecnico": "string",

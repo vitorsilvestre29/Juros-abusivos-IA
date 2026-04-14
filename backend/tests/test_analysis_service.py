@@ -87,6 +87,46 @@ class AnalysisServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertGreaterEqual(len(finalized["resumo_tecnico"]), 40)
         self.assertGreaterEqual(len(finalized["recomendacao"]), 20)
 
+    def test_normalize_ai_result_preserves_extended_contract_fields(self):
+        parsed = {
+            "tipo_contrato": "cdc_veiculo",
+            "banco_credor": "Banco Exemplo S.A.",
+            "numero_contrato": "ABC123",
+            "data_contrato": "10/01/2026",
+            "valor_contratado": 37500,
+            "taxa_mensal_contratada": 2.97,
+            "taxa_anual_contratada": 42.08,
+            "cet_mensal": "3,11% a.m.",
+            "cet_anual": "44,31% a.a.",
+            "taxa_referencia_bcb": 3.2,
+            "prazo_meses": 48,
+            "valor_parcela": "R$ 1.234,56",
+            "valor_total_devido": "R$ 59.258,88",
+            "dados_cliente": {"nome": "Maria Silva", "cpf": "000.000.000-00"},
+            "irregularidades": [
+                {
+                    "tipo": "Tarifa abusiva",
+                    "descricao": "Tarifa nao prevista.",
+                    "gravidade": "media",
+                    "valor_estimado": 450.0,
+                    "trecho_contrato": "Clausula 5",
+                    "fundamento_legal": "Resolucao CMN 4.881/2021",
+                    "valor_cobrado": "R$ 450,00",
+                }
+            ],
+            "resumo_tecnico": "Resumo completo o suficiente para passar na validacao.",
+            "recomendacao": "Recomendacao objetiva e suficiente.",
+        }
+
+        normalized = analysis_service._normalize_ai_result(parsed, "cdc_veiculo", 3.2)
+
+        self.assertEqual(normalized["numero_contrato"], "ABC123")
+        self.assertEqual(normalized["data_contrato"], "10/01/2026")
+        self.assertEqual(normalized["cet_mensal"], "3,11% a.m.")
+        self.assertEqual(normalized["valor_parcela"], "R$ 1.234,56")
+        self.assertEqual(normalized["dados_cliente"]["nome"], "Maria Silva")
+        self.assertEqual(normalized["irregularidades"][0]["fundamento_legal"], "Resolucao CMN 4.881/2021")
+
     async def test_analyze_contract_succeeds_with_short_summary_via_local_enrichment(self):
         fake_module = types.SimpleNamespace(AsyncAnthropic=FakeAsyncAnthropic)
         FakeAsyncAnthropic.responses = [
