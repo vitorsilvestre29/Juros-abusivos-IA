@@ -108,28 +108,6 @@ class AnalysisServiceTests(unittest.IsolatedAsyncioTestCase):
                     "recomendacao": "",
                 },
             ),
-            make_tool_response(
-                "submit_analysis_text_enrichment",
-                {
-                    "tipo_contrato": "cdc_veiculo",
-                    "banco_credor": "Banco Teste",
-                    "valor_contratado": 25000.0,
-                    "taxa_mensal_contratada": 3.1,
-                    "taxa_anual_contratada": 44.0,
-                    "taxa_referencia_bcb": 2.0,
-                    "prazo_meses": 48,
-                    "irregularidades": [
-                        {
-                            "tipo": "Taxa acima da media",
-                            "descricao": "A taxa mensal contratada supera a referencia do BCB.",
-                            "gravidade": "alta",
-                            "valor_estimado": 3200.0,
-                        }
-                    ],
-                    "resumo_tecnico": "Ainda curto",
-                    "recomendacao": "Curta",
-                },
-            ),
         ]
 
         with patch.dict(sys.modules, {"anthropic": fake_module}):
@@ -143,6 +121,38 @@ class AnalysisServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertGreaterEqual(len(result["resumo_tecnico"]), 40)
         self.assertGreaterEqual(len(result["recomendacao"]), 20)
         self.assertGreater(usage["input_tokens"], 0)
+
+    async def test_analyze_contract_succeeds_without_irregularities_using_local_text_completion(self):
+        fake_module = types.SimpleNamespace(AsyncAnthropic=FakeAsyncAnthropic)
+        FakeAsyncAnthropic.responses = [
+            make_tool_response(
+                "submit_analysis",
+                {
+                    "tipo_contrato": "cdc_veiculo",
+                    "banco_credor": "Banco Teste",
+                    "valor_contratado": 18000.0,
+                    "taxa_mensal_contratada": 1.8,
+                    "taxa_anual_contratada": 23.8,
+                    "taxa_referencia_bcb": 2.0,
+                    "prazo_meses": 36,
+                    "irregularidades": [],
+                    "resumo_tecnico": "Ok",
+                    "recomendacao": "",
+                },
+            ),
+        ]
+
+        with patch.dict(sys.modules, {"anthropic": fake_module}):
+            result, usage, _model_name = await analysis_service.analyze_contract(
+                contract_text="Contrato de financiamento de veiculo sem indicios fortes de abuso.",
+                loan_type="cdc_veiculo",
+                reference_rate=2.0,
+            )
+
+        self.assertEqual(result["irregularidades"], [])
+        self.assertIn("nao encontrou irregularidades", result["resumo_tecnico"].lower())
+        self.assertGreaterEqual(len(result["recomendacao"]), 20)
+        self.assertGreater(usage["output_tokens"], 0)
 
 
 if __name__ == "__main__":
