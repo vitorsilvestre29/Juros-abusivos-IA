@@ -7,10 +7,17 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from services.report_service import _report_view
+from services.report_service import _cta_copy, _report_view
 
 
 class ReportServiceTests(unittest.TestCase):
+    def test_cta_copy_changes_when_no_irregularities(self):
+        body, message = _cta_copy(False)
+
+        self.assertIn("não apontou irregularidades relevantes", body)
+        self.assertIn("consulta preventiva", message)
+        self.assertNotIn("ação revisional", body)
+
     def test_report_view_maps_current_ai_schema(self):
         ai_result = {
             "tipo_contrato": "cdc_veiculo",

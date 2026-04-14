@@ -74,6 +74,29 @@ def _report_view(ai_result: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _cta_copy(has_irregularities: bool) -> tuple[str, str]:
+    if has_irregularities:
+        body = (
+            "Este laudo identificou possíveis irregularidades no seu contrato. "
+            "Um advogado especialista pode avaliar a viabilidade de uma ação revisional "
+            "para reduzir os juros e recuperar os valores cobrados indevidamente."
+        )
+        whatsapp_text = (
+            "Olá! Recebi meu laudo técnico e gostaria de saber mais sobre a ação revisional."
+        )
+        return body, whatsapp_text
+
+    body = (
+        "Este laudo não apontou irregularidades relevantes nos campos estruturados avaliados. "
+        "Ainda assim, um advogado especialista pode revisar o contrato de forma preventiva "
+        "e orientar sobre riscos futuros, renegociação ou novas cobranças."
+    )
+    whatsapp_text = (
+        "Olá! Recebi meu laudo técnico e gostaria de agendar uma consulta preventiva sobre meu contrato."
+    )
+    return body, whatsapp_text
+
+
 def _styles():
     base = getSampleStyleSheet()
 
@@ -336,13 +359,13 @@ async def generate_report_pdf(
     # ── CTA ADVOGADO ──────────────────────────────────────────────────
     story.append(HRFlowable(width=W, thickness=1, color=COLOR_BORDER, spaceAfter=10))
 
-    wa_link = f"https://wa.me/{WHATSAPP_NUMBER}?text=Olá!%20Recebi%20meu%20laudo%20técnico%20e%20gostaria%20de%20saber%20mais%20sobre%20a%20ação%20revisional."
+    has_irregularities = len(view["irregularidades"]) > 0
+    cta_body, whatsapp_text = _cta_copy(has_irregularities)
+    wa_link = f"https://wa.me/{WHATSAPP_NUMBER}?text={whatsapp_text}"
     cta_box = Table(
         [[Paragraph(
             f"<b>📱 Fale com um advogado especializado</b><br/>"
-            f"Este laudo identificou possíveis irregularidades no seu contrato. "
-            f"Um advogado especialista pode avaliar a viabilidade de uma ação revisional "
-            f"para reduzir os juros e recuperar os valores cobrados indevidamente.<br/><br/>"
+            f"{cta_body}<br/><br/>"
             f"<b>Entre em contato via WhatsApp:</b> wa.me/{WHATSAPP_NUMBER}",
             st["body"],
         )]],
