@@ -103,13 +103,12 @@ async def get_full_report_json(
             detail="Pagamento necessário para acessar o laudo completo",
         )
 
-    if analysis.status == AnalysisStatus.FAILED:
-        raise HTTPException(
-            status_code=422,
-            detail=(analysis.error_message or "Falha ao gerar o laudo completo."),
-        )
-
     if not analysis.ai_result_json:
+        if analysis.status == AnalysisStatus.FAILED:
+            raise HTTPException(
+                status_code=422,
+                detail=(analysis.error_message or "Falha ao gerar o laudo completo."),
+            )
         raise HTTPException(
             status_code=425,
             detail="Pagamento confirmado. Estamos finalizando seu laudo completo.",

@@ -1235,50 +1235,62 @@ async def run_full_analysis(
             analysis.completed_at = datetime.utcnow()
             await db.commit()
 
-            telemetry_result = await db.execute(
-                select(AnalysisTelemetry).where(AnalysisTelemetry.analysis_id == analysis_id)
-            )
-            telemetry = telemetry_result.scalar_one_or_none()
-            if telemetry is None:
-                telemetry = AnalysisTelemetry(analysis_id=analysis_id)
-                db.add(telemetry)
+            try:
+                telemetry_result = await db.execute(
+                    select(AnalysisTelemetry).where(AnalysisTelemetry.analysis_id == analysis_id)
+                )
+                telemetry = telemetry_result.scalar_one_or_none()
+                if telemetry is None:
+                    telemetry = AnalysisTelemetry(analysis_id=analysis_id)
+                    db.add(telemetry)
 
-            estimated_usd, estimated_brl = _estimate_cost(input_tokens, output_tokens)
-            telemetry.model_name = selected_model
-            telemetry.max_output_tokens = max_output_tokens
-            telemetry.input_tokens = input_tokens
-            telemetry.output_tokens = output_tokens
-            telemetry.estimated_cost_usd = estimated_usd
-            telemetry.estimated_cost_brl = estimated_brl
-            telemetry.duration_ms = duration_ms
-            telemetry.status = AnalysisStatus.COMPLETED
-            telemetry.error_type = None
-            await db.commit()
+                estimated_usd, estimated_brl = _estimate_cost(input_tokens, output_tokens)
+                telemetry.model_name = selected_model
+                telemetry.max_output_tokens = max_output_tokens
+                telemetry.input_tokens = input_tokens
+                telemetry.output_tokens = output_tokens
+                telemetry.estimated_cost_usd = estimated_usd
+                telemetry.estimated_cost_brl = estimated_brl
+                telemetry.duration_ms = duration_ms
+                telemetry.status = AnalysisStatus.COMPLETED
+                telemetry.error_type = None
+                await db.commit()
+            except Exception as telemetry_err:
+                await db.rollback()
+                print(f"[analysis] aviso: telemetria nao salva para analise {analysis_id}: {telemetry_err}")
 
         except Exception as e:
-            analysis.status = AnalysisStatus.FAILED
-            analysis.error_message = _friendly_error_message(e)[:500]
-            await db.commit()
+            try:
+                analysis.status = AnalysisStatus.FAILED
+                analysis.error_message = _friendly_error_message(e)[:500]
+                await db.commit()
+            except Exception as commit_err:
+                await db.rollback()
+                print(f"[analysis] aviso: falha ao persistir status FAILED da analise {analysis_id}: {commit_err}")
 
-            telemetry_result = await db.execute(
-                select(AnalysisTelemetry).where(AnalysisTelemetry.analysis_id == analysis_id)
-            )
-            telemetry = telemetry_result.scalar_one_or_none()
-            if telemetry is None:
-                telemetry = AnalysisTelemetry(analysis_id=analysis_id)
-                db.add(telemetry)
+            try:
+                telemetry_result = await db.execute(
+                    select(AnalysisTelemetry).where(AnalysisTelemetry.analysis_id == analysis_id)
+                )
+                telemetry = telemetry_result.scalar_one_or_none()
+                if telemetry is None:
+                    telemetry = AnalysisTelemetry(analysis_id=analysis_id)
+                    db.add(telemetry)
 
-            estimated_usd, estimated_brl = _estimate_cost(input_tokens, output_tokens)
-            telemetry.model_name = selected_model
-            telemetry.max_output_tokens = max_output_tokens
-            telemetry.input_tokens = input_tokens
-            telemetry.output_tokens = output_tokens
-            telemetry.estimated_cost_usd = estimated_usd
-            telemetry.estimated_cost_brl = estimated_brl
-            telemetry.duration_ms = duration_ms
-            telemetry.status = AnalysisStatus.FAILED
-            telemetry.error_type = type(e).__name__[:80]
-            await db.commit()
+                estimated_usd, estimated_brl = _estimate_cost(input_tokens, output_tokens)
+                telemetry.model_name = selected_model
+                telemetry.max_output_tokens = max_output_tokens
+                telemetry.input_tokens = input_tokens
+                telemetry.output_tokens = output_tokens
+                telemetry.estimated_cost_usd = estimated_usd
+                telemetry.estimated_cost_brl = estimated_brl
+                telemetry.duration_ms = duration_ms
+                telemetry.status = AnalysisStatus.FAILED
+                telemetry.error_type = type(e).__name__[:80]
+                await db.commit()
+            except Exception as telemetry_err:
+                await db.rollback()
+                print(f"[analysis] aviso: telemetria de falha nao salva para analise {analysis_id}: {telemetry_err}")
 
             if _is_anthropic_credit_error(e):
                 await send_ops_alert(
