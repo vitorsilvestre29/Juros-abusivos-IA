@@ -7,7 +7,7 @@ import json
 
 from database import get_db
 from models import Contract, Analysis, AnalysisStatus, LOAN_TYPES
-from routers.auth import get_current_user
+from routers.auth import get_current_user, get_current_user_optional, create_guest_user
 from models import User
 from services.analysis_service import run_pre_analysis
 from services.ai_ops_service import check_ai_capacity
@@ -28,8 +28,12 @@ async def upload_contract(
     loan_type: str = Form("credito_pessoal"),
     user_phone: str = Form(""),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
+    access_token = None
+    if current_user is None:
+        current_user, access_token = await create_guest_user(db)
+
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(
             status_code=400,
@@ -111,6 +115,10 @@ async def upload_contract(
         "analysis_id": analysis.id,
         "status": AnalysisStatus.PENDING,
         "message": "Contrato recebido. Analise iniciada.",
+        "access_token": access_token,
+        "user_name": current_user.name,
+        "user_email": current_user.email,
+        "is_guest": current_user.email.endswith("@guest.local"),
     }
 
 

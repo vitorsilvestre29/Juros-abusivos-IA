@@ -39,6 +39,28 @@ def _is_guest_email(email: str) -> bool:
     return str(email or "").lower().endswith("@guest.local")
 
 
+async def create_guest_user(db: AsyncSession) -> tuple[User, str]:
+    guest_id = secrets.token_hex(8)
+    guest_email = f"guest_{guest_id}@guest.local"
+    guest_name = "Convidado"
+    guest_password = secrets.token_urlsafe(24)
+
+    user = User(
+        name=guest_name,
+        email=guest_email,
+        hashed_password=get_password_hash(guest_password),
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    token = create_access_token(
+        data={"sub": user.email},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+    return user, token
+
+
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db)
@@ -101,23 +123,7 @@ async def login(
 
 @router.post("/guest", response_model=Token)
 async def create_guest_session(db: AsyncSession = Depends(get_db)):
-    guest_id = secrets.token_hex(8)
-    guest_email = f"guest_{guest_id}@guest.local"
-    guest_name = "Convidado"
-    guest_password = secrets.token_urlsafe(24)
-
-    user = User(
-        name=guest_name,
-        email=guest_email,
-        hashed_password=get_password_hash(guest_password),
-    )
-    db.add(user)
-    await db.commit()
-
-    token = create_access_token(
-        data={"sub": user.email},
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
-    )
+    user, token = await create_guest_user(db)
     return Token(
         access_token=token,
         token_type="bearer",

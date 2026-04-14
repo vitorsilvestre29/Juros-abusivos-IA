@@ -1,5 +1,4 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { ensureGuestSession } from '../lib/api'
 import useIsMobile from '../lib/useIsMobile'
 
 const N = '#0D2137'
@@ -62,7 +61,6 @@ export default function Landing() {
   const isMobile = useIsMobile()
 
   async function handleStartAnalysis() {
-    await ensureGuestSession()
     nav('/upload')
   }
 

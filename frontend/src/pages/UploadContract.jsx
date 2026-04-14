@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { uploadContract, getLoanTypes, ensureGuestSession } from '../lib/api'
+import { uploadContract, getLoanTypes } from '../lib/api'
 import useIsMobile from '../lib/useIsMobile'
 
 const N = '#0D2137'
@@ -40,10 +40,6 @@ export default function UploadContract() {
     getLoanTypes().then(r => setLoanTypes(r.data)).catch(() => {})
   }, [])
 
-  useEffect(() => {
-    ensureGuestSession()
-  }, [])
-
   function handleFile(f) {
     if (f && f.size > 20 * 1024 * 1024) { setError('Arquivo muito grande. Maximo 20MB.'); return }
     setFile(f)
@@ -56,12 +52,15 @@ export default function UploadContract() {
     setLoading(true)
     setError('')
     try {
-      const sessionOk = await ensureGuestSession()
-      if (!sessionOk) {
-        setError('Nao foi possivel iniciar uma sessao temporaria. Tente novamente em alguns segundos.')
-        return
-      }
       const res = await uploadContract(file, loanType)
+      if (res.data?.access_token) {
+        localStorage.setItem('token', res.data.access_token)
+        localStorage.setItem('user', JSON.stringify({
+          name: res.data.user_name,
+          email: res.data.user_email,
+          is_guest: res.data.is_guest === true,
+        }))
+      }
       nav('/analise/' + res.data.contract_id)
     } catch (err) {
       setError(err.response?.data?.detail || 'Erro ao enviar contrato. Tente novamente.')
