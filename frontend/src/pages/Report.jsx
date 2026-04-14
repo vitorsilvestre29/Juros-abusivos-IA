@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { getFullReport, getReportDownloadUrl } from '../lib/api'
+import { getFullReport, downloadReportPdf } from '../lib/api'
 
 const WHATSAPP = import.meta.env.VITE_WHATSAPP_NUMBER || '5511999999999'
 
@@ -43,6 +43,7 @@ export default function Report() {
   const [processingAfterPayment, setProcessingAfterPayment] = useState(false)
   const [dots, setDots] = useState('.')
   const [estimatedAttempt, setEstimatedAttempt] = useState(1)
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
   const retryRef = useRef(null)
   const retryCountRef = useRef(0)
   const totalAttempts = Number(import.meta.env.VITE_ANALYSIS_TOTAL_ATTEMPTS || 4)
@@ -95,6 +96,38 @@ export default function Report() {
     const t = setInterval(() => setDots(d => (d.length >= 3 ? '.' : d + '.')), 600)
     return () => clearInterval(t)
   }, [loading])
+
+  async function handleDownloadPdf(e) {
+    e.preventDefault()
+    if (downloadingPdf) return
+
+    try {
+      setDownloadingPdf(true)
+      const response = await downloadReportPdf(analysisId)
+      const blob = new Blob([response.data], { type: 'application/pdf' })
+      const blobUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = blobUrl
+      link.download = `laudo_analise_${analysisId}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(blobUrl)
+    } catch (err) {
+      const status = err.response?.status
+      if (status === 401) {
+        setError('Sua sessao expirou. Entre novamente para baixar o PDF.')
+      } else if (status === 425) {
+        setError('O PDF ainda esta sendo finalizado. Tente novamente em instantes.')
+      } else if (status === 422) {
+        setError(err.response?.data?.detail || 'Nao foi possivel gerar o PDF agora.')
+      } else {
+        setError('Erro ao baixar o PDF.')
+      }
+    } finally {
+      setDownloadingPdf(false)
+    }
+  }
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: muted, fontFamily: sans, padding: '24px' }}>
@@ -165,9 +198,9 @@ export default function Report() {
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link to="/" style={{ fontFamily: serif, color: O, fontSize: 20, fontWeight: 700, textDecoration: 'none' }}>LaudoJuros</Link>
           <div style={{ display: 'flex', gap: 10 }}>
-            <a href={getReportDownloadUrl(analysisId)} target="_blank" rel="noreferrer"
+            <a href="#download-pdf" onClick={handleDownloadPdf}
               style={{ background: O, color: N, textDecoration: 'none', fontSize: 13, fontWeight: 700, padding: '8px 18px', borderRadius: 8, fontFamily: sans }}>
-              Baixar PDF
+              {downloadingPdf ? 'Baixando...' : 'Baixar PDF'}
             </a>
             <Link to={isGuest ? '/cadastro' : '/app'} style={{ background: 'transparent', border: '1px solid #3B4D63', color: '#7E9BB5', textDecoration: 'none', fontSize: 13, fontWeight: 600, padding: '8px 14px', borderRadius: 8 }}>
               {isGuest ? 'Criar conta para salvar' : 'Minhas analises'}

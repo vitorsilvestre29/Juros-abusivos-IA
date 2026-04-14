@@ -90,3 +90,5 @@ export const confirmMockPayment = (paymentId) => api.post(`/payments/confirm-moc
 
 export const getFullReport = (analysisId) => api.get(`/reports/${analysisId}/full`)
 export const getReportDownloadUrl = (analysisId) => `${API_BASE}/reports/${analysisId}/download`
+export const downloadReportPdf = (analysisId) =>
+  api.get(`/reports/${analysisId}/download`, { responseType: 'blob' })
