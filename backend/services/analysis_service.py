@@ -590,6 +590,75 @@ def _validate_ai_result_strict(ai_result: dict, reference_rate: float) -> None:
             raise ValueError(f"JSON da IA invalido: irregularidade {idx} com valor_estimado negativo.")
 
 
+def _analysis_tool_schema(reference_rate: float) -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "tipo_contrato": {"type": "string"},
+            "banco_credor": {"type": "string"},
+            "valor_contratado": {"type": "number"},
+            "taxa_mensal_contratada": {"type": "number"},
+            "taxa_anual_contratada": {"type": "number"},
+            "taxa_referencia_bcb": {"type": "number"},
+            "prazo_meses": {"type": "integer"},
+            "irregularidades": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "tipo": {"type": "string"},
+                        "descricao": {"type": "string"},
+                        "gravidade": {"type": "string", "enum": ["alta", "media", "baixa"]},
+                        "valor_estimado": {"type": "number"},
+                    },
+                    "required": ["tipo", "descricao", "gravidade", "valor_estimado"],
+                },
+            },
+            "resumo_tecnico": {"type": "string"},
+            "recomendacao": {"type": "string"},
+        },
+        "required": [
+            "tipo_contrato",
+            "banco_credor",
+            "valor_contratado",
+            "taxa_mensal_contratada",
+            "taxa_anual_contratada",
+            "taxa_referencia_bcb",
+            "prazo_meses",
+            "irregularidades",
+            "resumo_tecnico",
+            "recomendacao",
+        ],
+    }
+
+
+def _extract_tool_use_input(resp: Any, tool_name: str) -> dict | None:
+    for block in getattr(resp, "content", []) or []:
+        block_type = getattr(block, "type", None) or (block.get("type") if isinstance(block, dict) else None)
+        block_name = getattr(block, "name", None) or (block.get("name") if isinstance(block, dict) else None)
+        if block_type == "tool_use" and block_name == tool_name:
+            block_input = getattr(block, "input", None)
+            if block_input is None and isinstance(block, dict):
+                block_input = block.get("input")
+            if isinstance(block_input, dict):
+                return block_input
+    return None
+
+
+def _extract_text_blocks(resp: Any) -> str:
+    chunks: list[str] = []
+    for block in getattr(resp, "content", []) or []:
+        block_type = getattr(block, "type", None) or (block.get("type") if isinstance(block, dict) else None)
+        if block_type != "text":
+            continue
+        txt = getattr(block, "text", None)
+        if txt is None and isinstance(block, dict):
+            txt = block.get("text")
+        if txt:
+            chunks.append(str(txt))
+    return "\n".join(chunks).strip()
+
+
 async def _repair_ai_json_with_model(
     client,
     malformed_json: str,
@@ -675,7 +744,9 @@ INSTRUCOES:
 - Verifique se o CET foi informado conforme Resolucao CMN 3.517/2007
 - Para consignado: verifique se o desconto respeita o limite de 35% do beneficio
 
-Responda SOMENTE em JSON valido com esta estrutura:
+Voce deve registrar o resultado usando a ferramenta `submit_analysis`.
+Nao escreva explicacoes fora da ferramenta.
+Estrutura obrigatoria:
 {{
   "tipo_contrato": "string",
   "banco_credor": "string",
@@ -722,28 +793,37 @@ Responda SOMENTE em JSON valido com esta estrutura:
     for model_name in models:
         for attempt in range(1, attempts_per_model + 1):
             try:
+                tool_name = "submit_analysis"
                 resp = await client.messages.create(
                     model=model_name,
                     max_tokens=_max_output_tokens(),
                     system=system_prompt,
                     messages=messages,
+                    tools=[{
+                        "name": tool_name,
+                        "description": "Submete o resultado estruturado da analise do contrato.",
+                        "input_schema": _analysis_tool_schema(reference_rate),
+                    }],
+                    tool_choice={"type": "tool", "name": tool_name},
                 )
-                raw = (resp.content[0].text or "").strip()
 
                 usage = getattr(resp, "usage", None)
                 if usage is not None:
                     total_input_tokens += int(getattr(usage, "input_tokens", 0) or 0)
                     total_output_tokens += int(getattr(usage, "output_tokens", 0) or 0)
 
-                try:
-                    parsed = _loads_ai_json(raw)
-                except Exception:
-                    parsed = await _repair_ai_json_with_model(
-                        client=client,
-                        malformed_json=raw,
-                        reference_rate=reference_rate,
-                        model_name=model_name,
-                    )
+                parsed = _extract_tool_use_input(resp, tool_name)
+                if parsed is None:
+                    raw = _extract_text_blocks(resp)
+                    try:
+                        parsed = _loads_ai_json(raw)
+                    except Exception:
+                        parsed = await _repair_ai_json_with_model(
+                            client=client,
+                            malformed_json=raw,
+                            reference_rate=reference_rate,
+                            model_name=model_name,
+                        )
 
                 normalized = _normalize_ai_result(parsed, loan_type, reference_rate)
                 _validate_ai_result_strict(normalized, reference_rate)

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getFullReport, getReportDownloadUrl } from '../lib/api'
 
@@ -42,8 +42,10 @@ export default function Report() {
   const [error, setError] = useState('')
   const [processingAfterPayment, setProcessingAfterPayment] = useState(false)
   const [dots, setDots] = useState('.')
+  const [estimatedAttempt, setEstimatedAttempt] = useState(1)
   const retryRef = useRef(null)
   const retryCountRef = useRef(0)
+  const totalAttempts = Number(import.meta.env.VITE_ANALYSIS_TOTAL_ATTEMPTS || 4)
 
   useEffect(() => {
     async function loadReport() {
@@ -58,12 +60,15 @@ export default function Report() {
           retryRef.current = null
         }
         retryCountRef.current = 0
+        setEstimatedAttempt(1)
       } catch (err) {
         const status = err.response?.status
         if (status === 425) {
           setProcessingAfterPayment(true)
           setLoading(true)
           setError('')
+          const nextTry = Math.min(totalAttempts, Math.max(1, retryCountRef.current + 1))
+          setEstimatedAttempt(nextTry)
           const nextDelay = Math.min(30000, 4000 * Math.max(1, retryCountRef.current + 1))
           if (retryRef.current) clearTimeout(retryRef.current)
           retryRef.current = setTimeout(loadReport, nextDelay)
@@ -94,7 +99,7 @@ export default function Report() {
   if (loading) return (
     <div style={{ minHeight: '100vh', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: muted, fontFamily: sans, padding: '24px' }}>
       <div style={{ background: white, borderRadius: 20, border: '1px solid ' + border, padding: '40px 28px', textAlign: 'center', boxShadow: '0 4px 16px rgba(13,33,55,0.06)', width: '100%', maxWidth: 700 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>{processingAfterPayment ? '⏳' : '📄'}</div>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>{processingAfterPayment ? '⌛' : '📄'}</div>
         <h2 style={{ fontFamily: serif, fontSize: 22, fontWeight: 700, color: N, marginBottom: 10 }}>
           {processingAfterPayment ? `Pagamento confirmado. Finalizando seu laudo${dots}` : `Carregando laudo${dots}`}
         </h2>
@@ -103,12 +108,17 @@ export default function Report() {
             ? 'Estamos gerando o laudo completo com todos os detalhes tecnicos para liberacao na tela e no PDF.'
             : 'Estamos preparando os dados do seu laudo tecnico.'}
         </p>
+        {processingAfterPayment && (
+          <p style={{ color: '#1E40AF', fontSize: 13, marginTop: -6, marginBottom: 16 }}>
+            Tentativa automatica estimada: {estimatedAttempt}/{totalAttempts}
+          </p>
+        )}
         <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 14, padding: '18px 20px', textAlign: 'left' }}>
           {(processingAfterPayment
             ? [
                 { label: 'Pagamento confirmado', done: true },
                 { label: 'Consolidando resultado da analise', done: true },
-                { label: 'Montando laudo completo', done: false },
+                { label: 'Tentando gerar laudo estruturado', done: false },
                 { label: 'Liberando visualizacao e PDF', done: false },
               ]
             : [
@@ -121,6 +131,11 @@ export default function Report() {
             </p>
           ))}
         </div>
+        {processingAfterPayment && retryCountRef.current > totalAttempts && (
+          <p style={{ color: '#7C2D12', fontSize: 12, marginTop: 12 }}>
+            Esta demorando mais que o normal. Estamos tentando novamente automaticamente.
+          </p>
+        )}
       </div>
     </div>
   )
@@ -228,3 +243,4 @@ export default function Report() {
     </div>
   )
 }
+
