@@ -36,7 +36,10 @@ def _normalize_origin(origin: str) -> str:
 raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
 origins = [_normalize_origin(o) for o in raw_origins]
 origins = [o for o in origins if o]
-origin_regex = os.getenv("ALLOWED_ORIGIN_REGEX", r"^https://.*\.vercel\.app$")
+origin_regex = os.getenv(
+    "ALLOWED_ORIGIN_REGEX",
+    r"^https://.*\.vercel\.app$|^https://(www\.)?laudojuros\.com\.br$",
+)
 
 app.add_middleware(
     CORSMiddleware,
