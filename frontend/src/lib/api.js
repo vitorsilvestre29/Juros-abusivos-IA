@@ -1,8 +1,13 @@
 import axios from 'axios'
 
+const DEFAULT_LOCAL_API_BASE = '/api'
+const DEFAULT_PROD_API_BASE = 'https://juros-abusivos-api.up.railway.app/api'
+
 function normalizeApiBase(rawValue) {
   const raw = String(rawValue || '').trim()
-  if (raw === '') return '/api'
+  if (raw === '') {
+    return import.meta.env.DEV ? DEFAULT_LOCAL_API_BASE : DEFAULT_PROD_API_BASE
+  }
   if (raw.startsWith('/')) return raw
   let normalized = raw
   if (/^https?:\/\//i.test(normalized) === false) {
