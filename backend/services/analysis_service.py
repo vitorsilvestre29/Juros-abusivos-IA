@@ -12,6 +12,7 @@ import json
 import os
 import base64
 import io
+import re
 from time import perf_counter
 from datetime import datetime
 from typing import Any, Optional
@@ -259,13 +260,123 @@ def _extract_first_json_object(raw: str) -> str:
     return text[start:]
 
 
+def _escape_control_chars_inside_strings(text: str) -> str:
+    out: list[str] = []
+    in_string = False
+    escape = False
+
+    for ch in text:
+        if in_string:
+            if escape:
+                out.append(ch)
+                escape = False
+                continue
+
+            if ch == "\\":
+                out.append(ch)
+                escape = True
+                continue
+
+            if ch == '"':
+                out.append(ch)
+                in_string = False
+                continue
+
+            if ch == "\n":
+                out.append("\\n")
+                continue
+            if ch == "\r":
+                out.append("\\r")
+                continue
+            if ch == "\t":
+                out.append("\\t")
+                continue
+
+            out.append(ch)
+            continue
+
+        out.append(ch)
+        if ch == '"':
+            in_string = True
+
+    if in_string:
+        out.append('"')
+
+    return "".join(out)
+
+
+def _close_incomplete_json_object(text: str) -> str:
+    depth = 0
+    in_string = False
+    escape = False
+    for ch in text:
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth = max(0, depth - 1)
+
+    repaired = text
+    if depth > 0:
+        repaired += "}" * depth
+    return repaired
+
+
+def _remove_trailing_commas(text: str) -> str:
+    previous = None
+    current = text
+    while previous != current:
+        previous = current
+        current = re.sub(r",\s*([}\]])", r"\1", current)
+    return current
+
+
+def _build_json_candidates(raw: str) -> list[str]:
+    cleaned = _strip_code_fences(raw).strip()
+    extracted = _extract_first_json_object(cleaned).strip()
+
+    candidates = []
+    for base in [cleaned, extracted]:
+        if not base:
+            continue
+        candidates.append(base)
+        escaped = _escape_control_chars_inside_strings(base)
+        candidates.append(escaped)
+        candidates.append(_remove_trailing_commas(escaped))
+        candidates.append(_remove_trailing_commas(_close_incomplete_json_object(escaped)))
+
+    unique: list[str] = []
+    seen = set()
+    for item in candidates:
+        if item and item not in seen:
+            seen.add(item)
+            unique.append(item)
+    return unique
+
+
 def _loads_ai_json(raw: str) -> dict:
-    cleaned = _strip_code_fences(raw)
-    try:
-        return json.loads(cleaned)
-    except Exception:
-        extracted = _extract_first_json_object(cleaned)
-        return json.loads(extracted)
+    last_exc: Exception | None = None
+    for candidate in _build_json_candidates(raw):
+        try:
+            return json.loads(candidate)
+        except Exception as exc:
+            last_exc = exc
+        try:
+            return json.loads(candidate, strict=False)
+        except Exception as exc:
+            last_exc = exc
+
+    raise last_exc if last_exc is not None else ValueError("Resposta JSON vazia")
 
 
 async def _repair_ai_json_with_model(client, malformed_json: str, reference_rate: float) -> dict:
