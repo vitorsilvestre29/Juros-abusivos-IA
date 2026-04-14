@@ -7,10 +7,31 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from services.report_service import _cta_copy, _report_view
+from services.report_service import _contract_field_rows, _cta_copy, _report_view
 
 
 class ReportServiceTests(unittest.TestCase):
+    def test_contract_field_rows_marks_inferred_values(self):
+        view = {
+            "banco": "Banco Exemplo",
+            "numero_contrato": "123",
+            "data_contrato": "22/10/2022 (inferida pelo 1º vencimento em 22/11/2022)",
+            "valor_liberado": "R$ 37.500,00",
+            "taxa_mensal": "2.97% a.m.",
+            "taxa_anual": "42.08% a.a.",
+            "cet_mensal": "3,21% a.m.",
+            "cet_anual": "46,86% a.a.",
+            "numero_parcelas": "48",
+            "valor_parcela": "R$ 1.580,19",
+            "valor_total_devido": "R$ 75.849,12",
+            "cliente_nome": "Edna Lucia Palmeira Atavila",
+            "cliente_cpf": "323.900.251-53",
+        }
+
+        rows = _contract_field_rows(view, 3.2)
+
+        self.assertIn(["Data do Contrato (estimado)", "22/10/2022 (inferida pelo 1º vencimento em 22/11/2022)"], rows)
+
     def test_cta_copy_changes_when_no_irregularities(self):
         body, message = _cta_copy(False)
 

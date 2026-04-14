@@ -45,6 +45,41 @@ def _fmt_pct(value: Any) -> str:
         return "—"
 
 
+def _looks_inferred(value: Any) -> bool:
+    text = str(value or "").strip().lower()
+    markers = ["inferid", "estimad", "presumid", "aproximad", "deduzid"]
+    return any(marker in text for marker in markers)
+
+
+def _contract_field_rows(view: dict[str, Any], bcb_rate_pct: float) -> list[list[str]]:
+    rows = [
+        ["Banco / Institui??o", view["banco"]],
+        ["N? do Contrato", view["numero_contrato"]],
+        ["Data do Contrato", view["data_contrato"]],
+        ["Valor Liberado", view["valor_liberado"]],
+        ["Taxa Mensal", view["taxa_mensal"]],
+        ["Taxa Anual", view["taxa_anual"]],
+        ["CET Mensal", view["cet_mensal"]],
+        ["CET Anual", view["cet_anual"]],
+        ["N? de Parcelas", view["numero_parcelas"]],
+        ["Valor da Parcela", view["valor_parcela"]],
+        ["Total a Pagar", view["valor_total_devido"]],
+        ["Taxa M?dia BCB", f"{bcb_rate_pct:.2f}% a.m. (refer?ncia de mercado)"],
+    ]
+
+    if view["cliente_nome"] != "?":
+        rows.append(["Nome do Contratante", view["cliente_nome"]])
+    if view["cliente_cpf"] != "?":
+        rows.append(["CPF", view["cliente_cpf"]])
+
+    labeled_rows = [["Campo", "Valor identificado"]]
+    for label, value in rows:
+        if _looks_inferred(value):
+            label = f"{label} (estimado)"
+        labeled_rows.append([label, value])
+    return labeled_rows
+
+
 def _report_view(ai_result: dict[str, Any]) -> dict[str, Any]:
     irregularidades = ai_result.get("irregularidades") or []
     cliente = ai_result.get("dados_cliente") or {}
@@ -216,27 +251,7 @@ async def generate_report_pdf(
     # ── DADOS DO CONTRATO ─────────────────────────────────────────────
     story.append(Paragraph("1. DADOS DO CONTRATO", st["section"]))
 
-    contract_rows = [
-        ["Campo", "Valor identificado"],
-        ["Banco / Instituição", view["banco"]],
-        ["Nº do Contrato",       view["numero_contrato"]],
-        ["Data do Contrato",     view["data_contrato"]],
-        ["Valor Liberado",       view["valor_liberado"]],
-        ["Taxa Mensal",          view["taxa_mensal"]],
-        ["Taxa Anual",           view["taxa_anual"]],
-        ["CET Mensal",           view["cet_mensal"]],
-        ["CET Anual",            view["cet_anual"]],
-        ["Nº de Parcelas",       view["numero_parcelas"]],
-        ["Valor da Parcela",     view["valor_parcela"]],
-        ["Total a Pagar",        view["valor_total_devido"]],
-        ["Taxa Média BCB",       f"{bcb_rate_pct:.2f}% a.m. (referência de mercado)"],
-    ]
-
-    # Dados do cliente
-    if view["cliente_nome"] != "—":
-        contract_rows.append(["Nome do Contratante", view["cliente_nome"]])
-    if view["cliente_cpf"] != "—":
-        contract_rows.append(["CPF", view["cliente_cpf"]])
+    contract_rows = _contract_field_rows(view, bcb_rate_pct)
 
     t = Table(contract_rows, colWidths=[W * 0.38, W * 0.62])
     t.setStyle(_table_style())
