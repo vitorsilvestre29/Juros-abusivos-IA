@@ -49,6 +49,16 @@ async def pricing():
         ],
     }
 
+
+@router.get("/diag")
+async def diagnostics():
+    """Retorna sinais basicos de configuracao sem expor segredos."""
+    mp_token = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "").strip()
+    return {
+        "has_mp_token": bool(mp_token),
+        "mock_mode": os.getenv("MOCK_MODE", "false").lower() == "true",
+    }
+
 @router.get("/ranking")
 async def get_ranking(db: AsyncSession = Depends(get_db)):
     """Retorna ranking de tipos de contrato com mais irregularidades."""
