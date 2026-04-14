@@ -215,6 +215,101 @@ def _friendly_error_message(err: Exception) -> str:
     )
 
 
+def _strip_code_fences(raw: str) -> str:
+    text = (raw or "").strip()
+    if "```json" in text:
+        text = text.split("```json", 1)[1].split("```", 1)[0].strip()
+    elif "```" in text:
+        text = text.split("```", 1)[1].split("```", 1)[0].strip()
+    return text
+
+
+def _extract_first_json_object(raw: str) -> str:
+    text = (raw or "").strip()
+    start = text.find("{")
+    if start < 0:
+        return text
+
+    depth = 0
+    in_string = False
+    escape = False
+    for i in range(start, len(text)):
+        ch = text[i]
+
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+
+        if ch == '"':
+            in_string = True
+            continue
+
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+
+    return text[start:]
+
+
+def _loads_ai_json(raw: str) -> dict:
+    cleaned = _strip_code_fences(raw)
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        extracted = _extract_first_json_object(cleaned)
+        return json.loads(extracted)
+
+
+async def _repair_ai_json_with_model(client, malformed_json: str, reference_rate: float) -> dict:
+    system_prompt = (
+        "Voce recebe um JSON malformado e deve devolver APENAS um JSON valido. "
+        "Nao invente dados fora do que ja existe; apenas repare formato e escapes."
+    )
+
+    user_prompt = (
+        "Conserte para JSON valido no esquema abaixo e responda SOMENTE o JSON:\n\n"
+        "{\n"
+        "  \"tipo_contrato\": \"string\",\n"
+        "  \"banco_credor\": \"string\",\n"
+        "  \"valor_contratado\": 0.00,\n"
+        "  \"taxa_mensal_contratada\": 0.00,\n"
+        "  \"taxa_anual_contratada\": 0.00,\n"
+        f"  \"taxa_referencia_bcb\": {reference_rate},\n"
+        "  \"prazo_meses\": 0,\n"
+        "  \"irregularidades\": [\n"
+        "    {\n"
+        "      \"tipo\": \"string\",\n"
+        "      \"descricao\": \"string\",\n"
+        "      \"gravidade\": \"alta|media|baixa\",\n"
+        "      \"valor_estimado\": 0.00\n"
+        "    }\n"
+        "  ],\n"
+        "  \"resumo_tecnico\": \"string\",\n"
+        "  \"recomendacao\": \"string\"\n"
+        "}\n\n"
+        "JSON malformado de entrada:\n"
+        f"{malformed_json[:12000]}"
+    )
+
+    resp = await client.messages.create(
+        model=MODEL_NAME,
+        max_tokens=1400,
+        system=system_prompt,
+        messages=[{"role": "user", "content": user_prompt}],
+    )
+
+    repaired_raw = resp.content[0].text.strip()
+    return _loads_ai_json(repaired_raw)
+
+
 async def analyze_contract(
     contract_text: str,
     loan_type: str,
@@ -299,10 +394,6 @@ Responda SOMENTE em JSON valido com esta estrutura:
     )
 
     raw = resp.content[0].text.strip()
-    if "```json" in raw:
-        raw = raw.split("```json")[1].split("```")[0].strip()
-    elif "```" in raw:
-        raw = raw.split("```")[1].split("```")[0].strip()
 
     usage = getattr(resp, "usage", None)
     input_tokens = 0
@@ -311,7 +402,12 @@ Responda SOMENTE em JSON valido com esta estrutura:
         input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
         output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
 
-    return json.loads(raw), {
+    try:
+        parsed = _loads_ai_json(raw)
+    except Exception:
+        parsed = await _repair_ai_json_with_model(client, raw, reference_rate)
+
+    return parsed, {
         "input_tokens": input_tokens,
         "output_tokens": output_tokens,
     }
@@ -355,12 +451,11 @@ async def precheck_contract_has_issues(
     )
 
     raw = (resp.content[0].text or "").strip()
-    if "```json" in raw:
-        raw = raw.split("```json")[1].split("```")[0].strip()
-    elif "```" in raw:
-        raw = raw.split("```")[1].split("```")[0].strip()
-
-    data = json.loads(raw)
+    try:
+        data = _loads_ai_json(raw)
+    except Exception:
+        # Fallback conservador para nao bloquear pre-analise por JSON imperfeito.
+        return False
     return bool(data.get("has_issues", False))
 
 
