@@ -22,6 +22,7 @@ router = APIRouter()
 @router.post("/create/{analysis_id}")
 async def create_payment(
     analysis_id: int,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -45,12 +46,48 @@ async def create_payment(
     if analysis.status != AnalysisStatus.COMPLETED:
         raise HTTPException(status_code=400, detail="Análise ainda não concluída")
 
+    mock_mode = os.getenv("MOCK_MODE", "false").lower() == "true"
+
     # Verifica se já existe pagamento pago
     if analysis.payment and analysis.payment.status == PaymentStatus.PAID:
         return {
             "message": "Laudo já pago",
             "payment_id": analysis.payment.id,
             "status": "paid",
+        }
+
+    # Em modo teste, pulamos o PIX e liberamos o laudo automaticamente.
+    if mock_mode:
+        if analysis.payment and analysis.payment.status == PaymentStatus.PENDING:
+            analysis.payment.status = PaymentStatus.PAID
+            analysis.payment.paid_at = datetime.utcnow()
+            await db.commit()
+            background_tasks.add_task(_generate_full_report_after_payment, analysis_id)
+            return {
+                "payment_id": analysis.payment.id,
+                "status": "paid",
+                "analysis_id": analysis_id,
+                "amount_brl": analysis.payment.amount_brl,
+            }
+
+        amount = float(os.getenv("REPORT_PRICE", "9.99"))
+        payment = Payment(
+            user_id=current_user.id,
+            analysis_id=analysis_id,
+            amount_brl=amount,
+            status=PaymentStatus.PAID,
+            mp_payment_id=f"mock_paid_{analysis_id}",
+            paid_at=datetime.utcnow(),
+        )
+        db.add(payment)
+        await db.commit()
+        await db.refresh(payment)
+        background_tasks.add_task(_generate_full_report_after_payment, analysis_id)
+        return {
+            "payment_id": payment.id,
+            "status": "paid",
+            "analysis_id": analysis_id,
+            "amount_brl": payment.amount_brl,
         }
 
     # Verifica se já existe pagamento pendente (reutiliza o QR)
@@ -67,7 +104,6 @@ async def create_payment(
         }
 
     amount = float(os.getenv("REPORT_PRICE", "9.99"))
-    mock_mode = os.getenv("MOCK_MODE", "false").lower() == "true"
 
     try:
         mp_data = await create_pix_payment(

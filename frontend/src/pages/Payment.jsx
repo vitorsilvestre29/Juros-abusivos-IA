@@ -44,9 +44,23 @@ export default function Payment() {
 
   useEffect(() => {
     createPayment(analysisId)
-      .then(r => { setPayment(r.data); setLoading(false) })
+      .then(r => {
+        if (r.data?.status === 'paid') {
+          trackEvent('Purchase', {
+            analysis_id: analysisId,
+            payment_id: r.data?.payment_id,
+            value: r.data?.amount_brl ?? 9.99,
+            currency: 'BRL',
+          })
+          purchaseTrackedRef.current = true
+          nav('/laudo/' + analysisId, { replace: true })
+          return
+        }
+        setPayment(r.data)
+        setLoading(false)
+      })
       .catch(() => { setError('Erro ao gerar pagamento.'); setLoading(false) })
-  }, [analysisId])
+  }, [analysisId, nav])
 
   useEffect(() => {
     if (payment === null) return
