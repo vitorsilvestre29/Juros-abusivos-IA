@@ -30,6 +30,50 @@ WHATSAPP_NUMBER = os.getenv("WHATSAPP_NUMBER", "5511999999999")
 REPORT_PRICE    = float(os.getenv("REPORT_PRICE", "9.99"))
 
 
+def _fmt_brl(value: Any) -> str:
+    try:
+        amount = float(value)
+    except Exception:
+        return "—"
+    return f"R$ {amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _fmt_pct(value: Any) -> str:
+    try:
+        return f"{float(value):.2f}% a.m."
+    except Exception:
+        return "—"
+
+
+def _report_view(ai_result: dict[str, Any]) -> dict[str, Any]:
+    irregularidades = ai_result.get("irregularidades") or []
+    cliente = ai_result.get("dados_cliente") or {}
+
+    valor_contratado = ai_result.get("valor_contratado")
+    taxa_mensal = ai_result.get("taxa_mensal_contratada")
+    taxa_anual = ai_result.get("taxa_anual_contratada")
+    prazo_meses = ai_result.get("prazo_meses")
+
+    return {
+        "banco": ai_result.get("banco_credor") or ai_result.get("banco_identificado") or "Não identificado",
+        "numero_contrato": ai_result.get("numero_contrato") or "—",
+        "data_contrato": ai_result.get("data_contrato") or "—",
+        "valor_liberado": _fmt_brl(valor_contratado) if valor_contratado not in (None, "", 0) else "—",
+        "taxa_mensal": _fmt_pct(taxa_mensal) if taxa_mensal not in (None, "", 0) else "—",
+        "taxa_anual": f"{float(taxa_anual):.2f}% a.a." if taxa_anual not in (None, "") else "—",
+        "cet_mensal": ai_result.get("cet_mensal") or "—",
+        "cet_anual": ai_result.get("cet_anual") or "—",
+        "numero_parcelas": str(int(float(prazo_meses))) if prazo_meses not in (None, "", 0) else "—",
+        "valor_parcela": ai_result.get("valor_parcela") or "—",
+        "valor_total_devido": ai_result.get("valor_total_devido") or "—",
+        "cliente_nome": cliente.get("nome") or "—",
+        "cliente_cpf": cliente.get("cpf") or "—",
+        "resumo": ai_result.get("resumo_tecnico") or ai_result.get("resumo_para_cliente") or "",
+        "recomendacao": ai_result.get("recomendacao") or "",
+        "irregularidades": irregularidades if isinstance(irregularidades, list) else [],
+    }
+
+
 def _styles():
     base = getSampleStyleSheet()
 
@@ -111,6 +155,7 @@ async def generate_report_pdf(
 
     story: list = []
     W = A4[0] - 4.4 * cm  # largura útil
+    view = _report_view(ai_result)
 
     # ── CABEÇALHO ────────────────────────────────────────────────────
     story.append(Paragraph("LAUDO TÉCNICO DE ANÁLISE DE CONTRATO", st["title"]))
@@ -150,26 +195,25 @@ async def generate_report_pdf(
 
     contract_rows = [
         ["Campo", "Valor identificado"],
-        ["Banco / Instituição", ai_result.get("banco_identificado", "Não identificado")],
-        ["Nº do Contrato",       ai_result.get("numero_contrato", "—")],
-        ["Data do Contrato",     ai_result.get("data_contrato", "—")],
-        ["Valor Liberado",       ai_result.get("valor_emprestimo", "—")],
-        ["Taxa Mensal",          ai_result.get("taxa_mensal", "—")],
-        ["Taxa Anual",           ai_result.get("taxa_anual", "—")],
-        ["CET Mensal",           ai_result.get("cet_mensal", "—")],
-        ["CET Anual",            ai_result.get("cet_anual", "—")],
-        ["Nº de Parcelas",       ai_result.get("numero_parcelas", "—")],
-        ["Valor da Parcela",     ai_result.get("valor_parcela", "—")],
-        ["Total a Pagar",        ai_result.get("valor_total_devido", "—")],
+        ["Banco / Instituição", view["banco"]],
+        ["Nº do Contrato",       view["numero_contrato"]],
+        ["Data do Contrato",     view["data_contrato"]],
+        ["Valor Liberado",       view["valor_liberado"]],
+        ["Taxa Mensal",          view["taxa_mensal"]],
+        ["Taxa Anual",           view["taxa_anual"]],
+        ["CET Mensal",           view["cet_mensal"]],
+        ["CET Anual",            view["cet_anual"]],
+        ["Nº de Parcelas",       view["numero_parcelas"]],
+        ["Valor da Parcela",     view["valor_parcela"]],
+        ["Total a Pagar",        view["valor_total_devido"]],
         ["Taxa Média BCB",       f"{bcb_rate_pct:.2f}% a.m. (referência de mercado)"],
     ]
 
     # Dados do cliente
-    cliente = ai_result.get("dados_cliente", {})
-    if cliente.get("nome"):
-        contract_rows.append(["Nome do Contratante", cliente.get("nome", "—")])
-    if cliente.get("cpf"):
-        contract_rows.append(["CPF", cliente.get("cpf", "—")])
+    if view["cliente_nome"] != "—":
+        contract_rows.append(["Nome do Contratante", view["cliente_nome"]])
+    if view["cliente_cpf"] != "—":
+        contract_rows.append(["CPF", view["cliente_cpf"]])
 
     t = Table(contract_rows, colWidths=[W * 0.38, W * 0.62])
     t.setStyle(_table_style())
@@ -179,7 +223,7 @@ async def generate_report_pdf(
     # ── IRREGULARIDADES ───────────────────────────────────────────────
     story.append(Paragraph("2. IRREGULARIDADES IDENTIFICADAS", st["section"]))
 
-    irregularidades = ai_result.get("irregularidades", [])
+    irregularidades = view["irregularidades"]
     if not irregularidades:
         story.append(Paragraph(
             "Nenhuma irregularidade significativa identificada neste contrato.",
@@ -189,7 +233,7 @@ async def generate_report_pdf(
         for i, irr in enumerate(irregularidades, 1):
             gravidade = irr.get("gravidade", "media").lower()
             cor = COLOR_ACCENT if gravidade == "alta" else colors.HexColor("#D97706")
-            tag = "🔴 ALTA" if gravidade == "alta" else "🟡 MÉDIA"
+            tag = "ALTA" if gravidade == "alta" else ("MEDIA" if gravidade == "media" else "BAIXA")
 
             irr_block = [
                 [Paragraph(
@@ -210,9 +254,12 @@ async def generate_report_pdf(
                     f"<b>Fundamento legal:</b> {irr.get('fundamento_legal', '')}",
                     st["label"],
                 )])
-            if irr.get("valor_cobrado"):
+            valor_identificado = irr.get("valor_cobrado")
+            if not valor_identificado and irr.get("valor_estimado"):
+                valor_identificado = _fmt_brl(irr.get("valor_estimado"))
+            if valor_identificado:
                 irr_block.append([Paragraph(
-                    f"<b>Valor identificado:</b> {irr.get('valor_cobrado', '')}",
+                    f"<b>Valor identificado:</b> {valor_identificado}",
                     st["alert"],
                 )])
 
@@ -242,9 +289,9 @@ async def generate_report_pdf(
 
     impact_rows = [
         ["Descrição", "Valor"],
-        ["Taxa contratada (ao mês)", ai_result.get("taxa_mensal", "—")],
+        ["Taxa contratada (ao mês)", view["taxa_mensal"]],
         ["Taxa média BCB para a modalidade", f"{bcb_rate_pct:.2f}% a.m."],
-        ["Cobrança excessiva estimada", f"R$ {impact_brl:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")],
+        ["Cobrança excessiva estimada", _fmt_brl(impact_brl)],
     ]
 
     t2 = Table(impact_rows, colWidths=[W * 0.65, W * 0.35])
@@ -263,8 +310,8 @@ async def generate_report_pdf(
     # ── RESUMO E RECOMENDAÇÃO ─────────────────────────────────────────
     story.append(Paragraph("4. RESUMO E RECOMENDAÇÃO", st["section"]))
 
-    resumo = ai_result.get("resumo_para_cliente", "")
-    recomendacao = ai_result.get("recomendacao", "")
+    resumo = view["resumo"]
+    recomendacao = view["recomendacao"]
 
     if resumo:
         story.append(Paragraph(f"<b>Conclusão da análise:</b> {resumo}", st["body"]))
