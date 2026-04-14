@@ -11,6 +11,7 @@ from models import Analysis, Payment, PaymentStatus, AnalysisStatus
 from routers.auth import get_current_user
 from models import User
 from services.payment_service import create_pix_payment
+from services.ops_alert_service import send_ops_alert
 from services.report_service import generate_report_pdf
 from services.analysis_service import run_full_analysis
 
@@ -67,14 +68,31 @@ async def create_payment(
     amount = float(os.getenv("REPORT_PRICE", "9.99"))
     mock_mode = os.getenv("MOCK_MODE", "false").lower() == "true"
 
-    mp_data = await create_pix_payment(
-        amount=amount,
-        user_email=current_user.email,
-        user_name=current_user.name,
-        description="Laudo Técnico — Análise de Abusividades em Contrato de Crédito",
-        analysis_id=analysis_id,
-        mock=mock_mode,
-    )
+    try:
+        mp_data = await create_pix_payment(
+            amount=amount,
+            user_email=current_user.email,
+            user_name=current_user.name,
+            description="Laudo Técnico — Análise de Abusividades em Contrato de Crédito",
+            analysis_id=analysis_id,
+            mock=mock_mode,
+        )
+    except Exception as e:
+        await send_ops_alert(
+            event="payment_create_failed",
+            message="Falha ao criar pagamento no Mercado Pago.",
+            metadata={
+                "analysis_id": analysis_id,
+                "raw_error": str(e)[:300],
+            },
+        )
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Pagamento indisponivel no momento. "
+                "Verifique a configuracao do Mercado Pago e tente novamente."
+            ),
+        )
 
     payment = Payment(
         user_id=current_user.id,

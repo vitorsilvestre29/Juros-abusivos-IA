@@ -66,7 +66,10 @@ async def create_pix_payment(
             json=payload,
             headers=headers,
         )
-        resp.raise_for_status()
+        if resp.status_code >= 400:
+            raise RuntimeError(
+                f"MercadoPago error {resp.status_code}: {resp.text[:500]}"
+            )
         data = resp.json()
 
     txn = data.get("point_of_interaction", {}).get("transaction_data", {})
