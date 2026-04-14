@@ -590,6 +590,12 @@ def _validate_ai_result_strict(ai_result: dict, reference_rate: float) -> None:
             raise ValueError(f"JSON da IA invalido: irregularidade {idx} com valor_estimado negativo.")
 
 
+def _needs_textual_enrichment(ai_result: dict) -> bool:
+    resumo = str(ai_result.get("resumo_tecnico", "")).strip()
+    recomendacao = str(ai_result.get("recomendacao", "")).strip()
+    return len(resumo) < 40 or len(recomendacao) < 20
+
+
 def _analysis_tool_schema(reference_rate: float) -> dict:
     return {
         "type": "object",
@@ -706,6 +712,50 @@ async def _repair_ai_json_with_model(
     return _loads_ai_json(repaired_raw)
 
 
+async def _expand_ai_result_text_fields_with_model(
+    client,
+    ai_result: dict,
+    model_name: str,
+) -> dict:
+    system_prompt = (
+        "Voce recebe um resultado tecnico de analise contratual. "
+        "Sua tarefa e apenas enriquecer os campos `resumo_tecnico` e `recomendacao`, "
+        "sem alterar os demais dados objetivos."
+    )
+
+    user_prompt = (
+        "Reescreva SOMENTE os campos abaixo com mais substancia e clareza:\n"
+        "- `resumo_tecnico`: minimo de 2 frases completas e pelo menos 40 caracteres.\n"
+        "- `recomendacao`: minimo de 1 frase completa e pelo menos 20 caracteres.\n"
+        "Mantenha os demais campos inalterados.\n\n"
+        "Responda usando a ferramenta `submit_analysis_text_enrichment`.\n\n"
+        f"Resultado atual:\n{json.dumps(ai_result, ensure_ascii=False)[:12000]}"
+    )
+
+    tool_name = "submit_analysis_text_enrichment"
+    resp = await client.messages.create(
+        model=model_name,
+        max_tokens=900,
+        system=system_prompt,
+        messages=[{"role": "user", "content": user_prompt}],
+        tools=[{
+            "name": tool_name,
+            "description": "Atualiza apenas resumo_tecnico e recomendacao, preservando o restante.",
+            "input_schema": _analysis_tool_schema(float(ai_result.get("taxa_referencia_bcb") or 0.0)),
+        }],
+        tool_choice={"type": "tool", "name": tool_name},
+    )
+
+    enriched = _extract_tool_use_input(resp, tool_name)
+    if enriched is None:
+        raw = _extract_text_blocks(resp)
+        try:
+            enriched = _loads_ai_json(raw)
+        except Exception:
+            enriched = ai_result
+    return _normalize_ai_result(enriched, str(ai_result.get("tipo_contrato", "")), _as_float(ai_result.get("taxa_referencia_bcb"), 0.0))
+
+
 async def analyze_contract(
     contract_text: str,
     loan_type: str,
@@ -743,6 +793,8 @@ INSTRUCOES:
 - Verifique tarifas cobradas contra a lista permitida pela Resolucao CMN 4.881/2021
 - Verifique se o CET foi informado conforme Resolucao CMN 3.517/2007
 - Para consignado: verifique se o desconto respeita o limite de 35% do beneficio
+- `resumo_tecnico` deve ter ao menos 2 frases completas e explicar os principais achados.
+- `recomendacao` deve ter ao menos 1 frase completa, objetiva e acionavel.
 
 Voce deve registrar o resultado usando a ferramenta `submit_analysis`.
 Nao escreva explicacoes fora da ferramenta.
@@ -826,6 +878,12 @@ Estrutura obrigatoria:
                         )
 
                 normalized = _normalize_ai_result(parsed, loan_type, reference_rate)
+                if _needs_textual_enrichment(normalized):
+                    normalized = await _expand_ai_result_text_fields_with_model(
+                        client=client,
+                        ai_result=normalized,
+                        model_name=model_name,
+                    )
                 _validate_ai_result_strict(normalized, reference_rate)
 
                 return normalized, {
