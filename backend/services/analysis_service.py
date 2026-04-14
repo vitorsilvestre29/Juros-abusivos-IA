@@ -86,6 +86,39 @@ def _estimate_cost(input_tokens: int, output_tokens: int) -> tuple[float, float]
     return usd, brl
 
 
+def _analysis_max_attempts_per_model() -> int:
+    raw = os.getenv("AI_ANALYSIS_MAX_ATTEMPTS_PER_MODEL", "2")
+    try:
+        value = int(raw)
+    except Exception:
+        return 2
+    if value < 1:
+        return 1
+    if value > 4:
+        return 4
+    return value
+
+
+def _analysis_model_candidates() -> list[str]:
+    primary = (os.getenv("AI_MODEL_PRIMARY", MODEL_NAME) or MODEL_NAME).strip()
+    fallback = (os.getenv("AI_MODEL_FALLBACK", "") or "").strip()
+    extra_raw = (os.getenv("AI_MODEL_FALLBACKS", "") or "").strip()
+    extras = [x.strip() for x in extra_raw.split(",") if x.strip()]
+
+    ordered = [primary]
+    if fallback:
+        ordered.append(fallback)
+    ordered.extend(extras)
+
+    unique: list[str] = []
+    seen: set[str] = set()
+    for model in ordered:
+        if model and model not in seen:
+            seen.add(model)
+            unique.append(model)
+    return unique or [MODEL_NAME]
+
+
 # ── Extracao de texto ─────────────────────────────────────────────────────────
 
 def extract_text_from_pdf(file_bytes: bytes) -> str:
@@ -435,25 +468,62 @@ def _normalize_ai_result(parsed: Any, loan_type: str, reference_rate: float) -> 
     }
 
 
-def _emergency_ai_result_fallback(loan_type: str, reference_rate: float) -> dict:
-    return {
-        "tipo_contrato": loan_type,
-        "banco_credor": "",
-        "valor_contratado": 0.0,
-        "taxa_mensal_contratada": 0.0,
-        "taxa_anual_contratada": 0.0,
-        "taxa_referencia_bcb": float(reference_rate),
-        "prazo_meses": 0,
-        "irregularidades": [],
-        "resumo_tecnico": (
-            "Nao foi possivel estruturar automaticamente todos os campos do laudo. "
-            "Os dados essenciais foram preservados para concluir o processamento."
-        ),
-        "recomendacao": "Tente novamente em alguns minutos para gerar um laudo com mais detalhes.",
-    }
+def _validate_ai_result_strict(ai_result: dict, reference_rate: float) -> None:
+    required = [
+        "tipo_contrato",
+        "banco_credor",
+        "valor_contratado",
+        "taxa_mensal_contratada",
+        "taxa_anual_contratada",
+        "taxa_referencia_bcb",
+        "prazo_meses",
+        "irregularidades",
+        "resumo_tecnico",
+        "recomendacao",
+    ]
+    missing = [k for k in required if k not in ai_result]
+    if missing:
+        raise ValueError(f"JSON da IA incompleto. Campos ausentes: {', '.join(missing)}")
+
+    if not str(ai_result.get("banco_credor", "")).strip():
+        raise ValueError("JSON da IA invalido: banco_credor vazio.")
+    if _as_float(ai_result.get("valor_contratado"), 0.0) <= 0:
+        raise ValueError("JSON da IA invalido: valor_contratado <= 0.")
+    if _as_int(ai_result.get("prazo_meses"), 0) <= 0:
+        raise ValueError("JSON da IA invalido: prazo_meses <= 0.")
+    if _as_float(ai_result.get("taxa_referencia_bcb"), 0.0) <= 0:
+        raise ValueError(f"JSON da IA invalido: taxa_referencia_bcb invalida (ref: {reference_rate}).")
+
+    resumo = str(ai_result.get("resumo_tecnico", "")).strip()
+    recomendacao = str(ai_result.get("recomendacao", "")).strip()
+    if len(resumo) < 40:
+        raise ValueError("JSON da IA invalido: resumo_tecnico muito curto.")
+    if len(recomendacao) < 20:
+        raise ValueError("JSON da IA invalido: recomendacao muito curta.")
+
+    irregularidades = ai_result.get("irregularidades")
+    if not isinstance(irregularidades, list):
+        raise ValueError("JSON da IA invalido: irregularidades nao e lista.")
+    for idx, item in enumerate(irregularidades):
+        if not isinstance(item, dict):
+            raise ValueError(f"JSON da IA invalido: irregularidade {idx} nao e objeto.")
+        if not str(item.get("tipo", "")).strip():
+            raise ValueError(f"JSON da IA invalido: irregularidade {idx} sem tipo.")
+        if not str(item.get("descricao", "")).strip():
+            raise ValueError(f"JSON da IA invalido: irregularidade {idx} sem descricao.")
+        gravidade = str(item.get("gravidade", "")).lower()
+        if gravidade not in {"alta", "media", "baixa"}:
+            raise ValueError(f"JSON da IA invalido: irregularidade {idx} com gravidade invalida.")
+        if _as_float(item.get("valor_estimado"), -1.0) < 0:
+            raise ValueError(f"JSON da IA invalido: irregularidade {idx} com valor_estimado negativo.")
 
 
-async def _repair_ai_json_with_model(client, malformed_json: str, reference_rate: float) -> dict:
+async def _repair_ai_json_with_model(
+    client,
+    malformed_json: str,
+    reference_rate: float,
+    model_name: str,
+) -> dict:
     system_prompt = (
         "Voce recebe um JSON malformado e deve devolver APENAS um JSON valido. "
         "Nao invente dados fora do que ja existe; apenas repare formato e escapes."
@@ -485,7 +555,7 @@ async def _repair_ai_json_with_model(client, malformed_json: str, reference_rate
     )
 
     resp = await client.messages.create(
-        model=MODEL_NAME,
+        model=model_name,
         max_tokens=1400,
         system=system_prompt,
         messages=[{"role": "user", "content": user_prompt}],
@@ -502,12 +572,12 @@ async def analyze_contract(
     image_pages: Optional[list] = None,
     bcb_context: str = "",
     stj_context: str = "",
-) -> tuple[dict, dict[str, int]]:
+) -> tuple[dict, dict[str, int], str]:
     if MOCK_MODE:
         return _mock_result(loan_type, reference_rate), {
             "input_tokens": 0,
             "output_tokens": 0,
-        }
+        }, "mock-model"
 
     import anthropic
 
@@ -571,42 +641,56 @@ Responda SOMENTE em JSON valido com esta estrutura:
             "content": f"Analise este contrato de {loan_type}:\n\n{contract_text[:8000]}",
         }]
 
-    resp = await client.messages.create(
-        model=MODEL_NAME,
-        max_tokens=_max_output_tokens(),
-        system=system_prompt,
-        messages=messages,
+    total_input_tokens = 0
+    total_output_tokens = 0
+    models = _analysis_model_candidates()
+    attempts_per_model = _analysis_max_attempts_per_model()
+    last_error: Exception | None = None
+
+    for model_name in models:
+        for attempt in range(1, attempts_per_model + 1):
+            try:
+                resp = await client.messages.create(
+                    model=model_name,
+                    max_tokens=_max_output_tokens(),
+                    system=system_prompt,
+                    messages=messages,
+                )
+                raw = (resp.content[0].text or "").strip()
+
+                usage = getattr(resp, "usage", None)
+                if usage is not None:
+                    total_input_tokens += int(getattr(usage, "input_tokens", 0) or 0)
+                    total_output_tokens += int(getattr(usage, "output_tokens", 0) or 0)
+
+                try:
+                    parsed = _loads_ai_json(raw)
+                except Exception:
+                    parsed = await _repair_ai_json_with_model(
+                        client=client,
+                        malformed_json=raw,
+                        reference_rate=reference_rate,
+                        model_name=model_name,
+                    )
+
+                normalized = _normalize_ai_result(parsed, loan_type, reference_rate)
+                _validate_ai_result_strict(normalized, reference_rate)
+
+                return normalized, {
+                    "input_tokens": total_input_tokens,
+                    "output_tokens": total_output_tokens,
+                }, model_name
+            except Exception as exc:
+                last_error = exc
+                print(
+                    "[analysis] tentativa falhou "
+                    f"(model={model_name}, attempt={attempt}/{attempts_per_model}): {exc}"
+                )
+
+    raise RuntimeError(
+        "Nao foi possivel gerar um laudo consistente apos multiplas tentativas de IA. "
+        f"Ultimo erro: {last_error}"
     )
-
-    raw = resp.content[0].text.strip()
-
-    usage = getattr(resp, "usage", None)
-    input_tokens = 0
-    output_tokens = 0
-    if usage is not None:
-        input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
-        output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
-
-    parse_error: Exception | None = None
-    try:
-        parsed = _loads_ai_json(raw)
-    except Exception as exc:
-        parse_error = exc
-        try:
-            parsed = await _repair_ai_json_with_model(client, raw, reference_rate)
-        except Exception as repair_exc:
-            print(
-                "[analysis] falha ao interpretar JSON da IA; usando fallback de emergencia. "
-                f"parse={parse_error} repair={repair_exc}"
-            )
-            parsed = _emergency_ai_result_fallback(loan_type, reference_rate)
-
-    parsed = _normalize_ai_result(parsed, loan_type, reference_rate)
-
-    return parsed, {
-        "input_tokens": input_tokens,
-        "output_tokens": output_tokens,
-    }
 
 
 async def precheck_contract_has_issues(
@@ -776,6 +860,7 @@ async def run_full_analysis(
         output_tokens = 0
         duration_ms = 0
         max_output_tokens = _max_output_tokens()
+        selected_model = _analysis_model_candidates()[0]
 
         try:
             # 1. Extracao de texto
@@ -838,7 +923,7 @@ async def run_full_analysis(
 
             # 3. Analise Claude com contexto enriquecido
             started_at = perf_counter()
-            ai_result, usage = await analyze_contract(
+            ai_result, usage, selected_model = await analyze_contract(
                 contract_text=extracted_text,
                 loan_type=loan_type,
                 reference_rate=reference_rate,
@@ -881,7 +966,7 @@ async def run_full_analysis(
                 db.add(telemetry)
 
             estimated_usd, estimated_brl = _estimate_cost(input_tokens, output_tokens)
-            telemetry.model_name = MODEL_NAME
+            telemetry.model_name = selected_model
             telemetry.max_output_tokens = max_output_tokens
             telemetry.input_tokens = input_tokens
             telemetry.output_tokens = output_tokens
@@ -906,7 +991,7 @@ async def run_full_analysis(
                 db.add(telemetry)
 
             estimated_usd, estimated_brl = _estimate_cost(input_tokens, output_tokens)
-            telemetry.model_name = MODEL_NAME
+            telemetry.model_name = selected_model
             telemetry.max_output_tokens = max_output_tokens
             telemetry.input_tokens = input_tokens
             telemetry.output_tokens = output_tokens
