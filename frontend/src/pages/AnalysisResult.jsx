@@ -99,7 +99,7 @@ export default function AnalysisResult() {
         {warningMessage && (
           <div style={{ background: '#FFF4E5', border: '1px solid #F5E8C8', borderLeft: '4px solid ' + O, borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
             <p style={{ color: '#8A4C00', fontSize: 13, lineHeight: 1.65, margin: 0 }}>
-              <strong>Aviso sobre o tipo de contrato:</strong> {warningMessage}
+              <strong>Aviso importante:</strong> {warningMessage}
             </p>
           </div>
         )}

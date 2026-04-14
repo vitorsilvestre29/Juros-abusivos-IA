@@ -21,7 +21,7 @@ from typing import Any, Optional
 from services.bcb_service import get_enriched_bcb_context, format_bcb_context_for_prompt, BCBAPIError
 from services.stj_service import get_stj_context, format_stj_context_for_prompt
 from services.ops_alert_service import send_ops_alert
-from models import AnalysisStatus, LOAN_TYPES
+from models import AnalysisStatus
 
 MOCK_MODE = os.getenv("MOCK_MODE", "false").lower() == "true"
 MODEL_NAME = "claude-sonnet-4-6"
@@ -184,12 +184,9 @@ def _build_loan_type_warning(selected_loan_type: str, contract_text: str) -> tup
     if confidence < 0.55:
         return None, None
 
-    selected_label = LOAN_TYPES.get(selected_loan_type, selected_loan_type)
-    predicted_label = LOAN_TYPES.get(predicted, predicted)
     message = (
-        "Aviso: identificamos possivel divergencia no tipo de contrato informado. "
-        f"Selecionado: {selected_label}. Sinais no documento: {predicted_label}. "
-        "Para maior precisao da analise, recomendamos reenviar o contrato com a modalidade correta."
+        "Identificamos divergencias no contrato em relacao ao tipo informado. "
+        "Para ver o laudo tecnico completo com os detalhes e o parecer da analise, prossiga para o pagamento."
     )
     return message, predicted
 

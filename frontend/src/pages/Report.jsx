@@ -41,6 +41,7 @@ export default function Report() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [processingAfterPayment, setProcessingAfterPayment] = useState(false)
+  const [dots, setDots] = useState('.')
   const retryRef = useRef(null)
   const retryCountRef = useRef(0)
 
@@ -84,12 +85,42 @@ export default function Report() {
     }
   }, [analysisId])
 
+  useEffect(() => {
+    if (!loading) return
+    const t = setInterval(() => setDots(d => (d.length >= 3 ? '.' : d + '.')), 600)
+    return () => clearInterval(t)
+  }, [loading])
+
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: muted, fontFamily: sans }}>
-      <div style={{ textAlign: 'center' }}>
-        <p style={{ fontFamily: serif, fontSize: 18, color: N }}>
-          {processingAfterPayment ? 'Pagamento confirmado. Finalizando seu laudo completo...' : 'Carregando laudo...'}
+    <div style={{ minHeight: '100vh', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: muted, fontFamily: sans, padding: '24px' }}>
+      <div style={{ background: white, borderRadius: 20, border: '1px solid ' + border, padding: '40px 28px', textAlign: 'center', boxShadow: '0 4px 16px rgba(13,33,55,0.06)', width: '100%', maxWidth: 700 }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>{processingAfterPayment ? '⏳' : '📄'}</div>
+        <h2 style={{ fontFamily: serif, fontSize: 22, fontWeight: 700, color: N, marginBottom: 10 }}>
+          {processingAfterPayment ? `Pagamento confirmado. Finalizando seu laudo${dots}` : `Carregando laudo${dots}`}
+        </h2>
+        <p style={{ color: muted, fontSize: 14, marginBottom: 24, lineHeight: 1.6 }}>
+          {processingAfterPayment
+            ? 'Estamos gerando o laudo completo com todos os detalhes tecnicos para liberacao na tela e no PDF.'
+            : 'Estamos preparando os dados do seu laudo tecnico.'}
         </p>
+        <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 14, padding: '18px 20px', textAlign: 'left' }}>
+          {(processingAfterPayment
+            ? [
+                { label: 'Pagamento confirmado', done: true },
+                { label: 'Consolidando resultado da analise', done: true },
+                { label: 'Montando laudo completo', done: false },
+                { label: 'Liberando visualizacao e PDF', done: false },
+              ]
+            : [
+                { label: 'Verificando acesso ao laudo', done: true },
+                { label: 'Carregando dados da analise', done: false },
+              ]
+          ).map(step => (
+            <p key={step.label} style={{ color: step.done ? '#1E40AF' : '#93C5FD', fontSize: 14, marginBottom: 8, opacity: step.done ? 1 : 0.55 }}>
+              {step.done ? '✓' : '⌛'} {step.label}
+            </p>
+          ))}
+        </div>
       </div>
     </div>
   )
