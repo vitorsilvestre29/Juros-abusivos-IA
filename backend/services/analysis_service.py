@@ -379,6 +379,80 @@ def _loads_ai_json(raw: str) -> dict:
     raise last_exc if last_exc is not None else ValueError("Resposta JSON vazia")
 
 
+def _as_float(value: Any, default: float = 0.0) -> float:
+    try:
+        if value is None:
+            return float(default)
+        if isinstance(value, str):
+            value = value.strip().replace("%", "").replace(",", ".")
+        return float(value)
+    except Exception:
+        return float(default)
+
+
+def _as_int(value: Any, default: int = 0) -> int:
+    try:
+        if value is None:
+            return int(default)
+        if isinstance(value, str):
+            value = value.strip()
+        return int(float(value))
+    except Exception:
+        return int(default)
+
+
+def _normalize_ai_result(parsed: Any, loan_type: str, reference_rate: float) -> dict:
+    data = parsed if isinstance(parsed, dict) else {}
+    irregularidades_raw = data.get("irregularidades", [])
+    irregularidades_norm = []
+    if isinstance(irregularidades_raw, list):
+        for item in irregularidades_raw:
+            if not isinstance(item, dict):
+                continue
+            gravidade = str(item.get("gravidade", "media")).lower()
+            if gravidade not in {"alta", "media", "baixa"}:
+                gravidade = "media"
+            irregularidades_norm.append(
+                {
+                    "tipo": str(item.get("tipo", "")).strip(),
+                    "descricao": str(item.get("descricao", "")).strip(),
+                    "gravidade": gravidade,
+                    "valor_estimado": _as_float(item.get("valor_estimado", 0.0), 0.0),
+                }
+            )
+
+    return {
+        "tipo_contrato": str(data.get("tipo_contrato", loan_type)).strip() or loan_type,
+        "banco_credor": str(data.get("banco_credor", "")).strip(),
+        "valor_contratado": _as_float(data.get("valor_contratado", 0.0), 0.0),
+        "taxa_mensal_contratada": _as_float(data.get("taxa_mensal_contratada", 0.0), 0.0),
+        "taxa_anual_contratada": _as_float(data.get("taxa_anual_contratada", 0.0), 0.0),
+        "taxa_referencia_bcb": _as_float(data.get("taxa_referencia_bcb", reference_rate), reference_rate),
+        "prazo_meses": _as_int(data.get("prazo_meses", 0), 0),
+        "irregularidades": irregularidades_norm,
+        "resumo_tecnico": str(data.get("resumo_tecnico", "")).strip(),
+        "recomendacao": str(data.get("recomendacao", "")).strip(),
+    }
+
+
+def _emergency_ai_result_fallback(loan_type: str, reference_rate: float) -> dict:
+    return {
+        "tipo_contrato": loan_type,
+        "banco_credor": "",
+        "valor_contratado": 0.0,
+        "taxa_mensal_contratada": 0.0,
+        "taxa_anual_contratada": 0.0,
+        "taxa_referencia_bcb": float(reference_rate),
+        "prazo_meses": 0,
+        "irregularidades": [],
+        "resumo_tecnico": (
+            "Nao foi possivel estruturar automaticamente todos os campos do laudo. "
+            "Os dados essenciais foram preservados para concluir o processamento."
+        ),
+        "recomendacao": "Tente novamente em alguns minutos para gerar um laudo com mais detalhes.",
+    }
+
+
 async def _repair_ai_json_with_model(client, malformed_json: str, reference_rate: float) -> dict:
     system_prompt = (
         "Voce recebe um JSON malformado e deve devolver APENAS um JSON valido. "
@@ -417,7 +491,7 @@ async def _repair_ai_json_with_model(client, malformed_json: str, reference_rate
         messages=[{"role": "user", "content": user_prompt}],
     )
 
-    repaired_raw = resp.content[0].text.strip()
+    repaired_raw = (resp.content[0].text or "").strip()
     return _loads_ai_json(repaired_raw)
 
 
@@ -513,10 +587,21 @@ Responda SOMENTE em JSON valido com esta estrutura:
         input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
         output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
 
+    parse_error: Exception | None = None
     try:
         parsed = _loads_ai_json(raw)
-    except Exception:
-        parsed = await _repair_ai_json_with_model(client, raw, reference_rate)
+    except Exception as exc:
+        parse_error = exc
+        try:
+            parsed = await _repair_ai_json_with_model(client, raw, reference_rate)
+        except Exception as repair_exc:
+            print(
+                "[analysis] falha ao interpretar JSON da IA; usando fallback de emergencia. "
+                f"parse={parse_error} repair={repair_exc}"
+            )
+            parsed = _emergency_ai_result_fallback(loan_type, reference_rate)
+
+    parsed = _normalize_ai_result(parsed, loan_type, reference_rate)
 
     return parsed, {
         "input_tokens": input_tokens,
