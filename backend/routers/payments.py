@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from datetime import datetime
+import asyncio
 import os
 import json
 
@@ -233,6 +234,8 @@ async def _generate_full_report_after_payment(analysis_id: int):
     """Pos-pagamento: executa analise completa premium e gera o PDF."""
     from database import AsyncSessionLocal
 
+    timeout_seconds = int(os.getenv("FULL_ANALYSIS_TIMEOUT_SECONDS", "240"))
+
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(Analysis)
@@ -248,15 +251,35 @@ async def _generate_full_report_after_payment(analysis_id: int):
             if not analysis.ai_result_json:
                 user_result = await db.execute(select(User).where(User.id == analysis.user_id))
                 user = user_result.scalar_one_or_none()
-                await run_full_analysis(
-                    contract_id=analysis.contract_id,
-                    analysis_id=analysis.id,
-                    file_bytes=analysis.contract.file_data,
-                    file_type=analysis.contract.file_type,
-                    loan_type=analysis.contract.loan_type,
-                    user_email=user.email if user else "",
-                    user_phone=analysis.contract.user_phone or "",
-                )
+                try:
+                    await asyncio.wait_for(
+                        run_full_analysis(
+                            contract_id=analysis.contract_id,
+                            analysis_id=analysis.id,
+                            file_bytes=analysis.contract.file_data,
+                            file_type=analysis.contract.file_type,
+                            loan_type=analysis.contract.loan_type,
+                            user_email=user.email if user else "",
+                            user_phone=analysis.contract.user_phone or "",
+                        ),
+                        timeout=timeout_seconds,
+                    )
+                except asyncio.TimeoutError:
+                    analysis.status = AnalysisStatus.FAILED
+                    analysis.error_message = (
+                        "A analise premium demorou mais que o limite permitido. "
+                        "Tente novamente em alguns minutos."
+                    )
+                    await db.commit()
+                    await send_ops_alert(
+                        event="post_payment_analysis_timeout",
+                        message="Timeout na analise premium apos pagamento.",
+                        metadata={
+                            "analysis_id": analysis_id,
+                            "timeout_seconds": timeout_seconds,
+                        },
+                    )
+                    return
 
                 reload_result = await db.execute(
                     select(Analysis)
@@ -268,6 +291,13 @@ async def _generate_full_report_after_payment(analysis_id: int):
                     return
 
             if not analysis.ai_result_json:
+                if analysis.status != AnalysisStatus.FAILED:
+                    analysis.status = AnalysisStatus.FAILED
+                    analysis.error_message = (
+                        "Nao foi possivel concluir a analise premium apos o pagamento. "
+                        "Tente novamente em alguns minutos."
+                    )
+                    await db.commit()
                 return
             if analysis.report_pdf:
                 return
