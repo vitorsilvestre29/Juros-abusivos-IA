@@ -596,6 +596,60 @@ def _needs_textual_enrichment(ai_result: dict) -> bool:
     return len(resumo) < 40 or len(recomendacao) < 20
 
 
+def _compose_fallback_resumo(ai_result: dict, reference_rate: float) -> str:
+    banco = str(ai_result.get("banco_credor", "")).strip() or "a instituicao financeira"
+    taxa = _as_float(ai_result.get("taxa_mensal_contratada"), 0.0)
+    prazo = _as_int(ai_result.get("prazo_meses"), 0)
+    irregularidades = ai_result.get("irregularidades", [])
+
+    if irregularidades:
+        principais = ", ".join(
+            str(item.get("tipo", "")).strip()
+            for item in irregularidades[:3]
+            if str(item.get("tipo", "")).strip()
+        )
+        if not principais:
+            principais = "indicios tecnicos de irregularidade"
+        return (
+            f"A analise tecnica do contrato com {banco} identificou {len(irregularidades)} "
+            f"irregularidade(s), com destaque para {principais}. "
+            f"A taxa mensal informada foi de {taxa:.2f}% ao mes, em comparacao com a referencia "
+            f"do BCB de {reference_rate:.2f}% ao mes, considerando prazo de {prazo} meses."
+        )
+
+    return (
+        f"A analise tecnica do contrato com {banco} nao encontrou irregularidades objetivas "
+        f"nos campos estruturados avaliados. A taxa mensal considerada foi de {taxa:.2f}% ao mes, "
+        f"comparada com a referencia do BCB de {reference_rate:.2f}% ao mes, para prazo de {prazo} meses."
+    )
+
+
+def _compose_fallback_recomendacao(ai_result: dict) -> str:
+    irregularidades = ai_result.get("irregularidades", [])
+    if irregularidades:
+        return (
+            "Recomenda-se revisar o laudo completo e submeter o contrato a avaliacao juridica "
+            "especializada para confirmar a estrategia adequada de revisao contratual."
+        )
+    return (
+        "Recomenda-se arquivar o laudo completo como registro tecnico e, em caso de nova cobranca "
+        "ou alteracao contratual, realizar nova conferencia especializada."
+    )
+
+
+def _finalize_ai_result_text_fields(ai_result: dict, reference_rate: float) -> dict:
+    finalized = dict(ai_result)
+    resumo = str(finalized.get("resumo_tecnico", "")).strip()
+    recomendacao = str(finalized.get("recomendacao", "")).strip()
+
+    if len(resumo) < 40:
+        finalized["resumo_tecnico"] = _compose_fallback_resumo(finalized, reference_rate)
+    if len(recomendacao) < 20:
+        finalized["recomendacao"] = _compose_fallback_recomendacao(finalized)
+
+    return finalized
+
+
 def _analysis_tool_schema(reference_rate: float) -> dict:
     return {
         "type": "object",
@@ -884,6 +938,7 @@ Estrutura obrigatoria:
                         ai_result=normalized,
                         model_name=model_name,
                     )
+                normalized = _finalize_ai_result_text_fields(normalized, reference_rate)
                 _validate_ai_result_strict(normalized, reference_rate)
 
                 return normalized, {
