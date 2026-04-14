@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from models import LOAN_TYPES, Analysis, Contract, AnalysisTelemetry
 from database import get_db
 import os, json
@@ -124,8 +124,8 @@ async def get_ai_metrics(
     if days > 30:
         days = 30
 
-    now = datetime.now(timezone.utc)
-    today_start = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
+    now = datetime.utcnow()
+    today_start = datetime(now.year, now.month, now.day)
     period_start = today_start - timedelta(days=days - 1)
 
     base = select(AnalysisTelemetry).where(AnalysisTelemetry.created_at >= period_start)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select
@@ -36,8 +36,8 @@ def _estimated_cost_per_analysis_brl() -> float:
 
 
 async def get_daily_analysis_usage(db: AsyncSession) -> int:
-    now = datetime.now(timezone.utc)
-    day_start = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
+    now = datetime.utcnow()
+    day_start = datetime(now.year, now.month, now.day)
     day_end = day_start + timedelta(days=1)
 
     try:
