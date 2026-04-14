@@ -23,7 +23,6 @@ from services.stj_service import get_stj_context, format_stj_context_for_prompt
 from services.ops_alert_service import send_ops_alert
 from models import AnalysisStatus
 
-MOCK_MODE = os.getenv("MOCK_MODE", "false").lower() == "true"
 MODEL_NAME = "claude-sonnet-4-6"
 
 MOCK_REFERENCE_RATES: dict[str, float] = {
@@ -35,6 +34,10 @@ MOCK_REFERENCE_RATES: dict[str, float] = {
     "cartao_credito": 15.40,
     "outros": 8.90,
 }
+
+
+def _is_mock_ai_mode() -> bool:
+    return os.getenv("MOCK_AI_MODE", "false").lower() == "true"
 
 
 def _max_output_tokens() -> int:
@@ -824,7 +827,7 @@ async def analyze_contract(
     bcb_context: str = "",
     stj_context: str = "",
 ) -> tuple[dict, dict[str, int], str]:
-    if MOCK_MODE:
+    if _is_mock_ai_mode():
         return _mock_result(loan_type, reference_rate), {
             "input_tokens": 0,
             "output_tokens": 0,
@@ -966,7 +969,7 @@ async def precheck_contract_has_issues(
     """
     Pre-analise barata para converter: responde apenas TEM/NAO irregularidades.
     """
-    if MOCK_MODE:
+    if _is_mock_ai_mode():
         return True
 
     import anthropic
@@ -1066,11 +1069,11 @@ async def run_pre_analysis(
             analysis.error_message = warning_message
             await db.commit()
 
-            if MOCK_MODE:
+            if _is_mock_ai_mode():
                 bcb_rate_data = _build_mock_bcb_context(loan_type)
             else:
                 bcb_rate_data = await asyncio.wait_for(
-                    get_enriched_bcb_context(loan_type, force_refresh=not MOCK_MODE), timeout=20
+                    get_enriched_bcb_context(loan_type, force_refresh=True), timeout=20
                 )
             reference_rate = float((bcb_rate_data.get("loan_rate") or {}).get("monthly_rate_pct") or 0.0)
             if reference_rate <= 0:
@@ -1156,7 +1159,7 @@ async def run_full_analysis(
             # 2. Busca taxas BCB AO VIVO + contexto STJ em paralelo
             # BCBAPIError e levantada se a API do BCB estiver indisponivel — nao existem fallbacks
             stj_ctx_data = {}
-            if MOCK_MODE:
+            if _is_mock_ai_mode():
                 bcb_ctx_data = _build_mock_bcb_context(loan_type)
             else:
                 try:
@@ -1168,7 +1171,7 @@ async def run_full_analysis(
                 # BCB e CRITICO: sem taxa real nao fazemos analise
                 try:
                     bcb_ctx_data = await asyncio.wait_for(
-                        get_enriched_bcb_context(loan_type, force_refresh=not MOCK_MODE), timeout=20
+                        get_enriched_bcb_context(loan_type, force_refresh=True), timeout=20
                     )
                 except BCBAPIError as e:
                     raise RuntimeError(
