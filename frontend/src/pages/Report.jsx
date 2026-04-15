@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { getFullReport, downloadReportPdf } from '../lib/api'
 
 const WHATSAPP = import.meta.env.VITE_WHATSAPP_NUMBER || '5511999999999'
+const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || 'vitorcesarsilvestre2017@gmail.com'
 
 const N = '#0D2137'
 const O = '#E8920A'
@@ -178,9 +179,14 @@ export default function Report() {
       <div style={{ textAlign: 'center', maxWidth: 420 }}>
         <h2 style={{ fontFamily: serif, color: N, marginBottom: 8 }}>Acesso restrito</h2>
         <p style={{ color: muted, marginBottom: 24 }}>{error}</p>
-        <Link to="/app" style={{ background: N, color: white, textDecoration: 'none', padding: '12px 28px', borderRadius: 10, fontWeight: 700, fontFamily: sans }}>
-          Voltar para analises
-        </Link>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+          <Link to="/app" style={{ background: N, color: white, textDecoration: 'none', padding: '12px 28px', borderRadius: 10, fontWeight: 700, fontFamily: sans }}>
+            Voltar para analises
+          </Link>
+          <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: O, textDecoration: 'none', fontWeight: 700 }}>
+            Falar com suporte por e-mail
+          </a>
+        </div>
       </div>
     </div>
   )
@@ -267,10 +273,16 @@ export default function Report() {
               ? 'Este laudo identificou irregularidades no seu contrato. Um advogado especialista pode avaliar a viabilidade de uma acao revisional para reduzir os juros e recuperar valores cobrados indevidamente.'
               : 'Seu laudo nao apontou irregularidades relevantes, mas um advogado parceiro pode revisar seu caso com profundidade e orientar medidas preventivas para proteger seus direitos.'}
           </p>
-          <a href={waUrl} target="_blank" rel="noreferrer"
-            style={{ background: '#25D366', color: white, textDecoration: 'none', fontWeight: 700, fontSize: 15, padding: '14px 32px', borderRadius: 12, display: 'inline-block', fontFamily: sans }}>
-            Falar no WhatsApp
-          </a>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <a href={waUrl} target="_blank" rel="noreferrer"
+              style={{ background: '#25D366', color: white, textDecoration: 'none', fontWeight: 700, fontSize: 15, padding: '14px 32px', borderRadius: 12, display: 'inline-block', fontFamily: sans }}>
+              Falar no WhatsApp
+            </a>
+            <a href={`mailto:${SUPPORT_EMAIL}`}
+              style={{ background: white, color: N, textDecoration: 'none', fontWeight: 700, fontSize: 15, padding: '14px 24px', borderRadius: 12, display: 'inline-block', fontFamily: sans }}>
+              Suporte por e-mail
+            </a>
+          </div>
         </div>
       </main>
     </div>

@@ -28,6 +28,7 @@ COLOR_BORDER    = colors.HexColor("#CBD5E0")
 
 WHATSAPP_NUMBER = os.getenv("WHATSAPP_NUMBER", "5511999999999")
 REPORT_PRICE    = float(os.getenv("REPORT_PRICE", "9.99"))
+SUPPORT_EMAIL   = os.getenv("SUPPORT_EMAIL", "vitorcesarsilvestre2017@gmail.com")
 
 
 def _fmt_brl(value: Any) -> str:
@@ -53,23 +54,23 @@ def _looks_inferred(value: Any) -> bool:
 
 def _contract_field_rows(view: dict[str, Any], bcb_rate_pct: float) -> list[list[str]]:
     rows = [
-        ["Banco / Institui??o", view["banco"]],
-        ["N? do Contrato", view["numero_contrato"]],
+        ["Banco / Instituição", view["banco"]],
+        ["Nº do Contrato", view["numero_contrato"]],
         ["Data do Contrato", view["data_contrato"]],
         ["Valor Liberado", view["valor_liberado"]],
         ["Taxa Mensal", view["taxa_mensal"]],
         ["Taxa Anual", view["taxa_anual"]],
         ["CET Mensal", view["cet_mensal"]],
         ["CET Anual", view["cet_anual"]],
-        ["N? de Parcelas", view["numero_parcelas"]],
+        ["Nº de Parcelas", view["numero_parcelas"]],
         ["Valor da Parcela", view["valor_parcela"]],
         ["Total a Pagar", view["valor_total_devido"]],
-        ["Taxa M?dia BCB", f"{bcb_rate_pct:.2f}% a.m. (refer?ncia de mercado)"],
+        ["Taxa Média BCB", f"{bcb_rate_pct:.2f}% a.m. (referência de mercado)"],
     ]
 
-    if view["cliente_nome"] != "?":
+    if view["cliente_nome"] != "—":
         rows.append(["Nome do Contratante", view["cliente_nome"]])
-    if view["cliente_cpf"] != "?":
+    if view["cliente_cpf"] != "—":
         rows.append(["CPF", view["cliente_cpf"]])
 
     labeled_rows = [["Campo", "Valor identificado"]]
@@ -381,6 +382,7 @@ async def generate_report_pdf(
         [[Paragraph(
             f"<b>📱 Fale com um advogado especializado</b><br/>"
             f"{cta_body}<br/><br/>"
+            f"<b>Suporte por e-mail:</b> {SUPPORT_EMAIL}<br/>"
             f"<b>Entre em contato via WhatsApp:</b> wa.me/{WHATSAPP_NUMBER}",
             st["body"],
         )]],
@@ -405,6 +407,7 @@ async def generate_report_pdf(
         "Não constitui parecer jurídico, consultoria ou orientação legal. "
         "A interpretação jurídica e quaisquer medidas legais devem ser conduzidas por advogado "
         "regularmente inscrito na OAB, conforme exige o art. 1º, I da Lei 8.906/94 (Estatuto da OAB). "
+        f"Suporte: {SUPPORT_EMAIL}. "
         f"Emitido em {datetime.now().strftime('%d/%m/%Y às %H:%M')}.",
         st["disclaimer"],
     ))

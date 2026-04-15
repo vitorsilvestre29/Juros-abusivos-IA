@@ -39,6 +39,11 @@ class ReportServiceTests(unittest.TestCase):
         self.assertIn("consulta preventiva", message)
         self.assertNotIn("ação revisional", body)
 
+    def test_support_email_is_defaulted(self):
+        from services import report_service
+
+        self.assertEqual(report_service.SUPPORT_EMAIL, "vitorcesarsilvestre2017@gmail.com")
+
     def test_report_view_maps_current_ai_schema(self):
         ai_result = {
             "tipo_contrato": "cdc_veiculo",
