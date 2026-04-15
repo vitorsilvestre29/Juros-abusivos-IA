@@ -41,7 +41,7 @@ SGS_BASE = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{serie}/dados/ultimos/
 # Fonte: https://www3.bcb.gov.br/sgspub/localizarseries/localizarSeries.do
 # Mapeamento verificado no portal: https://dadosabertos.bcb.gov.br/
 # Cada serie e a taxa media de mercado (% a.m.) para a modalidade — publicada mensalmente pelo BCB
-SERIES_MAP: dict[str, str] = {
+DEFAULT_SERIES_MAP: dict[str, str] = {
     # Credito consignado - INSS: SGS 25466
     # Fonte: https://dadosabertos.bcb.gov.br/dataset/25466-taxa-media-mensal-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-fisicas---cre
     "consignado_inss":      "25466",
@@ -160,6 +160,41 @@ class BCBAPIError(RuntimeError):
     pass
 
 
+ENV_SERIES_BY_LOAN_TYPE: dict[str, tuple[str, ...]] = {
+    # Consignado CLT
+    "consignado_clt": ("BCB_SGS_SERIES_CLT",),
+    # Consignado INSS
+    "consignado_inss": ("BCB_SGS_SERIES_INSS",),
+    "consignado": ("BCB_SGS_SERIES_INSS",),
+    # Credito pessoal nao consignado (compat com nome legado)
+    "credito_pessoal": ("BCB_SGS_SERIES_CREDITO_PESSOAL", "BCB_SGS_SERIES_BANCARIO_DIRETO"),
+    # Habitacional
+    "credito_habitacional": ("BCB_SGS_SERIES_HABITACIONAL",),
+    # CDC veiculo
+    "cdc_veiculo": ("BCB_SGS_SERIES_CDC_VEICULO",),
+    "financiamento_veiculo": ("BCB_SGS_SERIES_CDC_VEICULO",),
+    # Cartao
+    "cartao_credito": ("BCB_SGS_SERIES_CARTAO",),
+    # Cheque especial
+    "cheque_especial": ("BCB_SGS_SERIES_CHEQUE_ESPECIAL",),
+    # Capital de giro
+    "capital_giro": ("BCB_SGS_SERIES_CAPITAL_GIRO",),
+    # Fallback
+    "outros": ("BCB_SGS_SERIES_OUTROS",),
+}
+
+
+def _resolve_series_for_loan_type(loan_type: str) -> str | None:
+    normalized = (loan_type or "").strip().lower()
+
+    for env_key in ENV_SERIES_BY_LOAN_TYPE.get(normalized, ()): 
+        env_val = str(os.getenv(env_key, "")).strip()
+        if env_val:
+            return env_val
+
+    return DEFAULT_SERIES_MAP.get(normalized)
+
+
 # ── Funcoes publicas ──────────────────────────────────────────────────────────
 
 async def get_bcb_rate(loan_type: str, force_refresh: bool = False) -> dict[str, Any]:
@@ -169,18 +204,30 @@ async def get_bcb_rate(loan_type: str, force_refresh: bool = False) -> dict[str,
     Levanta BCBAPIError se a API estiver indisponivel ou se o tipo for invalido.
     """
     normalized = loan_type.strip().lower()
-    serie = SERIES_MAP.get(normalized)
+    serie = _resolve_series_for_loan_type(normalized)
     if serie is None:
         raise BCBAPIError(
             f"Tipo de contrato invalido para consulta BCB: '{loan_type}'."
         )
 
-    cache_key = f"rate_{normalized}"
+    cache_key = f"rate_{normalized}_{serie}"
     cache = _load_cache()
     if (not force_refresh) and _cache_is_fresh(cache.get(cache_key, {})):
         return cache[cache_key]
 
     result = await _sgs_fetch(serie, f"Taxa media BCB - {normalized}")
+
+    # Fail-safe: consignado CLT nao deve usar referencia menor/igual ao INSS.
+    # Se isso ocorrer, ha forte indicio de serie incorreta configurada para CLT.
+    if normalized == "consignado_clt":
+        inss_serie = _resolve_series_for_loan_type("consignado_inss")
+        if inss_serie:
+            inss_result = await _sgs_fetch(inss_serie, "Taxa media BCB - consignado_inss")
+            if float(result["value"]) <= float(inss_result["value"]):
+                raise BCBAPIError(
+                    "Referencia BCB inconsistente para consignado_clt: taxa CLT menor ou igual a INSS. "
+                    "Revise a serie configurada em BCB_SGS_SERIES_CLT."
+                )
 
     monthly = result["value"]
     r = monthly / 100.0
