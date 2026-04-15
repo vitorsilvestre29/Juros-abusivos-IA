@@ -81,6 +81,23 @@ DEFAULT_SERIES_MAP: dict[str, str] = {
     "outros":               "20714",
 }
 
+# Faixas amplas de sanidade (% a.m.) por modalidade.
+# Objetivo: falhar com erro explicito quando uma serie errada for usada.
+EXPECTED_MONTHLY_RATE_BOUNDS: dict[str, tuple[float, float]] = {
+    "consignado_inss": (0.3, 4.0),
+    "consignado": (0.3, 4.0),
+    "consignado_clt": (0.5, 8.0),
+    "credito_pessoal": (0.5, 20.0),
+    "credito_habitacional": (0.1, 5.0),
+    "financiamento_imovel": (0.1, 5.0),
+    "cdc_veiculo": (0.2, 10.0),
+    "financiamento_veiculo": (0.2, 10.0),
+    "cartao_credito": (2.0, 30.0),
+    "cheque_especial": (1.0, 25.0),
+    "capital_giro": (0.2, 15.0),
+    "outros": (0.2, 30.0),
+}
+
 # Series auxiliares (sempre buscadas)
 SERIE_SELIC_MENSAL = "4390"
 SERIE_SELIC_ANUAL  = "432"
@@ -195,6 +212,21 @@ def _resolve_series_for_loan_type(loan_type: str) -> str | None:
     return DEFAULT_SERIES_MAP.get(normalized)
 
 
+def _validate_rate_sanity(loan_type: str, monthly_rate_pct: float, serie: str) -> None:
+    bounds = EXPECTED_MONTHLY_RATE_BOUNDS.get((loan_type or "").strip().lower())
+    if not bounds:
+        return
+
+    min_expected, max_expected = bounds
+    value = float(monthly_rate_pct)
+    if value < min_expected or value > max_expected:
+        raise BCBAPIError(
+            "Taxa BCB fora da faixa esperada para a modalidade selecionada. "
+            f"loan_type={loan_type}, serie={serie}, taxa={value:.4f}% a.m., "
+            f"faixa_esperada=[{min_expected:.2f}, {max_expected:.2f}]% a.m."
+        )
+
+
 # ── Funcoes publicas ──────────────────────────────────────────────────────────
 
 async def get_bcb_rate(loan_type: str, force_refresh: bool = False) -> dict[str, Any]:
@@ -216,6 +248,7 @@ async def get_bcb_rate(loan_type: str, force_refresh: bool = False) -> dict[str,
         return cache[cache_key]
 
     result = await _sgs_fetch(serie, f"Taxa media BCB - {normalized}")
+    _validate_rate_sanity(normalized, float(result["value"]), serie)
 
     # Fail-safe: consignado CLT nao deve usar referencia menor/igual ao INSS.
     # Se isso ocorrer, ha forte indicio de serie incorreta configurada para CLT.
