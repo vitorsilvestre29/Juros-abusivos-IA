@@ -19,6 +19,23 @@ from services.analysis_service import run_full_analysis
 router = APIRouter()
 
 
+def _admin_bypass_emails() -> set[str]:
+    raw = os.getenv("ADMIN_BYPASS_EMAILS", "")
+    emails = {
+        part.strip().lower()
+        for part in raw.split(",")
+        if part and part.strip()
+    }
+    return emails
+
+
+def _is_admin_bypass_user(user: User) -> bool:
+    user_email = str(getattr(user, "email", "") or "").strip().lower()
+    if not user_email:
+        return False
+    return user_email in _admin_bypass_emails()
+
+
 @router.post("/create/{analysis_id}")
 async def create_payment(
     analysis_id: int,
@@ -47,6 +64,7 @@ async def create_payment(
         raise HTTPException(status_code=400, detail="Análise ainda não concluída")
 
     mock_mode = os.getenv("MOCK_MODE", "false").lower() == "true"
+    admin_bypass = _is_admin_bypass_user(current_user)
 
     # Verifica se já existe pagamento pago
     if analysis.payment and analysis.payment.status == PaymentStatus.PAID:
@@ -54,6 +72,63 @@ async def create_payment(
             "message": "Laudo já pago",
             "payment_id": analysis.payment.id,
             "status": "paid",
+        }
+
+    # Bypass premium restrito a e-mails administrativos (whitelist via env).
+    if admin_bypass:
+        amount = float(os.getenv("REPORT_PRICE", "9.99"))
+
+        if analysis.payment and analysis.payment.status == PaymentStatus.PENDING:
+            analysis.payment.status = PaymentStatus.PAID
+            analysis.payment.paid_at = datetime.utcnow()
+            if not analysis.payment.mp_payment_id:
+                analysis.payment.mp_payment_id = f"admin_bypass_paid_{analysis_id}"
+            await db.commit()
+
+            await send_ops_alert(
+                event="admin_bypass_payment_used",
+                message="Pagamento bypass aplicado para usuario administrativo.",
+                metadata={
+                    "analysis_id": analysis_id,
+                    "user_email": current_user.email,
+                },
+            )
+
+            background_tasks.add_task(_generate_full_report_after_payment, analysis_id)
+            return {
+                "payment_id": analysis.payment.id,
+                "status": "paid",
+                "analysis_id": analysis_id,
+                "amount_brl": analysis.payment.amount_brl,
+            }
+
+        payment = Payment(
+            user_id=current_user.id,
+            analysis_id=analysis_id,
+            amount_brl=amount,
+            status=PaymentStatus.PAID,
+            mp_payment_id=f"admin_bypass_paid_{analysis_id}",
+            paid_at=datetime.utcnow(),
+        )
+        db.add(payment)
+        await db.commit()
+        await db.refresh(payment)
+
+        await send_ops_alert(
+            event="admin_bypass_payment_used",
+            message="Pagamento bypass aplicado para usuario administrativo.",
+            metadata={
+                "analysis_id": analysis_id,
+                "user_email": current_user.email,
+            },
+        )
+
+        background_tasks.add_task(_generate_full_report_after_payment, analysis_id)
+        return {
+            "payment_id": payment.id,
+            "status": "paid",
+            "analysis_id": analysis_id,
+            "amount_brl": payment.amount_brl,
         }
 
     # Em modo teste, pulamos o PIX e liberamos o laudo automaticamente.
