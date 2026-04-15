@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getFullReport, downloadReportPdf } from '../lib/api'
+import { trackEvent } from '../lib/metaPixel'
 
 const WHATSAPP = import.meta.env.VITE_WHATSAPP_NUMBER || '5511999999999'
 const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || 'vitorcesarsilvestre2017@gmail.com'
@@ -47,7 +48,25 @@ export default function Report() {
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const retryRef = useRef(null)
   const retryCountRef = useRef(0)
+  const purchaseTrackedRef = useRef(false)
   const totalAttempts = Number(import.meta.env.VITE_ANALYSIS_TOTAL_ATTEMPTS || 4)
+
+  function trackPurchaseOnConfirmationPage() {
+    if (purchaseTrackedRef.current) return
+    const key = `purchase_tracked_${analysisId}`
+    if (localStorage.getItem(key) === '1') {
+      purchaseTrackedRef.current = true
+      return
+    }
+
+    trackEvent('Purchase', {
+      analysis_id: Number(analysisId),
+      value: 9.99,
+      currency: 'BRL',
+    })
+    localStorage.setItem(key, '1')
+    purchaseTrackedRef.current = true
+  }
 
   useEffect(() => {
     async function loadReport() {
@@ -97,6 +116,13 @@ export default function Report() {
     const t = setInterval(() => setDots(d => (d.length >= 3 ? '.' : d + '.')), 600)
     return () => clearInterval(t)
   }, [loading])
+
+  useEffect(() => {
+    if (!loading && !error && report) {
+      // Evento de compra na pagina de confirmacao do pedido (laudo liberado).
+      trackPurchaseOnConfirmationPage()
+    }
+  }, [loading, error, report])
 
   async function handleDownloadPdf(e) {
     e.preventDefault()
