@@ -1153,7 +1153,7 @@ async def run_pre_analysis(
             analysis.irregularities_count = 1 if has_issues else 0
             analysis.impact_brl = 0.0
             analysis.bcb_rate_pct = reference_rate
-            analysis.completed_at = datetime.now(UTC)
+            analysis.completed_at = datetime.now(UTC).replace(tzinfo=None)
             # Importante: detalhes premium permanecem bloqueados ate pagamento.
             analysis.ai_result_json = None
             await db.commit()
@@ -1298,7 +1298,7 @@ async def run_full_analysis(
             analysis.irregularities_count = len(irregularities)
             analysis.impact_brl = impact_data.get("estimated_overcharge_brl", 0.0)
             analysis.bcb_rate_pct = reference_rate
-            analysis.completed_at = datetime.now(UTC)
+            analysis.completed_at = datetime.now(UTC).replace(tzinfo=None)
             await db.commit()
 
             try:
