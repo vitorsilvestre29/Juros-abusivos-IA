@@ -722,6 +722,67 @@ def _finalize_ai_result_text_fields(ai_result: dict, reference_rate: float) -> d
     return finalized
 
 
+def _mentions_no_irregularity(text: str) -> bool:
+    normalized = (text or "").strip().lower()
+    if not normalized:
+        return False
+    markers = [
+        "nao encontrou irregularidade",
+        "não encontrou irregularidade",
+        "nenhuma irregularidade",
+        "sem irregularidade",
+    ]
+    return any(marker in normalized for marker in markers)
+
+
+def _enforce_result_consistency(
+    ai_result: dict,
+    reference_rate: float,
+    impact_data: dict[str, Any],
+) -> dict:
+    """
+    Evita laudos contraditorios: se houver cobranca excessiva material,
+    o resultado nao pode concluir "sem irregularidades".
+    """
+    result = dict(ai_result)
+    irregularidades = result.get("irregularidades")
+    if not isinstance(irregularidades, list):
+        irregularidades = []
+        result["irregularidades"] = irregularidades
+
+    impacto = _as_float(impact_data.get("estimated_overcharge_brl"), 0.0)
+    taxa_contratada = _as_float(result.get("taxa_mensal_contratada"), 0.0)
+    taxa_ref = _as_float(reference_rate, 0.0)
+    has_material_gap = taxa_contratada > 0 and taxa_ref > 0 and taxa_contratada > (taxa_ref * 1.05)
+
+    if impacto > 0 and has_material_gap and len(irregularidades) == 0:
+        gravidade = "alta" if taxa_contratada >= (taxa_ref * 2.0) else "media"
+        irregularidades.append(
+            {
+                "tipo": "Taxa de juros acima da referencia de mercado (BCB)",
+                "descricao": (
+                    f"A taxa contratada de {taxa_contratada:.2f}% a.m. esta acima da "
+                    f"taxa media de referencia do BCB ({taxa_ref:.2f}% a.m.), com impacto "
+                    f"financeiro estimado de {_as_float(impacto, 0.0):.2f} BRL ao longo do contrato."
+                ),
+                "gravidade": gravidade,
+                "valor_estimado": float(round(impacto, 2)),
+                "trecho_contrato": "",
+                "fundamento_legal": "Comparacao tecnica com taxa media divulgada pelo Banco Central do Brasil.",
+                "valor_cobrado": "",
+            }
+        )
+
+    resumo = str(result.get("resumo_tecnico", "")).strip()
+    recomendacao = str(result.get("recomendacao", "")).strip()
+    if irregularidades and (_mentions_no_irregularity(resumo) or len(resumo) < 40):
+        result["resumo_tecnico"] = _compose_fallback_resumo(result, reference_rate)
+    if irregularidades and (_mentions_no_irregularity(recomendacao) or len(recomendacao) < 20):
+        result["recomendacao"] = _compose_fallback_recomendacao(result)
+
+    return result
+
+
 def _analysis_tool_schema(reference_rate: float) -> dict:
     return {
         "type": "object",
@@ -1280,6 +1341,8 @@ async def run_full_analysis(
             output_tokens = int((usage or {}).get("output_tokens", 0) or 0)
 
             # 4. Impacto financeiro
+            impact_data = calculate_financial_impact(ai_result, reference_rate)
+            ai_result = _enforce_result_consistency(ai_result, reference_rate, impact_data)
             impact_data = calculate_financial_impact(ai_result, reference_rate)
 
             # 5. Salva
