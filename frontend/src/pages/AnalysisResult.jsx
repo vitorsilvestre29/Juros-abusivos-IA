@@ -72,6 +72,7 @@ export default function AnalysisResult() {
   const isProcessing = status.status === 'pending' || status.status === 'processing'
   const isFailed = status.status === 'failed'
   const isDone = status.status === 'completed'
+  const isContractTypeMismatch = status.error_code === 'contract_type_mismatch'
   const hasIssues = status.has_issues === true
   const warningMessage = status.warning_message || ''
   const goToPayment = () => {
@@ -128,10 +129,21 @@ export default function AnalysisResult() {
 
         {isFailed && (
           <div style={{ background: white, borderRadius: 20, border: '1px solid #FECACA', padding: isMobile ? '32px 20px' : '40px 32px', textAlign: 'center', boxShadow: '0 4px 16px rgba(13,33,55,0.06)' }}>
-            <h2 style={{ fontFamily: serif, fontSize: isMobile ? 20 : 22, fontWeight: 700, color: '#B91C1C', marginBottom: 10 }}>Nao foi possivel analisar</h2>
-            <p style={{ color: muted, fontSize: 14, marginBottom: 24, lineHeight: 1.6 }}>{status.error || 'Verifique se o arquivo esta legivel e tente novamente.'}</p>
+            <h2 style={{ fontFamily: serif, fontSize: isMobile ? 20 : 22, fontWeight: 700, color: '#B91C1C', marginBottom: 10 }}>
+              {isContractTypeMismatch ? 'Corrija o tipo do contrato' : 'Nao foi possivel analisar'}
+            </h2>
+            <p style={{ color: muted, fontSize: 14, marginBottom: 24, lineHeight: 1.6 }}>
+              {status.error || 'Verifique se o arquivo esta legivel e tente novamente.'}
+            </p>
+            {isContractTypeMismatch && (
+              <div style={{ background: '#FFF4E5', border: '1px solid #F5E8C8', borderLeft: '4px solid ' + O, borderRadius: 10, padding: '14px 16px', marginBottom: 20, textAlign: 'left' }}>
+                <p style={{ color: '#8A4C00', fontSize: 12, lineHeight: 1.65, margin: 0 }}>
+                  <strong>Pagamento bloqueado:</strong> para proteger a precisao da analise, nao liberamos pagamento quando o tipo marcado nao confere com o documento.
+                </p>
+              </div>
+            )}
             <button onClick={() => nav('/upload')} style={{ background: N, color: white, border: 'none', padding: '12px 28px', borderRadius: 10, fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: sans }}>
-              Tentar novamente
+              {isContractTypeMismatch ? 'Corrigir e reenviar contrato' : 'Tentar novamente'}
             </button>
           </div>
         )}

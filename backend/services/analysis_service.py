@@ -35,6 +35,116 @@ MOCK_REFERENCE_RATES: dict[str, float] = {
     "outros": 8.90,
 }
 
+LOAN_TYPE_LABELS: dict[str, str] = {
+    "consignado_inss": "Consignado INSS",
+    "consignado_clt": "Consignado CLT (desconto em folha)",
+    "credito_pessoal": "Credito Pessoal (bancario direto)",
+    "credito_habitacional": "Credito Habitacional / Financiamento Imobiliario",
+    "cdc_veiculo": "CDC Veiculo / Financiamento de Veiculo",
+    "cartao_credito": "Cartao de Credito",
+    "outros": "Outros",
+}
+
+CONTRACT_TYPE_SIGNALS: dict[str, dict[str, tuple[str, ...]]] = {
+    "consignado_inss": {
+        "strong": (
+            "beneficio previdenciario",
+            "aposentadoria",
+            "aposentado",
+            "pensionista do inss",
+            "beneficio do inss",
+            "margem consignavel",
+        ),
+        "medium": (
+            "inss",
+            "numero do beneficio",
+            "nb ",
+        ),
+    },
+    "consignado_clt": {
+        "strong": (
+            "desconto em folha",
+            "folha de pagamento",
+            "holerite",
+            "averbacao em folha",
+            "consignado privado",
+        ),
+        "medium": (
+            "empregador",
+            "empresa conveniada",
+        ),
+    },
+    "credito_pessoal": {
+        "strong": (
+            "credito pessoal nao consignado",
+            "emprestimo pessoal nao consignado",
+            "sem consignacao em folha",
+            "sem desconto em folha",
+        ),
+        "medium": (
+            "credito pessoal",
+            "emprestimo pessoal",
+        ),
+    },
+    "credito_habitacional": {
+        "strong": (
+            "financiamento imobiliario",
+            "alienacao fiduciaria de imovel",
+            "alienacao fiduciaria do imovel",
+            "sistema financeiro da habitacao",
+            "sfh",
+            "sfi",
+        ),
+        "medium": (
+            "imovel residencial",
+            "unidade imobiliaria",
+        ),
+    },
+    "cdc_veiculo": {
+        "strong": (
+            "renavam",
+            "chassi",
+            "alienacao fiduciaria do veiculo",
+            "financiamento de veiculo",
+            "automovel",
+        ),
+        "medium": (
+            "veiculo",
+            "placa",
+        ),
+    },
+    "cartao_credito": {
+        "strong": (
+            "cartao de credito",
+            "pagamento minimo",
+            "credito rotativo",
+            "limite de credito",
+            "fatura do cartao",
+        ),
+        "medium": (
+            "anuidade",
+            "rotativo",
+            "fatura",
+        ),
+    },
+}
+
+
+class ContractTypeMismatchError(RuntimeError):
+    def __init__(self, selected_loan_type: str, detected_loan_type: str, evidence: list[str]):
+        self.selected_loan_type = selected_loan_type
+        self.detected_loan_type = detected_loan_type
+        self.evidence = evidence
+        selected_label = LOAN_TYPE_LABELS.get(selected_loan_type, selected_loan_type)
+        detected_label = LOAN_TYPE_LABELS.get(detected_loan_type, detected_loan_type)
+        evidence_text = ", ".join(evidence[:3])
+        super().__init__(
+            "O tipo de contrato selecionado nao confere com o documento enviado. "
+            f"Voce marcou '{selected_label}', mas o contrato indica '{detected_label}'. "
+            f"Sinais encontrados no texto: {evidence_text}. "
+            "Corrija a modalidade e envie novamente. Nessa situacao, o pagamento nao e liberado."
+        )
+
 
 def _is_mock_ai_mode() -> bool:
     return os.getenv("MOCK_AI_MODE", "false").lower() == "true"
@@ -147,31 +257,12 @@ def _detect_contract_type_by_text(contract_text: str) -> tuple[str | None, float
     if not text:
         return None, 0.0
 
-    rules: dict[str, list[str]] = {
-        "consignado_inss": [
-            "inss", "beneficio previdenciario", "aposentadoria", "pensionista", "margem consignavel"
-        ],
-        "consignado_clt": [
-            "desconto em folha", "folha de pagamento", "empregador", "holerite", "consignado privado"
-        ],
-        "credito_pessoal": [
-            "emprestimo pessoal", "credito pessoal", "parcelas fixas", "cec", "contrato de emprestimo"
-        ],
-        "credito_habitacional": [
-            "financiamento imobiliario", "alienacao fiduciaria do imovel", "sistema financeiro da habitacao",
-            "sfh", "sfi", "imovel"
-        ],
-        "cdc_veiculo": [
-            "veiculo", "automovel", "renavam", "chassi", "financiamento de veiculo", "alienacao fiduciaria do veiculo"
-        ],
-        "cartao_credito": [
-            "cartao de credito", "fatura", "limite de credito", "pagamento minimo", "rotativo", "anuidade"
-        ],
-    }
-
-    scores: dict[str, float] = {k: 0.0 for k in rules.keys()}
-    for loan_kind, keywords in rules.items():
-        for keyword in keywords:
+    scores: dict[str, float] = {k: 0.0 for k in CONTRACT_TYPE_SIGNALS.keys()}
+    for loan_kind, signal_groups in CONTRACT_TYPE_SIGNALS.items():
+        for keyword in signal_groups.get("strong", ()):
+            if keyword in text:
+                scores[loan_kind] += 3.0
+        for keyword in signal_groups.get("medium", ()):
             if keyword in text:
                 scores[loan_kind] += 1.0
 
@@ -184,6 +275,37 @@ def _detect_contract_type_by_text(contract_text: str) -> tuple[str | None, float
     second_score = ordered_scores[1] if len(ordered_scores) > 1 else 0.0
     confidence = winner_score / max(winner_score + second_score, 1.0)
     return winner, confidence
+
+
+def _detect_blocking_contract_type_mismatch(selected_loan_type: str, contract_text: str) -> tuple[str | None, list[str]]:
+    text = _normalize_text_for_match(contract_text)[:12000]
+    selected = (selected_loan_type or "").strip().lower()
+    if not text or not selected or selected == "outros":
+        return None, []
+
+    candidates: dict[str, list[str]] = {}
+    for loan_type, signal_groups in CONTRACT_TYPE_SIGNALS.items():
+        evidences: list[str] = []
+        for keyword in signal_groups.get("strong", ()):
+            if keyword in text:
+                evidences.append(keyword)
+        medium_hits = [keyword for keyword in signal_groups.get("medium", ()) if keyword in text]
+
+        # Bloqueamos apenas com evidencia forte: pelo menos 1 marcador forte,
+        # ou 2 marcadores medios quando a modalidade nao conflita com outra.
+        if evidences:
+            candidates[loan_type] = evidences + medium_hits
+        elif len(medium_hits) >= 2:
+            candidates[loan_type] = medium_hits
+
+    if selected in candidates:
+        return None, []
+    if len(candidates) != 1:
+        return None, []
+
+    detected_loan_type = next(iter(candidates.keys()))
+    evidence = candidates[detected_loan_type]
+    return detected_loan_type, evidence
 
 
 def _mock_reference_rate_for(loan_type: str) -> float:
@@ -242,6 +364,22 @@ def _build_loan_type_warning(selected_loan_type: str, contract_text: str) -> tup
         "Para ver o laudo tecnico completo com os detalhes e o parecer da analise, prossiga para o pagamento."
     )
     return message, predicted
+
+
+def _assert_contract_type_consistency(selected_loan_type: str, contract_text: str) -> None:
+    """
+    Fail-closed para evitar analise com taxa BCB de modalidade errada.
+    Aplica para todas as modalidades suportadas.
+    """
+    selected = (selected_loan_type or "").strip().lower()
+    detected, evidence = _detect_blocking_contract_type_mismatch(selected, contract_text)
+    if not detected:
+        return
+    raise ContractTypeMismatchError(
+        selected_loan_type=selected,
+        detected_loan_type=detected,
+        evidence=evidence,
+    )
 
 
 # ── Extracao de texto ─────────────────────────────────────────────────────────
@@ -358,6 +496,8 @@ def _is_anthropic_credit_error(err: Exception) -> bool:
 
 
 def _friendly_error_message(err: Exception) -> str:
+    if isinstance(err, ContractTypeMismatchError):
+        return str(err)
     if isinstance(err, BCBAPIError):
         return (
             "Nao conseguimos consultar as taxas oficiais do Banco Central no momento. "
@@ -592,7 +732,8 @@ def _normalize_ai_result(parsed: Any, loan_type: str, reference_rate: float) -> 
         dados_cliente["cpf"] = str(dados_cliente_raw.get("cpf", "")).strip()
 
     return {
-        "tipo_contrato": str(data.get("tipo_contrato", loan_type)).strip() or loan_type,
+        # Nunca confiamos no tipo devolvido pela IA para evitar divergencia de modalidade.
+        "tipo_contrato": loan_type,
         "banco_credor": str(data.get("banco_credor", "")).strip(),
         "numero_contrato": str(data.get("numero_contrato", "")).strip(),
         "data_contrato": str(data.get("data_contrato", "")).strip(),
@@ -601,7 +742,8 @@ def _normalize_ai_result(parsed: Any, loan_type: str, reference_rate: float) -> 
         "taxa_anual_contratada": _as_float(data.get("taxa_anual_contratada", 0.0), 0.0),
         "cet_mensal": str(data.get("cet_mensal", "")).strip(),
         "cet_anual": str(data.get("cet_anual", "")).strip(),
-        "taxa_referencia_bcb": _as_float(data.get("taxa_referencia_bcb", reference_rate), reference_rate),
+        # Nunca confiamos na taxa de referencia devolvida pela IA.
+        "taxa_referencia_bcb": float(reference_rate),
         "prazo_meses": _as_int(data.get("prazo_meses", 0), 0),
         "valor_parcela": str(data.get("valor_parcela", "")).strip(),
         "valor_total_devido": str(data.get("valor_total_devido", "")).strip(),
@@ -1192,6 +1334,10 @@ async def run_pre_analysis(
             )
             analysis.error_message = warning_message
             await db.commit()
+            _assert_contract_type_consistency(
+                selected_loan_type=loan_type,
+                contract_text=extracted_text,
+            )
 
             if _is_mock_ai_mode():
                 bcb_rate_data = _build_mock_bcb_context(loan_type)
@@ -1279,6 +1425,11 @@ async def run_full_analysis(
                         image_pages = extract_pages_as_images(file_bytes, max_pages=10, dpi=100)
             else:
                 image_pages = [base64.standard_b64encode(file_bytes).decode("utf-8")]
+
+            _assert_contract_type_consistency(
+                selected_loan_type=loan_type,
+                contract_text=extracted_text,
+            )
 
             # 2. Busca taxas BCB AO VIVO + contexto STJ em paralelo
             # BCBAPIError e levantada se a API do BCB estiver indisponivel — nao existem fallbacks

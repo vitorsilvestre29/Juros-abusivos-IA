@@ -201,15 +201,43 @@ ENV_SERIES_BY_LOAN_TYPE: dict[str, tuple[str, ...]] = {
 }
 
 
-def _resolve_series_for_loan_type(loan_type: str) -> str | None:
+STRICT_OFFICIAL_SERIES: dict[str, str] = {
+    "consignado_inss": "25466",
+    "consignado_clt": "25475",
+}
+
+
+def _resolve_series_for_loan_type_with_source(loan_type: str) -> tuple[str | None, str]:
     normalized = (loan_type or "").strip().lower()
 
-    for env_key in ENV_SERIES_BY_LOAN_TYPE.get(normalized, ()): 
+    for env_key in ENV_SERIES_BY_LOAN_TYPE.get(normalized, ()):
         env_val = str(os.getenv(env_key, "")).strip()
         if env_val:
-            return env_val
+            return env_val, f"env:{env_key}"
 
-    return DEFAULT_SERIES_MAP.get(normalized)
+    return DEFAULT_SERIES_MAP.get(normalized), "default"
+
+
+def _resolve_series_for_loan_type(loan_type: str) -> str | None:
+    serie, _source = _resolve_series_for_loan_type_with_source(loan_type)
+    return serie
+
+
+def _enforce_strict_official_series(loan_type: str, serie: str, source: str) -> None:
+    normalized = (loan_type or "").strip().lower()
+    expected = STRICT_OFFICIAL_SERIES.get(normalized)
+    if not expected:
+        return
+
+    if str(os.getenv("BCB_ALLOW_CUSTOM_SERIES", "false")).strip().lower() == "true":
+        return
+
+    if str(serie).strip() != expected:
+        raise BCBAPIError(
+            "Serie SGS invalida para modalidade critica de consignado. "
+            f"loan_type={normalized}, serie_configurada={serie}, serie_oficial={expected}, origem={source}. "
+            "Ajuste as variaveis BCB_SGS_SERIES_* ou remova overrides para usar o mapeamento oficial."
+        )
 
 
 def _validate_rate_sanity(loan_type: str, monthly_rate_pct: float, serie: str) -> None:
@@ -236,11 +264,12 @@ async def get_bcb_rate(loan_type: str, force_refresh: bool = False) -> dict[str,
     Levanta BCBAPIError se a API estiver indisponivel ou se o tipo for invalido.
     """
     normalized = loan_type.strip().lower()
-    serie = _resolve_series_for_loan_type(normalized)
+    serie, series_source = _resolve_series_for_loan_type_with_source(normalized)
     if serie is None:
         raise BCBAPIError(
             f"Tipo de contrato invalido para consulta BCB: '{loan_type}'."
         )
+    _enforce_strict_official_series(normalized, serie, series_source)
 
     cache_key = f"rate_{normalized}_{serie}"
     cache = _load_cache()
@@ -249,18 +278,6 @@ async def get_bcb_rate(loan_type: str, force_refresh: bool = False) -> dict[str,
 
     result = await _sgs_fetch(serie, f"Taxa media BCB - {normalized}")
     _validate_rate_sanity(normalized, float(result["value"]), serie)
-
-    # Fail-safe: consignado CLT nao deve usar referencia menor/igual ao INSS.
-    # Se isso ocorrer, ha forte indicio de serie incorreta configurada para CLT.
-    if normalized == "consignado_clt":
-        inss_serie = _resolve_series_for_loan_type("consignado_inss")
-        if inss_serie:
-            inss_result = await _sgs_fetch(inss_serie, "Taxa media BCB - consignado_inss")
-            if float(result["value"]) <= float(inss_result["value"]):
-                raise BCBAPIError(
-                    "Referencia BCB inconsistente para consignado_clt: taxa CLT menor ou igual a INSS. "
-                    "Revise a serie configurada em BCB_SGS_SERIES_CLT."
-                )
 
     monthly = result["value"]
     r = monthly / 100.0

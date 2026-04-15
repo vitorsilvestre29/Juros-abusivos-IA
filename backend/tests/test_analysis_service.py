@@ -89,7 +89,7 @@ class AnalysisServiceTests(unittest.IsolatedAsyncioTestCase):
 
     def test_normalize_ai_result_preserves_extended_contract_fields(self):
         parsed = {
-            "tipo_contrato": "cdc_veiculo",
+            "tipo_contrato": "consignado_inss",
             "banco_credor": "Banco Exemplo S.A.",
             "numero_contrato": "ABC123",
             "data_contrato": "10/01/2026",
@@ -98,7 +98,7 @@ class AnalysisServiceTests(unittest.IsolatedAsyncioTestCase):
             "taxa_anual_contratada": 42.08,
             "cet_mensal": "3,11% a.m.",
             "cet_anual": "44,31% a.a.",
-            "taxa_referencia_bcb": 3.2,
+            "taxa_referencia_bcb": 1.45,
             "prazo_meses": 48,
             "valor_parcela": "R$ 1.234,56",
             "valor_total_devido": "R$ 59.258,88",
@@ -126,6 +126,29 @@ class AnalysisServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(normalized["valor_parcela"], "R$ 1.234,56")
         self.assertEqual(normalized["dados_cliente"]["nome"], "Maria Silva")
         self.assertEqual(normalized["irregularidades"][0]["fundamento_legal"], "Resolucao CMN 4.881/2021")
+        self.assertEqual(normalized["tipo_contrato"], "cdc_veiculo")
+        self.assertEqual(normalized["taxa_referencia_bcb"], 3.2)
+
+    def test_assert_contract_type_consistency_blocks_strong_mismatch(self):
+        contract_text = (
+            "Emprestimo com desconto em folha de pagamento, holerite e autorizacao do empregador."
+        )
+        with self.assertRaises(RuntimeError):
+            analysis_service._assert_contract_type_consistency("consignado_inss", contract_text)
+
+    def test_assert_contract_type_consistency_blocks_vehicle_vs_housing_mismatch(self):
+        contract_text = (
+            "Contrato de financiamento imobiliario com alienacao fiduciaria do imovel no SFH."
+        )
+        with self.assertRaises(RuntimeError):
+            analysis_service._assert_contract_type_consistency("cdc_veiculo", contract_text)
+
+    def test_assert_contract_type_consistency_does_not_block_with_ambiguous_text(self):
+        contract_text = (
+            "Contrato de emprestimo com parcelas fixas e credito liberado em conta corrente."
+        )
+        analysis_service._assert_contract_type_consistency("credito_pessoal", contract_text)
+        analysis_service._assert_contract_type_consistency("consignado_clt", contract_text)
 
     async def test_analyze_contract_succeeds_with_short_summary_via_local_enrichment(self):
         fake_module = types.SimpleNamespace(AsyncAnthropic=FakeAsyncAnthropic)

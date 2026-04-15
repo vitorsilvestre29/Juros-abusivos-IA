@@ -19,6 +19,7 @@ ALLOWED_TYPES = {
     "application/pdf",
 }
 MAX_FILE_MB = 20
+CONTRACT_TYPE_MISMATCH_CODE = "contract_type_mismatch"
 
 
 @router.post("/upload")
@@ -194,6 +195,11 @@ async def get_analysis_status(
 
     if analysis.status == AnalysisStatus.FAILED:
         response["error"] = analysis.error_message
+        if analysis.error_message and "tipo de contrato selecionado nao confere" in analysis.error_message.lower():
+            response["error_code"] = CONTRACT_TYPE_MISMATCH_CODE
+            response["retryable"] = False
+        else:
+            response["retryable"] = True
     elif analysis.error_message:
         response["warning_message"] = (
             "Identificamos divergencias no contrato. "
