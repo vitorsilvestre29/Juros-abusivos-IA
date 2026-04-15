@@ -15,7 +15,7 @@ import io
 import re
 import unicodedata
 from time import perf_counter
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Optional
 
 from services.bcb_service import get_enriched_bcb_context, format_bcb_context_for_prompt, BCBAPIError
@@ -204,7 +204,7 @@ def _build_mock_bcb_context(loan_type: str) -> dict[str, Any]:
             "bcb_reference_date": "01/02/2026",
             "bcb_serie": "mock",
             "source_url": "mock://bcb",
-            "fetched_at": datetime.utcnow().isoformat(),
+            "fetched_at": datetime.now(UTC).isoformat(),
             "note": "Mock mode ativo: referencia deterministica para testes.",
         },
         "selic": {
@@ -213,16 +213,16 @@ def _build_mock_bcb_context(loan_type: str) -> dict[str, Any]:
             "bcb_reference_date": "01/02/2026",
             "source_url_monthly": "mock://selic",
             "source_url_annual": "mock://selic",
-            "fetched_at": datetime.utcnow().isoformat(),
+            "fetched_at": datetime.now(UTC).isoformat(),
         },
         "cdi": {
             "cdi_monthly_pct": 1.01,
             "bcb_reference_date": "01/02/2026",
             "source_url": "mock://cdi",
-            "fetched_at": datetime.utcnow().isoformat(),
+            "fetched_at": datetime.now(UTC).isoformat(),
         },
         "inss_cap": None,
-        "fetched_at": datetime.utcnow().isoformat(),
+        "fetched_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -1153,7 +1153,7 @@ async def run_pre_analysis(
             analysis.irregularities_count = 1 if has_issues else 0
             analysis.impact_brl = 0.0
             analysis.bcb_rate_pct = reference_rate
-            analysis.completed_at = datetime.utcnow()
+            analysis.completed_at = datetime.now(UTC)
             # Importante: detalhes premium permanecem bloqueados ate pagamento.
             analysis.ai_result_json = None
             await db.commit()
@@ -1298,7 +1298,7 @@ async def run_full_analysis(
             analysis.irregularities_count = len(irregularities)
             analysis.impact_brl = impact_data.get("estimated_overcharge_brl", 0.0)
             analysis.bcb_rate_pct = reference_rate
-            analysis.completed_at = datetime.utcnow()
+            analysis.completed_at = datetime.now(UTC)
             await db.commit()
 
             try:
