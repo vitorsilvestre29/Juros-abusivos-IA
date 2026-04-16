@@ -53,6 +53,14 @@ def _looks_inferred(value: Any) -> bool:
 
 
 def _contract_field_rows(view: dict[str, Any], bcb_rate_pct: float) -> list[list[str]]:
+    bcb_reference_label = f"{bcb_rate_pct:.2f}% a.m. (referência de mercado)"
+    if view.get("bcb_reference_date"):
+        requested = view.get("bcb_requested_reference_date") or view["bcb_reference_date"]
+        bcb_reference_label = (
+            f"{bcb_rate_pct:.2f}% a.m. (BCB em {view['bcb_reference_date']} "
+            f"para contrato de {requested})"
+        )
+
     rows = [
         ["Banco / Instituição", view["banco"]],
         ["Nº do Contrato", view["numero_contrato"]],
@@ -65,7 +73,7 @@ def _contract_field_rows(view: dict[str, Any], bcb_rate_pct: float) -> list[list
         ["Nº de Parcelas", view["numero_parcelas"]],
         ["Valor da Parcela", view["valor_parcela"]],
         ["Total a Pagar", view["valor_total_devido"]],
-        ["Taxa Média BCB", f"{bcb_rate_pct:.2f}% a.m. (referência de mercado)"],
+        ["Taxa Média BCB", bcb_reference_label],
     ]
 
     if view["cliente_nome"] != "—":
@@ -104,6 +112,8 @@ def _report_view(ai_result: dict[str, Any]) -> dict[str, Any]:
         "valor_total_devido": ai_result.get("valor_total_devido") or "—",
         "cliente_nome": cliente.get("nome") or "—",
         "cliente_cpf": cliente.get("cpf") or "—",
+        "bcb_reference_date": ai_result.get("bcb_reference_date") or "",
+        "bcb_requested_reference_date": ai_result.get("bcb_requested_reference_date") or "",
         "resumo": ai_result.get("resumo_tecnico") or ai_result.get("resumo_para_cliente") or "",
         "recomendacao": ai_result.get("recomendacao") or "",
         "irregularidades": irregularidades if isinstance(irregularidades, list) else [],
@@ -329,7 +339,14 @@ async def generate_report_pdf(
     impact_rows = [
         ["Descrição", "Valor"],
         ["Taxa contratada (ao mês)", view["taxa_mensal"]],
-        ["Taxa média BCB para a modalidade", f"{bcb_rate_pct:.2f}% a.m."],
+        [
+            "Taxa média BCB para a modalidade",
+            (
+                f"{bcb_rate_pct:.2f}% a.m. em {view['bcb_reference_date']}"
+                if view.get("bcb_reference_date") else
+                f"{bcb_rate_pct:.2f}% a.m."
+            ),
+        ],
         ["Cobrança excessiva estimada", _fmt_brl(impact_brl)],
     ]
 
@@ -339,7 +356,7 @@ async def generate_report_pdf(
     story.append(Spacer(1, 4))
     story.append(Paragraph(
         "<b>Metodologia:</b> Cálculo pelo sistema Price (tabela de amortização francesa), "
-        "comparando parcelas com a taxa contratada versus a taxa média BCB. "
+        "comparando parcelas com a taxa contratada versus a taxa média BCB da data da contratação. "
         "Valores adicionados à cobrança de tarifas e seguros identificados como indevidos. "
         "Valores aproximados — cálculo exato deve ser realizado por perito contábil.",
         st["disclaimer"],

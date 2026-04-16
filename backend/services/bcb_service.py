@@ -9,8 +9,8 @@ APIs utilizadas:
      https://olinda.bcb.gov.br/olinda/servico/taxaJuros/versao/v2/odata/...
 
 Mapeamento de modalidades para series SGS (oficiais, publicados pelo BCB):
-  consignado_inss      -> SGS 25466  (Credito pessoal consignado - INSS, % a.m.)
-  consignado_clt       -> SGS 25475  (Credito pessoal consignado - privado, % a.m.)
+  consignado_inss      -> SGS 25468  (Credito pessoal consignado - INSS, % a.m.)
+  consignado_clt       -> SGS 25466  (Credito pessoal consignado - trabalhadores do setor privado, % a.m.)
   credito_pessoal      -> SGS 20714  (Credito pessoal nao consignado, % a.m.)
   credito_habitacional -> SGS 25497  (Financiamento habitacional / imobiliario PF, % a.m.)
   cdc_veiculo         -> SGS 25480   (Credito veiculos PF - CDC, % a.m.)
@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -36,20 +36,24 @@ CACHE_HOURS = 1
 CACHE_FILE  = Path(os.getenv("BCB_CACHE_FILE", "/tmp/bcb_rates_cache.json"))
 
 SGS_BASE = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{serie}/dados/ultimos/1?formato=json"
+SGS_RANGE_BASE = (
+    "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{serie}/dados"
+    "?formato=json&dataInicial={start}&dataFinal={end}"
+)
 
 # Mapeamento oficial modalidade -> serie SGS do BCB
 # Fonte: https://www3.bcb.gov.br/sgspub/localizarseries/localizarSeries.do
 # Mapeamento verificado no portal: https://dadosabertos.bcb.gov.br/
 # Cada serie e a taxa media de mercado (% a.m.) para a modalidade — publicada mensalmente pelo BCB
 DEFAULT_SERIES_MAP: dict[str, str] = {
-    # Credito consignado - INSS: SGS 25466
-    # Fonte: https://dadosabertos.bcb.gov.br/dataset/25466-taxa-media-mensal-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-fisicas---cre
-    "consignado_inss":      "25466",
-    "consignado":           "25466",  # alias
+    # Credito consignado - beneficiarios do INSS: SGS 25468
+    # Fonte: https://dadosabertos.bcb.gov.br/dataset/25468-taxa-media-mensal-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-fisicas---cre
+    "consignado_inss":      "25468",
+    "consignado":           "25468",  # alias legado
 
-    # Credito consignado - privado (CLT/servidores): SGS 25475
-    # Fonte: https://dadosabertos.bcb.gov.br/dataset/25475-taxa-media-mensal-de-juros
-    "consignado_clt":       "25475",
+    # Credito consignado - trabalhadores do setor privado: SGS 25466
+    # Fonte: https://dadosabertos.bcb.gov.br/dataset/25466-taxa-media-mensal-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-fisicas---c
+    "consignado_clt":       "25466",
 
     # Credito pessoal nao consignado: SGS 20714
     # Fonte: https://dadosabertos.bcb.gov.br/dataset/20714-taxa-media-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-fisicas---credito-p
@@ -172,6 +176,77 @@ async def _sgs_fetch(serie: str, label: str) -> dict[str, Any]:
         raise BCBAPIError(f"Erro ao processar serie {serie} ({label}): {e}") from e
 
 
+def _parse_bcb_date(raw_date: str) -> date:
+    try:
+        return datetime.strptime(str(raw_date).strip(), "%d/%m/%Y").date()
+    except Exception as e:
+        raise BCBAPIError(f"Data invalida retornada pelo BCB: {raw_date}") from e
+
+
+def _normalize_reference_date(reference_date: str | date | datetime | None) -> date | None:
+    if reference_date is None:
+        return None
+    if isinstance(reference_date, datetime):
+        return reference_date.date()
+    if isinstance(reference_date, date):
+        return reference_date
+    raw = str(reference_date).strip()
+    if not raw:
+        return None
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(raw, fmt).date()
+        except Exception:
+            continue
+    raise BCBAPIError(f"Data de referencia invalida: {reference_date}")
+
+
+async def _sgs_fetch_on_or_before(serie: str, label: str, target_date: date) -> dict[str, Any]:
+    start_date = max(date(2000, 1, 1), target_date - timedelta(days=120))
+    url = SGS_RANGE_BASE.format(
+        serie=serie,
+        start=start_date.strftime("%d/%m/%Y"),
+        end=target_date.strftime("%d/%m/%Y"),
+    )
+    try:
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+            if not data:
+                raise ValueError(
+                    f"BCB nao retornou historico para serie {serie} ate {target_date.strftime('%d/%m/%Y')}"
+                )
+
+            row = data[-1]
+            raw_val = str(row.get("valor", "")).strip()
+            if "." in raw_val and "," in raw_val:
+                normalized_val = raw_val.replace(".", "").replace(",", ".")
+            elif "," in raw_val:
+                normalized_val = raw_val.replace(",", ".")
+            else:
+                normalized_val = raw_val
+            val = float(normalized_val)
+            raw_date = row.get("data", "")
+            row_date = _parse_bcb_date(raw_date)
+            if row_date > target_date:
+                raise ValueError(
+                    f"Serie {serie} retornou data posterior ao alvo ({raw_date} > {target_date.strftime('%d/%m/%Y')})"
+                )
+            return {
+                "serie": serie,
+                "label": label,
+                "value": val,
+                "reference_date": raw_date,
+                "source_url": url,
+                "fetched_at": datetime.now(timezone.utc).isoformat(),
+            }
+    except httpx.HTTPError as e:
+        raise BCBAPIError(f"BCB/SGS historico serie {serie} ({label}) indisponivel: {e}") from e
+    except Exception as e:
+        raise BCBAPIError(f"Erro ao processar historico serie {serie} ({label}): {e}") from e
+
+
 class BCBAPIError(RuntimeError):
     """Levantada quando a API do BCB esta indisponivel. Nao use dados estaticos."""
     pass
@@ -202,8 +277,8 @@ ENV_SERIES_BY_LOAN_TYPE: dict[str, tuple[str, ...]] = {
 
 
 STRICT_OFFICIAL_SERIES: dict[str, str] = {
-    "consignado_inss": "25466",
-    "consignado_clt": "25475",
+    "consignado_inss": "25468",
+    "consignado_clt": "25466",
 }
 
 
@@ -257,7 +332,11 @@ def _validate_rate_sanity(loan_type: str, monthly_rate_pct: float, serie: str) -
 
 # ── Funcoes publicas ──────────────────────────────────────────────────────────
 
-async def get_bcb_rate(loan_type: str, force_refresh: bool = False) -> dict[str, Any]:
+async def get_bcb_rate(
+    loan_type: str,
+    force_refresh: bool = False,
+    reference_date: str | date | datetime | None = None,
+) -> dict[str, Any]:
     """
     Retorna a taxa media de mercado do BCB para o tipo de emprestimo.
     Se force_refresh=True, ignora cache e consulta a API publica ao vivo.
@@ -271,12 +350,24 @@ async def get_bcb_rate(loan_type: str, force_refresh: bool = False) -> dict[str,
         )
     _enforce_strict_official_series(normalized, serie, series_source)
 
-    cache_key = f"rate_{normalized}_{serie}"
+    target_date = _normalize_reference_date(reference_date)
+    cache_key = (
+        f"rate_{normalized}_{serie}_{target_date.isoformat()}"
+        if target_date is not None else
+        f"rate_{normalized}_{serie}"
+    )
     cache = _load_cache()
     if (not force_refresh) and _cache_is_fresh(cache.get(cache_key, {})):
         return cache[cache_key]
 
-    result = await _sgs_fetch(serie, f"Taxa media BCB - {normalized}")
+    if target_date is not None:
+        result = await _sgs_fetch_on_or_before(
+            serie,
+            f"Taxa media BCB - {normalized} em {target_date.strftime('%d/%m/%Y')}",
+            target_date,
+        )
+    else:
+        result = await _sgs_fetch(serie, f"Taxa media BCB - {normalized}")
     _validate_rate_sanity(normalized, float(result["value"]), serie)
 
     monthly = result["value"]
@@ -295,6 +386,9 @@ async def get_bcb_rate(loan_type: str, force_refresh: bool = False) -> dict[str,
         "source_url": result["source_url"],
         "fetched_at": result["fetched_at"],
         "cache_hours": CACHE_HOURS,
+        "requested_reference_date": (
+            target_date.strftime("%d/%m/%Y") if target_date is not None else None
+        ),
         "note": "Limiar de abusividade = 2x a media BCB (STJ REsp 1.061.530/RS, Tema Repetitivo)",
     }
     cache[cache_key] = entry
@@ -344,16 +438,23 @@ async def get_cdi_rate(force_refresh: bool = False) -> dict[str, Any]:
     return entry
 
 
-async def get_consignado_inss_cap(force_refresh: bool = False) -> dict[str, Any]:
+async def get_consignado_inss_cap(
+    force_refresh: bool = False,
+    reference_date: str | date | datetime | None = None,
+) -> dict[str, Any]:
     """
-    Retorna a taxa media BCB para consignado INSS (serie 25466).
+    Retorna a taxa media BCB para consignado INSS (serie 25468).
     Esta e a referencia oficial publicada pelo BCB para a modalidade.
     O teto legal (portaria MPS) e politica governamental e pode divergir.
     """
-    return await get_bcb_rate("consignado_inss", force_refresh=force_refresh)
+    return await get_bcb_rate("consignado_inss", force_refresh=force_refresh, reference_date=reference_date)
 
 
-async def get_enriched_bcb_context(loan_type: str, force_refresh: bool = False) -> dict[str, Any]:
+async def get_enriched_bcb_context(
+    loan_type: str,
+    force_refresh: bool = False,
+    reference_date: str | date | datetime | None = None,
+) -> dict[str, Any]:
     """
     Busca em paralelo: taxa da modalidade + Selic + CDI.
     Retorna contexto completo para o prompt da IA.
@@ -362,14 +463,14 @@ async def get_enriched_bcb_context(loan_type: str, force_refresh: bool = False) 
     import asyncio
 
     tasks = [
-        get_bcb_rate(loan_type, force_refresh=force_refresh),
+        get_bcb_rate(loan_type, force_refresh=force_refresh, reference_date=reference_date),
         get_selic_rate(force_refresh=force_refresh),
         get_cdi_rate(force_refresh=force_refresh),
     ]
 
     # Para consignado, busca tambem a serie especifica INSS como referencia adicional
     if loan_type in ("consignado", "consignado_inss"):
-        tasks.append(get_consignado_inss_cap(force_refresh=force_refresh))
+        tasks.append(get_consignado_inss_cap(force_refresh=force_refresh, reference_date=reference_date))
     else:
         tasks.append(asyncio.sleep(0))
 
@@ -422,6 +523,10 @@ def format_bcb_context_for_prompt(ctx: dict) -> str:
         lines += [
             f"MODALIDADE ANALISADA: {loan.get('loan_type', '').upper()}",
             f"  Taxa media de mercado (BCB): {loan['monthly_rate_pct']}% a.m. / {loan['annual_rate_pct']}% a.a.",
+            (
+                f"  Data solicitada para comparacao: {loan.get('requested_reference_date', '')}"
+                if loan.get("requested_reference_date") else ""
+            ),
             f"  Data de referencia BCB: {loan.get('bcb_reference_date', '')}",
             f"  Serie SGS: {loan.get('bcb_serie', '')}",
             f"  Fonte: {loan.get('source_url', '')}",
@@ -447,7 +552,7 @@ def format_bcb_context_for_prompt(ctx: dict) -> str:
     if inss and "monthly_rate_pct" in inss:
         lines += [
             f"TAXA MEDIA BCB - CONSIGNADO INSS: {inss['monthly_rate_pct']}% a.m.",
-            f"  Serie SGS 25466 | Data: {inss.get('bcb_reference_date', '')}",
+            f"  Serie SGS 25468 | Data: {inss.get('bcb_reference_date', '')}",
             "",
         ]
 

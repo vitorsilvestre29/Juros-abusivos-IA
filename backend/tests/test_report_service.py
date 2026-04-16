@@ -52,6 +52,8 @@ class ReportServiceTests(unittest.TestCase):
             "taxa_mensal_contratada": 4.5,
             "taxa_anual_contratada": 68.0,
             "taxa_referencia_bcb": 3.2,
+            "bcb_reference_date": "01/02/2023",
+            "bcb_requested_reference_date": "08/02/2023",
             "prazo_meses": 48,
             "irregularidades": [
                 {
@@ -71,6 +73,7 @@ class ReportServiceTests(unittest.TestCase):
         self.assertEqual(view["valor_liberado"], "R$ 25.000,00")
         self.assertEqual(view["taxa_mensal"], "4.50% a.m.")
         self.assertEqual(view["taxa_anual"], "68.00% a.a.")
+        self.assertEqual(view["bcb_reference_date"], "01/02/2023")
         self.assertEqual(view["numero_parcelas"], "48")
         self.assertEqual(view["resumo"], "Contrato apresenta irregularidades tecnicas relevantes.")
         self.assertEqual(len(view["irregularidades"]), 1)

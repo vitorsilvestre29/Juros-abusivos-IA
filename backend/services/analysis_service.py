@@ -19,7 +19,6 @@ from datetime import UTC, datetime
 from typing import Any, Optional
 
 from services.bcb_service import get_enriched_bcb_context, format_bcb_context_for_prompt, BCBAPIError
-from services.stj_service import get_stj_context, format_stj_context_for_prompt
 from services.ops_alert_service import send_ops_alert
 from models import AnalysisStatus
 
@@ -252,6 +251,81 @@ def _normalize_text_for_match(text: str) -> str:
     return txt
 
 
+def _normalize_text_for_search(text: str) -> str:
+    if not text:
+        return ""
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii").lower()
+
+
+def _extract_contract_reference_date(contract_text: str) -> str:
+    """
+    Identifica a data da contratacao diretamente do contrato para usar a taxa
+    historica correta do BCB.
+    """
+    text = _normalize_text_for_search(contract_text)
+    if not text.strip():
+        raise RuntimeError("Nao foi possivel identificar a data da contratacao no contrato.")
+
+    line_patterns: list[tuple[int, str]] = [
+        (100, r"data do contrato[^\n\r]{0,40}?(\d{2}/\d{2}/\d{4})"),
+        (95, r"emissao[^\n\r]{0,40}?(\d{2}/\d{2}/\d{4})"),
+        (90, r"data de liberacao[^\n\r]{0,40}?(\d{2}/\d{2}/\d{4})"),
+        (85, r"ccb n[ºo]?[^\n\r]{0,120}?emissao[^\n\r]{0,40}?(\d{2}/\d{2}/\d{4})"),
+        (80, r"celebrad[oa][^\n\r]{0,40}?(\d{2}/\d{2}/\d{4})"),
+    ]
+    candidates: list[tuple[int, datetime, str]] = []
+    for score, pattern in line_patterns:
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            raw_date = match.group(1)
+            try:
+                parsed = datetime.strptime(raw_date, "%d/%m/%Y")
+            except Exception:
+                continue
+            candidates.append((score, parsed, raw_date))
+
+    if not candidates:
+        for match in re.finditer(r"\b(\d{2}/\d{2}/\d{4})\b", text):
+            raw_date = match.group(1)
+            try:
+                parsed = datetime.strptime(raw_date, "%d/%m/%Y")
+            except Exception:
+                continue
+
+            year = parsed.year
+            if year < 2000 or year > datetime.now().year + 1:
+                continue
+
+            window_start = max(0, match.start() - 80)
+            window_end = min(len(text), match.end() + 80)
+            window = text[window_start:window_end]
+            score = 0
+            if "emissao" in window:
+                score += 40
+            if "data do contrato" in window:
+                score += 40
+            if "data de liberacao" in window:
+                score += 30
+            if "vencimento" in window:
+                score -= 20
+            if "nascimento" in window:
+                score -= 30
+            if "desde" in window:
+                score -= 20
+            if "parcela" in window:
+                score -= 15
+            if score > 0:
+                candidates.append((score, parsed, raw_date))
+
+    if not candidates:
+        raise RuntimeError(
+            "Nao foi possivel identificar com seguranca a data da contratacao no contrato. "
+            "Sem essa data, a taxa historica correta do BCB nao pode ser consultada."
+        )
+
+    candidates.sort(key=lambda item: (-item[0], item[1]))
+    return candidates[0][2]
+
+
 def _detect_contract_type_by_text(contract_text: str) -> tuple[str | None, float]:
     text = _normalize_text_for_match(contract_text)[:12000]
     if not text:
@@ -432,20 +506,6 @@ def extract_pages_as_images(file_bytes: bytes, max_pages: int = 10, dpi: int = 1
 
 # ── Analise com Claude ────────────────────────────────────────────────────────
 
-def _load_skills_context() -> str:
-    skills_dir = os.path.join(os.path.dirname(__file__), "..", "skills")
-    parts = []
-    for fname in ["resolucoes-bcb-vigentes.md", "tabelas-juros-abusivos.md", "jurisprudencia-stj.md"]:
-        fpath = os.path.join(skills_dir, fname)
-        if os.path.exists(fpath):
-            try:
-                with open(fpath, "r", encoding="utf-8") as f:
-                    parts.append(f.read()[:1500])
-            except Exception:
-                pass
-    return "\n\n".join(parts)
-
-
 def _mock_result(loan_type: str, reference_rate: float) -> dict:
     return {
         "tipo_contrato": loan_type,
@@ -497,6 +557,8 @@ def _is_anthropic_credit_error(err: Exception) -> bool:
 
 def _friendly_error_message(err: Exception) -> str:
     if isinstance(err, ContractTypeMismatchError):
+        return str(err)
+    if "data da contratacao" in str(err or "").lower():
         return str(err)
     if isinstance(err, BCBAPIError):
         return (
@@ -810,11 +872,19 @@ def _needs_textual_enrichment(ai_result: dict) -> bool:
     return len(resumo) < 40 or len(recomendacao) < 20
 
 
+def _reference_rate_with_date(ai_result: dict, reference_rate: float) -> str:
+    ref_date = str(ai_result.get("bcb_reference_date", "")).strip()
+    if ref_date:
+        return f"{reference_rate:.2f}% ao mes (BCB em {ref_date})"
+    return f"{reference_rate:.2f}% ao mes"
+
+
 def _compose_fallback_resumo(ai_result: dict, reference_rate: float) -> str:
     banco = str(ai_result.get("banco_credor", "")).strip() or "a instituicao financeira"
     taxa = _as_float(ai_result.get("taxa_mensal_contratada"), 0.0)
     prazo = _as_int(ai_result.get("prazo_meses"), 0)
     irregularidades = ai_result.get("irregularidades", [])
+    reference_text = _reference_rate_with_date(ai_result, reference_rate)
 
     if irregularidades:
         principais = ", ".join(
@@ -828,13 +898,13 @@ def _compose_fallback_resumo(ai_result: dict, reference_rate: float) -> str:
             f"A analise tecnica do contrato com {banco} identificou {len(irregularidades)} "
             f"irregularidade(s), com destaque para {principais}. "
             f"A taxa mensal informada foi de {taxa:.2f}% ao mes, em comparacao com a referencia "
-            f"do BCB de {reference_rate:.2f}% ao mes, considerando prazo de {prazo} meses."
+            f"do BCB de {reference_text}, considerando prazo de {prazo} meses."
         )
 
     return (
         f"A analise tecnica do contrato com {banco} nao encontrou irregularidades objetivas "
         f"nos campos estruturados avaliados. A taxa mensal considerada foi de {taxa:.2f}% ao mes, "
-        f"comparada com a referencia do BCB de {reference_rate:.2f}% ao mes, para prazo de {prazo} meses."
+        f"comparada com a referencia do BCB de {reference_text}, para prazo de {prazo} meses."
     )
 
 
@@ -895,6 +965,7 @@ def _enforce_result_consistency(
     impacto = _as_float(impact_data.get("estimated_overcharge_brl"), 0.0)
     taxa_contratada = _as_float(result.get("taxa_mensal_contratada"), 0.0)
     taxa_ref = _as_float(reference_rate, 0.0)
+    reference_text = _reference_rate_with_date(result, reference_rate)
     has_material_gap = taxa_contratada > 0 and taxa_ref > 0 and taxa_contratada > (taxa_ref * 1.05)
 
     if impacto > 0 and has_material_gap and len(irregularidades) == 0:
@@ -904,7 +975,7 @@ def _enforce_result_consistency(
                 "tipo": "Taxa de juros acima da referencia de mercado (BCB)",
                 "descricao": (
                     f"A taxa contratada de {taxa_contratada:.2f}% a.m. esta acima da "
-                    f"taxa media de referencia do BCB ({taxa_ref:.2f}% a.m.), com impacto "
+                    f"taxa media de referencia do BCB ({reference_text}), com impacto "
                     f"financeiro estimado de {_as_float(impacto, 0.0):.2f} BRL ao longo do contrato."
                 ),
                 "gravidade": gravidade,
@@ -1074,7 +1145,6 @@ async def analyze_contract(
     reference_rate: float,
     image_pages: Optional[list] = None,
     bcb_context: str = "",
-    stj_context: str = "",
 ) -> tuple[dict, dict[str, int], str]:
     if _is_mock_ai_mode():
         return _mock_result(loan_type, reference_rate), {
@@ -1085,7 +1155,6 @@ async def analyze_contract(
     import anthropic
 
     client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-    skills_ctx = _load_skills_context()
 
     system_prompt = f"""Voce e um analista financeiro especializado em direito bancario brasileiro.
 Analise contratos de emprestimo/financiamento identificando irregularidades TECNICAS e MATEMATICAS.
@@ -1093,17 +1162,12 @@ Nao preste assessoria juridica — apenas analise tecnica.
 
 {bcb_context if bcb_context else ""}
 
-{stj_context if stj_context else ""}
-
-CONTEXTO NORMATIVO ADICIONAL:
-{skills_ctx}
-
 INSTRUCOES:
+- Use exclusivamente o texto do contrato enviado e os dados oficiais de API informados acima.
+- Nao use documentos locais do projeto, conhecimento pre-carregado ou referencias externas nao fornecidas no contexto.
 - Compare a taxa contratada com a taxa media BCB fornecida acima
-- Identifique clausulas que violem as sumulas e normas listadas
 - Calcule o excesso cobrado com base na diferenca entre a taxa contratada e a taxa BCB
-- Verifique tarifas cobradas contra a lista permitida pela Resolucao CMN 4.881/2021
-- Verifique se o CET foi informado conforme Resolucao CMN 3.517/2007
+- Verifique apenas o que estiver suportado pelo contrato e pelo contexto oficial acima
 - Para consignado: verifique se o desconto respeita o limite de 35% do beneficio
 - Extraia do contrato, sempre que estiverem disponiveis: numero do contrato, data do contrato, valor total liberado,
   valor da parcela, total a pagar, CET mensal/anual, nome e CPF do contratante.
@@ -1328,6 +1392,8 @@ async def run_pre_analysis(
             if len((extracted_text or "").strip()) < 60:
                 raise RuntimeError("Nao foi possivel extrair texto suficiente do PDF para pre-analise.")
 
+            contract_reference_date = _extract_contract_reference_date(extracted_text)
+
             warning_message, _suggested = _build_loan_type_warning(
                 selected_loan_type=loan_type,
                 contract_text=extracted_text,
@@ -1343,7 +1409,12 @@ async def run_pre_analysis(
                 bcb_rate_data = _build_mock_bcb_context(loan_type)
             else:
                 bcb_rate_data = await asyncio.wait_for(
-                    get_enriched_bcb_context(loan_type, force_refresh=True), timeout=20
+                    get_enriched_bcb_context(
+                        loan_type,
+                        force_refresh=True,
+                        reference_date=contract_reference_date,
+                    ),
+                    timeout=20,
                 )
             reference_rate = float((bcb_rate_data.get("loan_rate") or {}).get("monthly_rate_pct") or 0.0)
             if reference_rate <= 0:
@@ -1430,23 +1501,21 @@ async def run_full_analysis(
                 selected_loan_type=loan_type,
                 contract_text=extracted_text,
             )
+            contract_reference_date = _extract_contract_reference_date(extracted_text)
 
-            # 2. Busca taxas BCB AO VIVO + contexto STJ em paralelo
+            # 2. Busca taxa BCB historica na data da contratacao
             # BCBAPIError e levantada se a API do BCB estiver indisponivel — nao existem fallbacks
-            stj_ctx_data = {}
             if _is_mock_ai_mode():
                 bcb_ctx_data = _build_mock_bcb_context(loan_type)
             else:
                 try:
-                    stj_ctx_data_raw = await asyncio.wait_for(get_stj_context(loan_type), timeout=10)
-                    stj_ctx_data = stj_ctx_data_raw
-                except Exception as stj_err:
-                    print(f"[analysis] STJ context nao disponivel (nao critico): {stj_err}")
-
-                # BCB e CRITICO: sem taxa real nao fazemos analise
-                try:
                     bcb_ctx_data = await asyncio.wait_for(
-                        get_enriched_bcb_context(loan_type, force_refresh=True), timeout=20
+                        get_enriched_bcb_context(
+                            loan_type,
+                            force_refresh=True,
+                            reference_date=contract_reference_date,
+                        ),
+                        timeout=20,
                     )
                 except BCBAPIError as e:
                     raise RuntimeError(
@@ -1468,13 +1537,13 @@ async def run_full_analysis(
                     "Analise interrompida para garantir precisao dos dados."
                 )
 
+            bcb_loan["requested_reference_date"] = contract_reference_date
             bcb_prompt_ctx = format_bcb_context_for_prompt(bcb_ctx_data)
-            stj_prompt_ctx = format_stj_context_for_prompt(stj_ctx_data) if stj_ctx_data else ""
 
             print(
                 f"[analysis] BCB rate: {reference_rate}% a.m. "
                 f"(serie {bcb_loan.get('bcb_serie')}, ref {bcb_loan.get('bcb_reference_date')}) "
-                f"| STJ cases: {len(stj_ctx_data.get('leading_cases', []))}"
+                f"| contrato em {contract_reference_date}"
             )
 
             # 3. Analise Claude com contexto enriquecido
@@ -1485,11 +1554,15 @@ async def run_full_analysis(
                 reference_rate=reference_rate,
                 image_pages=image_pages if image_pages else None,
                 bcb_context=bcb_prompt_ctx,
-                stj_context=stj_prompt_ctx,
             )
             duration_ms = int((perf_counter() - started_at) * 1000)
             input_tokens = int((usage or {}).get("input_tokens", 0) or 0)
             output_tokens = int((usage or {}).get("output_tokens", 0) or 0)
+
+            ai_result["bcb_reference_date"] = bcb_loan.get("bcb_reference_date", "")
+            ai_result["bcb_requested_reference_date"] = contract_reference_date
+            ai_result["bcb_serie"] = bcb_loan.get("bcb_serie", "")
+            ai_result["bcb_source_url"] = bcb_loan.get("source_url", "")
 
             # 4. Impacto financeiro
             impact_data = calculate_financial_impact(ai_result, reference_rate)

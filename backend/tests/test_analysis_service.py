@@ -150,6 +150,16 @@ class AnalysisServiceTests(unittest.IsolatedAsyncioTestCase):
         analysis_service._assert_contract_type_consistency("credito_pessoal", contract_text)
         analysis_service._assert_contract_type_consistency("consignado_clt", contract_text)
 
+    def test_extract_contract_reference_date_prefers_emissao(self):
+        contract_text = (
+            "CCB Nº 123 VALOR NOMINAL 1000 EMISSAO 08/02/2023 VENCIMENTO INICIAL 10/04/2023\n"
+            "Sao Paulo, 10/02/2023"
+        )
+        self.assertEqual(
+            analysis_service._extract_contract_reference_date(contract_text),
+            "08/02/2023",
+        )
+
     async def test_analyze_contract_succeeds_with_short_summary_via_local_enrichment(self):
         fake_module = types.SimpleNamespace(AsyncAnthropic=FakeAsyncAnthropic)
         FakeAsyncAnthropic.responses = [
@@ -266,9 +276,12 @@ class AnalysisServiceTests(unittest.IsolatedAsyncioTestCase):
 
             with (
                 patch.object(analysis_service, "_is_mock_ai_mode", return_value=True),
-                patch.object(analysis_service, "extract_text_from_pdf", return_value="Contrato de CDC veiculo com taxa acima da media."),
+                patch.object(
+                    analysis_service,
+                    "extract_text_from_pdf",
+                    return_value="Contrato de CDC veiculo. Emissao 08/02/2023. Taxa acima da media.",
+                ),
                 patch.object(analysis_service, "get_enriched_bcb_context", side_effect=_should_not_call),
-                patch.object(analysis_service, "get_stj_context", side_effect=_should_not_call),
                 patch.object(database, "AsyncSessionLocal", session_factory),
             ):
                 await analysis_service.run_full_analysis(
