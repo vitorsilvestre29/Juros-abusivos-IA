@@ -160,6 +160,42 @@ class AnalysisServiceTests(unittest.IsolatedAsyncioTestCase):
             "08/02/2023",
         )
 
+    def test_calculate_financial_impact_uses_price_methodology(self):
+        ai_result = {
+            "valor_contratado": 10000.0,
+            "taxa_mensal_contratada": 4.39,
+            "prazo_meses": 36,
+            "valor_parcela": "R$ 648,91",
+            "irregularidades": [],
+        }
+
+        impact = analysis_service.calculate_financial_impact(ai_result, 2.82)
+
+        self.assertEqual(impact["estimated_overcharge_brl"], 7311.26)
+
+    def test_enforce_result_consistency_updates_existing_rate_issue_value(self):
+        ai_result = {
+            "taxa_mensal_contratada": 4.39,
+            "taxa_referencia_bcb": 2.82,
+            "irregularidades": [
+                {
+                    "tipo": "Taxa de juros acima da referencia de mercado (BCB)",
+                    "descricao": "Valor antigo calculado por diferenca simples.",
+                    "gravidade": "media",
+                    "valor_estimado": 5652.0,
+                }
+            ],
+        }
+
+        result = analysis_service._enforce_result_consistency(
+            ai_result,
+            2.82,
+            {"estimated_overcharge_brl": 7311.26},
+        )
+
+        self.assertEqual(result["irregularidades"][0]["valor_estimado"], 7311.26)
+        self.assertIn("7311.26 BRL", result["irregularidades"][0]["descricao"])
+
     async def test_analyze_contract_succeeds_with_short_summary_via_local_enrichment(self):
         fake_module = types.SimpleNamespace(AsyncAnthropic=FakeAsyncAnthropic)
         FakeAsyncAnthropic.responses = [

@@ -750,6 +750,27 @@ def _as_float(value: Any, default: float = 0.0) -> float:
         return float(default)
 
 
+def _as_brl_float(value: Any, default: float = 0.0) -> float:
+    try:
+        if value is None:
+            return float(default)
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            cleaned = (
+                value.strip()
+                .replace("R$", "")
+                .replace("BRL", "")
+                .replace(" ", "")
+            )
+            if "," in cleaned:
+                cleaned = cleaned.replace(".", "").replace(",", ".")
+            return float(cleaned)
+        return float(value)
+    except Exception:
+        return float(default)
+
+
 def _as_int(value: Any, default: int = 0) -> int:
     try:
         if value is None:
@@ -967,6 +988,30 @@ def _enforce_result_consistency(
     taxa_ref = _as_float(reference_rate, 0.0)
     reference_text = _reference_rate_with_date(result, reference_rate)
     has_material_gap = taxa_contratada > 0 and taxa_ref > 0 and taxa_contratada > (taxa_ref * 1.05)
+
+    if impacto > 0 and has_material_gap and len(irregularidades) > 0:
+        for item in irregularidades:
+            if not isinstance(item, dict):
+                continue
+            issue_text = " ".join(
+                str(item.get(key, ""))
+                for key in ("tipo", "descricao", "fundamento_legal")
+            ).lower()
+            is_rate_issue = (
+                "taxa" in issue_text
+                or "juros" in issue_text
+                or "bcb" in issue_text
+                or "referencia de mercado" in issue_text
+                or "referência de mercado" in issue_text
+            )
+            if not is_rate_issue:
+                continue
+            item["valor_estimado"] = float(round(impacto, 2))
+            item["descricao"] = (
+                f"A taxa contratada de {taxa_contratada:.2f}% a.m. esta acima da "
+                f"taxa media de referencia do BCB ({reference_text}), com impacto "
+                f"financeiro estimado de {_as_float(impacto, 0.0):.2f} BRL ao longo do contrato."
+            )
 
     if impacto > 0 and has_material_gap and len(irregularidades) == 0:
         gravidade = "alta" if taxa_contratada >= (taxa_ref * 2.0) else "media"
@@ -1341,14 +1386,52 @@ async def precheck_contract_has_issues(
 
 def calculate_financial_impact(ai_result: dict, reference_rate: float) -> dict:
     irregularidades = ai_result.get("irregularidades", [])
-    total = sum(i.get("valor_estimado", 0.0) for i in irregularidades)
+    if not isinstance(irregularidades, list):
+        irregularidades = []
 
-    taxa = ai_result.get("taxa_mensal_contratada", 0.0)
-    valor = ai_result.get("valor_contratado", 0.0)
-    prazo = ai_result.get("prazo_meses", 0)
+    taxa = _as_float(ai_result.get("taxa_mensal_contratada"), 0.0)
+    valor = _as_brl_float(ai_result.get("valor_contratado"), 0.0)
+    prazo = _as_int(ai_result.get("prazo_meses"), 0)
 
-    if total == 0 and taxa > reference_rate and valor > 0 and prazo > 0:
-        total = valor * ((taxa - reference_rate) / 100) * prazo
+    rate_overcharge = 0.0
+    if taxa > reference_rate and valor > 0 and prazo > 0:
+        ref_monthly_rate = reference_rate / 100.0
+        if ref_monthly_rate > 0:
+            ref_payment = valor * ref_monthly_rate / (1 - (1 + ref_monthly_rate) ** (-prazo))
+        else:
+            ref_payment = valor / prazo
+
+        actual_payment = _as_brl_float(ai_result.get("valor_parcela"), 0.0)
+        if actual_payment <= 0:
+            contracted_monthly_rate = taxa / 100.0
+            if contracted_monthly_rate > 0:
+                actual_payment = valor * contracted_monthly_rate / (
+                    1 - (1 + contracted_monthly_rate) ** (-prazo)
+                )
+            else:
+                actual_payment = valor / prazo
+
+        rate_overcharge = max(0.0, (actual_payment - ref_payment) * prazo)
+
+    other_irregularities_total = 0.0
+    for item in irregularidades:
+        if not isinstance(item, dict):
+            continue
+        issue_text = " ".join(
+            str(item.get(key, ""))
+            for key in ("tipo", "descricao", "fundamento_legal")
+        ).lower()
+        is_rate_issue = (
+            "taxa" in issue_text
+            or "juros" in issue_text
+            or "bcb" in issue_text
+            or "referencia de mercado" in issue_text
+            or "referência de mercado" in issue_text
+        )
+        if not is_rate_issue:
+            other_irregularities_total += _as_brl_float(item.get("valor_estimado"), 0.0)
+
+    total = rate_overcharge + other_irregularities_total
 
     return {
         "estimated_overcharge_brl": round(total, 2),
