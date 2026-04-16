@@ -54,6 +54,8 @@ class ReportServiceTests(unittest.TestCase):
             "taxa_referencia_bcb": 3.2,
             "bcb_reference_date": "01/02/2023",
             "bcb_requested_reference_date": "08/02/2023",
+            "bcb_serie": "25480",
+            "bcb_source_url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.25480/dados",
             "prazo_meses": 48,
             "irregularidades": [
                 {
@@ -74,9 +76,37 @@ class ReportServiceTests(unittest.TestCase):
         self.assertEqual(view["taxa_mensal"], "4.50% a.m.")
         self.assertEqual(view["taxa_anual"], "68.00% a.a.")
         self.assertEqual(view["bcb_reference_date"], "01/02/2023")
+        self.assertEqual(view["bcb_serie"], "25480")
+        self.assertEqual(view["bcb_source_url"], "https://api.bcb.gov.br/dados/serie/bcdata.sgs.25480/dados")
         self.assertEqual(view["numero_parcelas"], "48")
         self.assertEqual(view["resumo"], "Contrato apresenta irregularidades tecnicas relevantes.")
         self.assertEqual(len(view["irregularidades"]), 1)
+
+    def test_contract_field_rows_includes_bcb_traceability(self):
+        view = {
+            "banco": "Banco Exemplo",
+            "numero_contrato": "123",
+            "data_contrato": "08/02/2023",
+            "valor_liberado": "R$ 10.000,00",
+            "taxa_mensal": "4.39% a.m.",
+            "taxa_anual": "67.46% a.a.",
+            "cet_mensal": "5,14% a.m.",
+            "cet_anual": "82,44% a.a.",
+            "numero_parcelas": "36",
+            "valor_parcela": "R$ 648,91",
+            "valor_total_devido": "R$ 23.360,76",
+            "cliente_nome": "—",
+            "cliente_cpf": "—",
+            "bcb_reference_date": "01/02/2023",
+            "bcb_requested_reference_date": "08/02/2023",
+            "bcb_serie": "25466",
+            "bcb_source_url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.25466/dados",
+        }
+
+        rows = _contract_field_rows(view, 2.82)
+
+        self.assertIn(["Série SGS BCB", "25466"], rows)
+        self.assertIn(["Fonte BCB", "https://api.bcb.gov.br/dados/serie/bcdata.sgs.25466/dados"], rows)
 
 
 if __name__ == "__main__":

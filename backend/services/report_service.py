@@ -75,6 +75,10 @@ def _contract_field_rows(view: dict[str, Any], bcb_rate_pct: float) -> list[list
         ["Total a Pagar", view["valor_total_devido"]],
         ["Taxa Média BCB", bcb_reference_label],
     ]
+    if view.get("bcb_serie"):
+        rows.append(["Série SGS BCB", view["bcb_serie"]])
+    if view.get("bcb_source_url"):
+        rows.append(["Fonte BCB", view["bcb_source_url"]])
 
     if view["cliente_nome"] != "—":
         rows.append(["Nome do Contratante", view["cliente_nome"]])
@@ -114,6 +118,8 @@ def _report_view(ai_result: dict[str, Any]) -> dict[str, Any]:
         "cliente_cpf": cliente.get("cpf") or "—",
         "bcb_reference_date": ai_result.get("bcb_reference_date") or "",
         "bcb_requested_reference_date": ai_result.get("bcb_requested_reference_date") or "",
+        "bcb_serie": ai_result.get("bcb_serie") or "",
+        "bcb_source_url": ai_result.get("bcb_source_url") or "",
         "resumo": ai_result.get("resumo_tecnico") or ai_result.get("resumo_para_cliente") or "",
         "recomendacao": ai_result.get("recomendacao") or "",
         "irregularidades": irregularidades if isinstance(irregularidades, list) else [],
