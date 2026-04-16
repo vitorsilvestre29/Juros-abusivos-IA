@@ -277,7 +277,7 @@ async def generate_report_pdf(
     # ── AVISO LEGAL ───────────────────────────────────────────────────
     legal_box = Table(
         [[Paragraph(
-            "<b>⚖️ AVISO IMPORTANTE:</b> Este laudo é de natureza técnico-matemática e tem caráter "
+            "<b>AVISO IMPORTANTE:</b> Este laudo é de natureza técnico-matemática e tem caráter "
             "meramente informativo. Identifica discrepâncias matemáticas entre as condições contratuais "
             "e as taxas médias de mercado divulgadas pelo Banco Central do Brasil. A interpretação "
             "jurídica das irregularidades e o ajuizamento de ação revisional devem ser realizados "
@@ -446,7 +446,7 @@ async def generate_report_pdf(
     wa_link = f"https://wa.me/{WHATSAPP_NUMBER}?text={whatsapp_text}"
     cta_box = Table(
         [[Paragraph(
-            f"<b>📱 Fale com um advogado especializado</b><br/>"
+            f"<b>Fale com um advogado especializado</b><br/>"
             f"{cta_body}<br/><br/>"
             f"<b>Suporte por e-mail:</b> {SUPPORT_EMAIL}<br/>"
             f"<b>Entre em contato via WhatsApp:</b> wa.me/{WHATSAPP_NUMBER}",
