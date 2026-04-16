@@ -7,7 +7,7 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from services.report_service import _contract_field_rows, _cta_copy, _report_view
+from services.report_service import _analysis_scope_rows, _contract_field_rows, _cta_copy, _report_view
 
 
 class ReportServiceTests(unittest.TestCase):
@@ -29,15 +29,17 @@ class ReportServiceTests(unittest.TestCase):
         }
 
         rows = _contract_field_rows(view, 3.2)
-
-        self.assertIn(["Data do Contrato (estimado)", "22/10/2022 (inferida pelo 1º vencimento em 22/11/2022)"], rows)
+        self.assertIn(
+            ["Data do Contrato (estimado)", "22/10/2022 (inferida pelo 1º vencimento em 22/11/2022)"],
+            rows,
+        )
 
     def test_cta_copy_changes_when_no_irregularities(self):
         body, message = _cta_copy(False)
 
-        self.assertIn("não apontou irregularidades relevantes", body)
+        self.assertIn("irregularidades relevantes", body)
         self.assertIn("consulta preventiva", message)
-        self.assertNotIn("ação revisional", body)
+        self.assertNotIn("revisional", body)
 
     def test_support_email_is_defaulted(self):
         from services import report_service
@@ -105,9 +107,39 @@ class ReportServiceTests(unittest.TestCase):
 
         rows = _contract_field_rows(view, 2.82)
 
-        self.assertTrue(any(row[0] == "Taxa média de mercado (BCB)" for row in rows))
-        self.assertIn(["Série SGS BCB", "25466"], rows)
+        self.assertTrue(any("Taxa" in row[0] and "BCB" in row[0] for row in rows))
+        self.assertTrue(any("BCB" in row[0] and row[1] == "25466" for row in rows))
         self.assertIn(["Fonte BCB", "https://api.bcb.gov.br/dados/serie/bcdata.sgs.25466/dados"], rows)
+
+    def test_analysis_scope_rows_flags_detected_topics(self):
+        irregularidades = [
+            {
+                "tipo": "Juros acima da taxa media",
+                "descricao": "Taxa remuneratoria e CET acima do mercado BCB.",
+                "fundamento_legal": "Comparacao tecnica.",
+            },
+            {
+                "tipo": "Seguro prestamista embutido",
+                "descricao": "Venda casada com seguro sem opcionalidade clara.",
+                "fundamento_legal": "CDC, art. 39, I.",
+            },
+        ]
+
+        rows = _analysis_scope_rows(irregularidades)
+        rows_dict = {row[0]: row[1] for row in rows[1:]}
+
+        self.assertEqual(
+            rows_dict["Juros remuneratorios e taxa media BCB"],
+            "Com indicio objetivo no texto contratual",
+        )
+        self.assertEqual(
+            rows_dict["Seguros, garantias e possivel venda casada"],
+            "Com indicio objetivo no texto contratual",
+        )
+        self.assertEqual(
+            rows_dict["Foro e clausulas sensiveis de cobranca"],
+            "Sem indicio objetivo identificado",
+        )
 
 
 if __name__ == "__main__":

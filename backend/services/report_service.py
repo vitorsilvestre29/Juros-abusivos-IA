@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import io
 import os
+import unicodedata
 from datetime import datetime
 from typing import Any
 
@@ -124,6 +125,37 @@ def _report_view(ai_result: dict[str, Any]) -> dict[str, Any]:
         "recomendacao": ai_result.get("recomendacao") or "",
         "irregularidades": irregularidades if isinstance(irregularidades, list) else [],
     }
+
+
+def _analysis_scope_rows(irregularidades: list[dict[str, Any]]) -> list[list[str]]:
+    normalized_chunks: list[str] = []
+    for item in irregularidades:
+        if not isinstance(item, dict):
+            continue
+        chunk = " ".join(
+            str(item.get(field, "")).strip()
+            for field in ("tipo", "descricao", "fundamento_legal", "trecho_contrato")
+        )
+        chunk = unicodedata.normalize("NFKD", chunk).encode("ascii", "ignore").decode("ascii").lower()
+        if chunk:
+            normalized_chunks.append(chunk)
+    normalized_text = " ".join(normalized_chunks)
+
+    scope_keywords: list[tuple[str, tuple[str, ...]]] = [
+        ("Juros remuneratorios e taxa media BCB", ("juros", "taxa", "bcb", "remunerator")),
+        ("CET e transparencia do custo total", ("cet", "custo efetivo total", "valor total")),
+        ("Juros de mora, multa e encargos de atraso", ("mora", "multa", "atraso", "vencimento antecipado", "encargo")),
+        ("Tarifas e cobrancas acessorias", ("tarifa", "cadastro", "servico", "taxa administrativa")),
+        ("Seguros, garantias e possivel venda casada", ("seguro", "prestamista", "mip", "dfi", "venda casada")),
+        ("Foro e clausulas sensiveis de cobranca", ("foro", "eleicao de foro", "cessao", "endosso")),
+    ]
+
+    rows = [["Item avaliado", "Resultado tecnico"]]
+    for label, keywords in scope_keywords:
+        has_signal = any(keyword in normalized_text for keyword in keywords)
+        status = "Com indicio objetivo no texto contratual" if has_signal else "Sem indicio objetivo identificado"
+        rows.append([label, status])
+    return rows
 
 
 def _cta_copy(has_irregularities: bool) -> tuple[str, str]:
@@ -331,6 +363,17 @@ async def generate_report_pdf(
             story.append(Spacer(1, 6))
 
     story.append(Spacer(1, 4))
+    story.append(Paragraph("2.1 CHECKLIST DE ANALISE CONTRATUAL", st["section"]))
+    story.append(Paragraph(
+        "Resumo padronizado dos principais pontos verificados no contrato. "
+        "Quando um item aparece como sem indicio, significa ausencia de evidencia objetiva no texto analisado.",
+        st["body"],
+    ))
+    scope_rows = _analysis_scope_rows(irregularidades)
+    t_scope = Table(scope_rows, colWidths=[W * 0.58, W * 0.42])
+    t_scope.setStyle(_table_style(COLOR_PRIMARY))
+    story.append(t_scope)
+    story.append(Spacer(1, 8))
 
     # ── IMPACTO FINANCEIRO ────────────────────────────────────────────
     story.append(Paragraph("3. CÁLCULO DO IMPACTO FINANCEIRO ESTIMADO", st["section"]))
