@@ -160,6 +160,17 @@ class AnalysisServiceTests(unittest.IsolatedAsyncioTestCase):
             "08/02/2023",
         )
 
+    def test_extract_contract_reference_date_prefers_data_de_contratacao(self):
+        contract_text = (
+            "Data de contratacao: 12/06/2024. Data de nascimento: 10/01/1980. "
+            "Primeiro vencimento: 10/08/2024. Valor liberado R$ 18.000,00."
+        )
+
+        self.assertEqual(
+            analysis_service._extract_contract_reference_date(contract_text),
+            "12/06/2024",
+        )
+
     def test_extract_contract_reference_date_blocks_conflicting_strong_dates(self):
         contract_text = (
             "Data do contrato 08/02/2023. Emissao 15/03/2024. "

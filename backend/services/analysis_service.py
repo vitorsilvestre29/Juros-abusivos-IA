@@ -265,6 +265,7 @@ def _extract_contract_reference_date(contract_text: str) -> str:
         raise RuntimeError("Nao foi possivel identificar a data da contratacao no contrato.")
 
     line_patterns: list[tuple[int, str]] = [
+        (105, r"data de contratacao[^\n\r]{0,40}?(\d{2}/\d{2}/\d{4})"),
         (100, r"data do contrato[^\n\r]{0,40}?(\d{2}/\d{2}/\d{4})"),
         (95, r"emissao[^\n\r]{0,40}?(\d{2}/\d{2}/\d{4})"),
         (90, r"data de liberacao[^\n\r]{0,40}?(\d{2}/\d{2}/\d{4})"),

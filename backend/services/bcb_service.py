@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import os
+import asyncio
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -244,6 +245,19 @@ async def _sgs_fetch_on_or_before(serie: str, label: str, target_date: date) -> 
         raise BCBAPIError(f"Erro ao processar historico serie {serie} ({label}): {e}") from e
 
 
+async def _retry_bcb_fetch(fetcher, *args) -> dict[str, Any]:
+    last_error: Exception | None = None
+    for attempt in range(3):
+        try:
+            return await fetcher(*args)
+        except BCBAPIError as exc:
+            last_error = exc
+            if attempt == 2:
+                break
+            await asyncio.sleep(0.75 * (attempt + 1))
+    raise last_error if last_error is not None else BCBAPIError("Falha desconhecida ao consultar BCB.")
+
+
 class BCBAPIError(RuntimeError):
     """Levantada quando a API do BCB esta indisponivel. Nao use dados estaticos."""
     pass
@@ -364,13 +378,14 @@ async def get_bcb_rate(
         return cache[cache_key]
 
     if target_date is not None:
-        result = await _sgs_fetch_on_or_before(
+        result = await _retry_bcb_fetch(
+            _sgs_fetch_on_or_before,
             serie,
             f"Taxa media BCB - {normalized} em {target_date.strftime('%d/%m/%Y')}",
             target_date,
         )
     else:
-        result = await _sgs_fetch(serie, f"Taxa media BCB - {normalized}")
+        result = await _retry_bcb_fetch(_sgs_fetch, serie, f"Taxa media BCB - {normalized}")
     _validate_rate_sanity(normalized, float(result["value"]), serie)
 
     monthly = result["value"]
