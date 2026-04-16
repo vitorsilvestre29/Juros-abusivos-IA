@@ -279,6 +279,15 @@ ENV_SERIES_BY_LOAN_TYPE: dict[str, tuple[str, ...]] = {
 STRICT_OFFICIAL_SERIES: dict[str, str] = {
     "consignado_inss": "25468",
     "consignado_clt": "25466",
+    "credito_pessoal": "20714",
+    "credito_habitacional": "25497",
+    "financiamento_imovel": "25497",
+    "cdc_veiculo": "25480",
+    "financiamento_veiculo": "25480",
+    "cartao_credito": "20739",
+    "cheque_especial": "20668",
+    "capital_giro": "25442",
+    "outros": "20714",
 }
 
 

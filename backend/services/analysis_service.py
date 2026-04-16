@@ -1211,7 +1211,7 @@ INSTRUCOES:
 - Use exclusivamente o texto do contrato enviado e os dados oficiais de API informados acima.
 - Nao use documentos locais do projeto, conhecimento pre-carregado ou referencias externas nao fornecidas no contexto.
 - Compare a taxa contratada com a taxa media BCB fornecida acima
-- Calcule o excesso cobrado com base na diferenca entre a taxa contratada e a taxa BCB
+- Se estimar excesso por taxa de juros, use sistema Price: compare a parcela contratada com a parcela recalculada pela taxa BCB da data do contrato.
 - Verifique apenas o que estiver suportado pelo contrato e pelo contexto oficial acima
 - Para consignado: verifique se o desconto respeita o limite de 35% do beneficio
 - Extraia do contrato, sempre que estiverem disponiveis: numero do contrato, data do contrato, valor total liberado,
