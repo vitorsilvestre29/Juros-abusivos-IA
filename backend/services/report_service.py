@@ -73,7 +73,7 @@ def _contract_field_rows(view: dict[str, Any], bcb_rate_pct: float) -> list[list
         ["Nº de Parcelas", view["numero_parcelas"]],
         ["Valor da Parcela", view["valor_parcela"]],
         ["Total a Pagar", view["valor_total_devido"]],
-        ["Taxa Média BCB", bcb_reference_label],
+        ["Taxa média de mercado (BCB)", bcb_reference_label],
     ]
     if view.get("bcb_serie"):
         rows.append(["Série SGS BCB", view["bcb_serie"]])
@@ -346,7 +346,7 @@ async def generate_report_pdf(
         ["Descrição", "Valor"],
         ["Taxa contratada (ao mês)", view["taxa_mensal"]],
         [
-            "Taxa média BCB para a modalidade",
+            "Taxa média de mercado (BCB) para a modalidade",
             (
                 f"{bcb_rate_pct:.2f}% a.m. em {view['bcb_reference_date']}"
                 if view.get("bcb_reference_date") else
@@ -362,7 +362,7 @@ async def generate_report_pdf(
     story.append(Spacer(1, 4))
     story.append(Paragraph(
         "<b>Metodologia:</b> Cálculo pelo sistema Price (tabela de amortização francesa), "
-        "comparando parcelas com a taxa contratada versus a taxa média BCB da data da contratação. "
+        "comparando parcelas com a taxa contratada versus a taxa média de mercado (BCB) da data da contratação. "
         "Valores adicionados à cobrança de tarifas e seguros identificados como indevidos. "
         "Valores aproximados — cálculo exato deve ser realizado por perito contábil.",
         st["disclaimer"],

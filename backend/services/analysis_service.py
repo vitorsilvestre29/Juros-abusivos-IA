@@ -150,9 +150,9 @@ def _is_mock_ai_mode() -> bool:
 def _max_output_tokens() -> int:
     """
     Controle via ambiente para ajuste gradual de custo x qualidade.
-    Default: 2000.
+    Default: 4096 para permitir laudos completos em contratos longos.
     """
-    raw = os.getenv("AI_MAX_OUTPUT_TOKENS", "2000")
+    raw = os.getenv("AI_MAX_OUTPUT_TOKENS", "4096")
     try:
         value = int(raw)
     except Exception:
@@ -162,6 +162,19 @@ def _max_output_tokens() -> int:
         return 500
     if value > 4096:
         return 4096
+    return value
+
+
+def _contract_text_char_limit() -> int:
+    raw = os.getenv("AI_CONTRACT_TEXT_CHAR_LIMIT", "30000")
+    try:
+        value = int(raw)
+    except Exception:
+        return 30000
+    if value < 8000:
+        return 8000
+    if value > 60000:
+        return 60000
     return value
 
 
@@ -1282,7 +1295,9 @@ Nao preste assessoria juridica — apenas analise tecnica.
 INSTRUCOES:
 - Use exclusivamente o texto do contrato enviado e os dados oficiais de API informados acima.
 - Nao use documentos locais do projeto, conhecimento pre-carregado ou referencias externas nao fornecidas no contexto.
-- Compare a taxa contratada com a taxa media BCB fornecida acima
+- Analise o contrato inteiro disponibilizado, incluindo quadros-resumo, CCB, anexos, demonstrativos, autorizacoes, termos de seguro/garantia e relatorios de assinatura.
+- Padronize a referencia como "taxa media de mercado (BCB)" em descricoes e resumo.
+- Compare a taxa contratada com a taxa media de mercado (BCB) fornecida acima.
 - Se estimar excesso por taxa de juros, use sistema Price: compare a parcela contratada com a parcela recalculada pela taxa BCB da data do contrato.
 - Verifique apenas o que estiver suportado pelo contrato e pelo contexto oficial acima
 - Para consignado: verifique se o desconto respeita o limite de 35% do beneficio
@@ -1290,6 +1305,15 @@ INSTRUCOES:
   valor da parcela, total a pagar, CET mensal/anual, nome e CPF do contratante.
 - Para cartao de credito, quando nao houver valor liberado, use o limite de credito, saldo financiado ou saldo devedor
   identificado no contrato/fatura como `valor_contratado`, deixando claro no resumo qual base foi usada.
+- Procure e acuse todas as irregularidades tecnicas objetivamente suportadas pelo texto, especialmente:
+  1. taxa remuneratoria acima da taxa media de mercado (BCB);
+  2. divergencia entre taxa mensal, taxa anual, CET, parcelas, valor liberado, valor financiado e total a pagar;
+  3. juros de mora, multa, encargos de atraso, honorarios/cobranca extrajudicial e vencimento antecipado;
+  4. tarifas, tarifa de cadastro, prestacao de servico/garantia, seguro prestamista, seguro/garantia desemprego, MIP/DFI e cobranças acessorias;
+  5. possivel venda casada quando seguro/garantia/produto acessorio aparecer embutido, pre-selecionado, financiado, obrigatorio ou sem prova clara de opcionalidade;
+  6. clausulas de foro, eleicao de foro, cessao/endosso, autorizacao de desconto, margem consignavel, uso de verbas rescisorias, liquidacao antecipada e tratamento de dados;
+  7. ausencia de informacoes obrigatorias ou falta de transparencia sobre CET, amortizacao, valor total, tarifas, seguros e base de calculo.
+- Nao limite a analise a juros: se houver clausula, tarifa, seguro, mora, foro ou anexo com possivel irregularidade tecnica, inclua em `irregularidades`.
 - Em cada irregularidade, inclua o trecho contratual relevante, o fundamento legal ou normativo e o valor cobrado,
   quando esses dados estiverem presentes no documento.
 - `resumo_tecnico` deve ter ao menos 2 frases completas e explicar os principais achados.
@@ -1331,10 +1355,11 @@ Estrutura obrigatoria:
   "recomendacao": "string"
 }}"""
 
+    text_limit = _contract_text_char_limit()
     if image_pages:
         content = []
         if contract_text:
-            content.append({"type": "text", "text": f"Texto extraido:\n{contract_text[:3000]}"})
+            content.append({"type": "text", "text": f"Texto extraido:\n{contract_text[:min(text_limit, 12000)]}"})
         for img_b64 in image_pages[:5]:
             content.append({
                 "type": "image",
@@ -1345,7 +1370,7 @@ Estrutura obrigatoria:
     else:
         messages = [{
             "role": "user",
-            "content": f"Analise este contrato de {loan_type}:\n\n{contract_text[:8000]}",
+            "content": f"Analise este contrato de {loan_type}:\n\n{contract_text[:text_limit]}",
         }]
 
     total_input_tokens = 0

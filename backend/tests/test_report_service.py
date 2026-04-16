@@ -105,6 +105,7 @@ class ReportServiceTests(unittest.TestCase):
 
         rows = _contract_field_rows(view, 2.82)
 
+        self.assertTrue(any(row[0] == "Taxa média de mercado (BCB)" for row in rows))
         self.assertIn(["Série SGS BCB", "25466"], rows)
         self.assertIn(["Fonte BCB", "https://api.bcb.gov.br/dados/serie/bcdata.sgs.25466/dados"], rows)
 

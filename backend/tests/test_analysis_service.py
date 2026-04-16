@@ -62,6 +62,9 @@ class AnalysisServiceTests(unittest.IsolatedAsyncioTestCase):
         data = analysis_service._loads_ai_json(raw)
         self.assertEqual(data["banco_credor"], "Banco Teste")
 
+    def test_contract_text_char_limit_defaults_to_long_contracts(self):
+        self.assertEqual(analysis_service._contract_text_char_limit(), 30000)
+
     def test_finalize_ai_result_text_fields_expands_short_content(self):
         ai_result = {
             "tipo_contrato": "cdc_veiculo",
