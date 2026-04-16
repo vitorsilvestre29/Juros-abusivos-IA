@@ -11,7 +11,7 @@ APIs utilizadas:
 Mapeamento de modalidades para series SGS (oficiais, publicados pelo BCB):
   consignado_inss      -> SGS 25468  (Credito pessoal consignado - INSS, % a.m.)
   consignado_clt       -> SGS 25466  (Credito pessoal consignado - trabalhadores do setor privado, % a.m.)
-  credito_pessoal      -> SGS 20714  (Credito pessoal nao consignado, % a.m.)
+  credito_pessoal      -> SGS 25464  (Credito pessoal nao consignado, % a.m.)
   credito_habitacional -> SGS 25497  (Financiamento habitacional / imobiliario PF, % a.m.)
   cdc_veiculo         -> SGS 25480   (Credito veiculos PF - CDC, % a.m.)
   cartao_credito       -> SGS 20739  (Cartao de credito rotativo total, % a.m.)
@@ -55,9 +55,9 @@ DEFAULT_SERIES_MAP: dict[str, str] = {
     # Fonte: https://dadosabertos.bcb.gov.br/dataset/25466-taxa-media-mensal-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-fisicas---c
     "consignado_clt":       "25466",
 
-    # Credito pessoal nao consignado: SGS 20714
-    # Fonte: https://dadosabertos.bcb.gov.br/dataset/20714-taxa-media-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-fisicas---credito-p
-    "credito_pessoal":      "20714",
+    # Credito pessoal nao consignado mensal: SGS 25464
+    # Fonte: https://dadosabertos.bcb.gov.br/dataset/25464-taxa-media-mensal-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-fisicas---c
+    "credito_pessoal":      "25464",
 
     # Credito habitacional / financiamento imobiliario - PF: SGS 25497
     # Fonte: https://dadosabertos.bcb.gov.br/dataset/25497-taxa-media-mensal-de-juros-das-operacoes-de-credito-com-recursos-direcionados---pessoas-fisic
@@ -81,8 +81,8 @@ DEFAULT_SERIES_MAP: dict[str, str] = {
     # Fonte: https://dadosabertos.bcb.gov.br/dataset/25442-taxa-media-mensal-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-juridicas--
     "capital_giro":         "25442",
 
-    # Outros (fallback): usa credito pessoal nao consignado como referencia
-    "outros":               "20714",
+    # Outros (fallback): usa credito pessoal nao consignado mensal como referencia
+    "outros":               "25464",
 }
 
 # Faixas amplas de sanidade (% a.m.) por modalidade.
@@ -279,7 +279,7 @@ ENV_SERIES_BY_LOAN_TYPE: dict[str, tuple[str, ...]] = {
 STRICT_OFFICIAL_SERIES: dict[str, str] = {
     "consignado_inss": "25468",
     "consignado_clt": "25466",
-    "credito_pessoal": "20714",
+    "credito_pessoal": "25464",
     "credito_habitacional": "25497",
     "financiamento_imovel": "25497",
     "cdc_veiculo": "25480",
@@ -287,7 +287,7 @@ STRICT_OFFICIAL_SERIES: dict[str, str] = {
     "cartao_credito": "20739",
     "cheque_especial": "20668",
     "capital_giro": "25442",
-    "outros": "20714",
+    "outros": "25464",
 }
 
 

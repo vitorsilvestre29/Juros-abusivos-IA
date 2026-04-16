@@ -16,11 +16,11 @@ from models import LOAN_TYPES
 PUBLIC_LOAN_TYPE_SERIES = {
     "consignado_inss": "25468",
     "consignado_clt": "25466",
-    "credito_pessoal": "20714",
+    "credito_pessoal": "25464",
     "credito_habitacional": "25497",
     "cdc_veiculo": "25480",
     "cartao_credito": "20739",
-    "outros": "20714",
+    "outros": "25464",
 }
 
 
