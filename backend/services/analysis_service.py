@@ -271,7 +271,7 @@ def _extract_contract_reference_date(contract_text: str) -> str:
         (85, r"ccb n[ºo]?[^\n\r]{0,120}?emissao[^\n\r]{0,40}?(\d{2}/\d{2}/\d{4})"),
         (80, r"celebrad[oa][^\n\r]{0,40}?(\d{2}/\d{2}/\d{4})"),
     ]
-    candidates: list[tuple[int, datetime, str]] = []
+    candidates: list[tuple[int, datetime, str, str]] = []
     for score, pattern in line_patterns:
         for match in re.finditer(pattern, text, re.IGNORECASE):
             raw_date = match.group(1)
@@ -279,7 +279,7 @@ def _extract_contract_reference_date(contract_text: str) -> str:
                 parsed = datetime.strptime(raw_date, "%d/%m/%Y")
             except Exception:
                 continue
-            candidates.append((score, parsed, raw_date))
+            candidates.append((score, parsed, raw_date, "labeled"))
 
     if not candidates:
         for match in re.finditer(r"\b(\d{2}/\d{2}/\d{4})\b", text):
@@ -312,15 +312,65 @@ def _extract_contract_reference_date(contract_text: str) -> str:
             if "parcela" in window:
                 score -= 15
             if score > 0:
-                candidates.append((score, parsed, raw_date))
+                candidates.append((score, parsed, raw_date, "context"))
 
     if not candidates:
+        raw_dates: list[tuple[datetime, str]] = []
+        for match in re.finditer(r"\b(\d{2}/\d{2}/\d{4})\b", text):
+            raw_date = match.group(1)
+            try:
+                parsed = datetime.strptime(raw_date, "%d/%m/%Y")
+            except Exception:
+                continue
+            year = parsed.year
+            if year < 2000 or year > datetime.now().year + 1:
+                continue
+            raw_dates.append((parsed, raw_date))
+        raw_months = {(item[0].year, item[0].month) for item in raw_dates}
+        if len(raw_months) > 1:
+            dates = ", ".join(sorted({item[1] for item in raw_dates}))
+            raise RuntimeError(
+                "Nao foi possivel determinar com seguranca a data da contratacao. "
+                f"O documento contem datas em meses/anos diferentes ({dates}) sem rotulo contratual forte. "
+                "A analise foi interrompida para evitar consulta BCB em competencia errada."
+            )
         raise RuntimeError(
             "Nao foi possivel identificar com seguranca a data da contratacao no contrato. "
             "Sem essa data, a taxa historica correta do BCB nao pode ser consultada."
         )
 
     candidates.sort(key=lambda item: (-item[0], item[1]))
+    strong_candidates = [item for item in candidates if item[0] >= 80]
+    strong_months = {(item[1].year, item[1].month) for item in strong_candidates}
+    if len(strong_months) > 1:
+        dates = ", ".join(sorted({item[2] for item in strong_candidates}))
+        raise RuntimeError(
+            "Foram encontradas datas de contratacao conflitantes no contrato "
+            f"({dates}). Como a taxa BCB depende do mes/ano da contratacao, "
+            "a analise foi interrompida para evitar laudo com taxa historica errada."
+        )
+
+    top_score = candidates[0][0]
+    top_candidates = [item for item in candidates if item[0] == top_score]
+    top_months = {(item[1].year, item[1].month) for item in top_candidates}
+    if len(top_months) > 1:
+        dates = ", ".join(sorted({item[2] for item in top_candidates}))
+        raise RuntimeError(
+            "Foram encontradas datas de contratacao conflitantes no contrato "
+            f"({dates}). Como a taxa BCB depende do mes/ano da contratacao, "
+            "a analise foi interrompida para evitar laudo com taxa historica errada."
+        )
+
+    if top_score < 80:
+        all_months = {(item[1].year, item[1].month) for item in candidates}
+        if len(all_months) > 1:
+            dates = ", ".join(sorted({item[2] for item in candidates}))
+            raise RuntimeError(
+                "Nao foi possivel determinar com seguranca a data da contratacao. "
+                f"O documento contem datas em meses/anos diferentes ({dates}) sem rotulo contratual forte. "
+                "A analise foi interrompida para evitar consulta BCB em competencia errada."
+            )
+
     return candidates[0][2]
 
 

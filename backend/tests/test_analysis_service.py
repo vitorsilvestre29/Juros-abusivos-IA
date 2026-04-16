@@ -160,6 +160,28 @@ class AnalysisServiceTests(unittest.IsolatedAsyncioTestCase):
             "08/02/2023",
         )
 
+    def test_extract_contract_reference_date_blocks_conflicting_strong_dates(self):
+        contract_text = (
+            "Data do contrato 08/02/2023. Emissao 15/03/2024. "
+            "Valor liberado R$ 10.000,00."
+        )
+
+        with self.assertRaises(RuntimeError) as ctx:
+            analysis_service._extract_contract_reference_date(contract_text)
+
+        self.assertIn("datas de contratacao conflitantes", str(ctx.exception))
+
+    def test_extract_contract_reference_date_blocks_weak_dates_across_months(self):
+        contract_text = (
+            "Contrato bancario. Assinado em 08/02/2023. "
+            "Registro interno em 15/03/2024. Valor liberado R$ 10.000,00."
+        )
+
+        with self.assertRaises(RuntimeError) as ctx:
+            analysis_service._extract_contract_reference_date(contract_text)
+
+        self.assertIn("meses/anos diferentes", str(ctx.exception))
+
     def test_calculate_financial_impact_uses_price_methodology(self):
         ai_result = {
             "valor_contratado": 10000.0,
