@@ -243,7 +243,6 @@ async def fetch_stj_recent_cases(loan_type: str) -> list[dict]:
         "cartao_credito":        "juros abusivos rotativo cartao credito banco",
         "cheque_especial":       "juros abusivos cheque especial conta corrente",
         "capital_giro":          "juros abusivos capital giro empresa conta garantida",
-        "outros":                "juros abusivos contratos bancarios revisao contratual",
     }
     query = query_map.get(loan_type, "juros abusivos contratos bancarios")
     results = []

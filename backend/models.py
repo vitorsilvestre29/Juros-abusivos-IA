@@ -13,7 +13,6 @@ LOAN_TYPES = {
     "credito_habitacional": "Crédito Habitacional / Financiamento Imobiliário",
     "cdc_veiculo":          "CDC Veículo / Financiamento de Veículo",
     "cartao_credito":       "Cartão de Crédito",
-    "outros":               "Outros",
 }
 
 

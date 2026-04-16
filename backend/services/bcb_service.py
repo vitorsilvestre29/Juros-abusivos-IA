@@ -81,8 +81,6 @@ DEFAULT_SERIES_MAP: dict[str, str] = {
     # Fonte: https://dadosabertos.bcb.gov.br/dataset/25442-taxa-media-mensal-de-juros-das-operacoes-de-credito-com-recursos-livres---pessoas-juridicas--
     "capital_giro":         "25442",
 
-    # Outros (fallback): usa credito pessoal nao consignado mensal como referencia
-    "outros":               "25464",
 }
 
 # Faixas amplas de sanidade (% a.m.) por modalidade.
@@ -99,7 +97,6 @@ EXPECTED_MONTHLY_RATE_BOUNDS: dict[str, tuple[float, float]] = {
     "cartao_credito": (2.0, 30.0),
     "cheque_especial": (1.0, 25.0),
     "capital_giro": (0.2, 15.0),
-    "outros": (0.2, 30.0),
 }
 
 # Series auxiliares (sempre buscadas)
@@ -271,8 +268,6 @@ ENV_SERIES_BY_LOAN_TYPE: dict[str, tuple[str, ...]] = {
     "cheque_especial": ("BCB_SGS_SERIES_CHEQUE_ESPECIAL",),
     # Capital de giro
     "capital_giro": ("BCB_SGS_SERIES_CAPITAL_GIRO",),
-    # Fallback
-    "outros": ("BCB_SGS_SERIES_OUTROS",),
 }
 
 
@@ -287,7 +282,6 @@ STRICT_OFFICIAL_SERIES: dict[str, str] = {
     "cartao_credito": "20739",
     "cheque_especial": "20668",
     "capital_giro": "25442",
-    "outros": "25464",
 }
 
 

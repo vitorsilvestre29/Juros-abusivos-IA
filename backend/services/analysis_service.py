@@ -31,7 +31,6 @@ MOCK_REFERENCE_RATES: dict[str, float] = {
     "credito_habitacional": 1.05,
     "cdc_veiculo": 3.20,
     "cartao_credito": 15.40,
-    "outros": 8.90,
 }
 
 LOAN_TYPE_LABELS: dict[str, str] = {
@@ -41,7 +40,6 @@ LOAN_TYPE_LABELS: dict[str, str] = {
     "credito_habitacional": "Credito Habitacional / Financiamento Imobiliario",
     "cdc_veiculo": "CDC Veiculo / Financiamento de Veiculo",
     "cartao_credito": "Cartao de Credito",
-    "outros": "Outros",
 }
 
 CONTRACT_TYPE_SIGNALS: dict[str, dict[str, tuple[str, ...]]] = {
@@ -354,7 +352,7 @@ def _detect_contract_type_by_text(contract_text: str) -> tuple[str | None, float
 def _detect_blocking_contract_type_mismatch(selected_loan_type: str, contract_text: str) -> tuple[str | None, list[str]]:
     text = _normalize_text_for_match(contract_text)[:12000]
     selected = (selected_loan_type or "").strip().lower()
-    if not text or not selected or selected == "outros":
+    if not text or not selected:
         return None, []
 
     candidates: dict[str, list[str]] = {}
@@ -384,7 +382,7 @@ def _detect_blocking_contract_type_mismatch(selected_loan_type: str, contract_te
 
 def _mock_reference_rate_for(loan_type: str) -> float:
     normalized = (loan_type or "").strip().lower()
-    return float(MOCK_REFERENCE_RATES.get(normalized, MOCK_REFERENCE_RATES["outros"]))
+    return float(MOCK_REFERENCE_RATES.get(normalized, MOCK_REFERENCE_RATES["credito_pessoal"]))
 
 
 def _build_mock_bcb_context(loan_type: str) -> dict[str, Any]:
@@ -424,7 +422,7 @@ def _build_mock_bcb_context(loan_type: str) -> dict[str, Any]:
 
 def _build_loan_type_warning(selected_loan_type: str, contract_text: str) -> tuple[str | None, str | None]:
     predicted, confidence = _detect_contract_type_by_text(contract_text)
-    if not predicted or predicted == "outros":
+    if not predicted:
         return None, None
     if selected_loan_type == predicted:
         return None, None

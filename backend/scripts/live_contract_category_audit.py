@@ -25,7 +25,6 @@ EXPECTED_SERIES = {
     "credito_habitacional": "25497",
     "cdc_veiculo": "25480",
     "cartao_credito": "20739",
-    "outros": "25464",
 }
 
 CONTRACT_FIXTURES = {
@@ -57,10 +56,6 @@ CONTRACT_FIXTURES = {
     "cartao_credito": (
         "Contrato de cartao de credito. Limite de credito, fatura do cartao, pagamento minimo "
         "e credito rotativo. Emissao 08/02/2023. Taxa mensal 15,00% a.m."
-    ),
-    "outros": (
-        "Contrato bancario de operacao de credito com parcelas fixas. Emissao 08/02/2023. "
-        "Valor liberado R$ 10.000,00. Taxa mensal 6,00% a.m. Prazo 24 parcelas."
     ),
 }
 

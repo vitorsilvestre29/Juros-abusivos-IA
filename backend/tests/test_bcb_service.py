@@ -20,7 +20,6 @@ PUBLIC_LOAN_TYPE_SERIES = {
     "credito_habitacional": "25497",
     "cdc_veiculo": "25480",
     "cartao_credito": "20739",
-    "outros": "25464",
 }
 
 
@@ -58,7 +57,6 @@ class BCBServiceTests(unittest.IsolatedAsyncioTestCase):
             "credito_habitacional": "BCB_SGS_SERIES_HABITACIONAL",
             "cdc_veiculo": "BCB_SGS_SERIES_CDC_VEICULO",
             "cartao_credito": "BCB_SGS_SERIES_CARTAO",
-            "outros": "BCB_SGS_SERIES_OUTROS",
         }
 
         for loan_type, env_key in wrong_env_by_loan_type.items():

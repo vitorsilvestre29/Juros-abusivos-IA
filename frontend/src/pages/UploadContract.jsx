@@ -19,7 +19,6 @@ const LOAN_LABELS = {
   credito_habitacional: 'Credito Habitacional / Financiamento Imobiliario',
   cdc_veiculo: 'CDC Veiculo / Financiamento de Veiculo',
   cartao_credito: 'Cartao de Credito',
-  outros: 'Outros',
 }
 
 export default function UploadContract() {
