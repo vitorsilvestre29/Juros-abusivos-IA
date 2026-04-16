@@ -255,6 +255,54 @@ def _normalize_text_for_search(text: str) -> str:
     return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii").lower()
 
 
+def _valid_contract_date_candidates(text: str) -> list[tuple[int, datetime, str, str]]:
+    candidates: list[tuple[int, datetime, str, str]] = []
+    for match in re.finditer(r"\b(\d{2}/\d{2}/\d{4})\b", text):
+        raw_date = match.group(1)
+        try:
+            parsed = datetime.strptime(raw_date, "%d/%m/%Y")
+        except Exception:
+            continue
+
+        year = parsed.year
+        if year < 2000 or year > datetime.now().year + 1:
+            continue
+
+        window_start = max(0, match.start() - 120)
+        window_end = min(len(text), match.end() + 120)
+        window = text[window_start:window_end]
+        before = text[max(0, match.start() - 120):match.start()]
+        after = text[match.end():min(len(text), match.end() + 80)]
+        score = 0
+        if "data de contratacao" in before:
+            score += 105
+        if "data do contrato" in before:
+            score += 100
+        if "emissao" in before:
+            score += 95
+        if "data de liberacao" in before:
+            score += 90
+        if "celebrad" in before:
+            score += 80
+        if "ccb" in before and "emissao" in before:
+            score += 10
+
+        non_contract_markers = (
+            "vencimento",
+            "nascimento",
+            "impressao",
+            "cadastro",
+            "registro",
+            "parcela",
+            "assinatura",
+        )
+        if any(marker in before or marker in after for marker in non_contract_markers):
+            score -= 40
+        if score > 0:
+            candidates.append((score, parsed, raw_date, "context"))
+    return candidates
+
+
 def _extract_contract_reference_date(contract_text: str) -> str:
     """
     Identifica a data da contratacao diretamente do contrato para usar a taxa
@@ -283,37 +331,7 @@ def _extract_contract_reference_date(contract_text: str) -> str:
             candidates.append((score, parsed, raw_date, "labeled"))
 
     if not candidates:
-        for match in re.finditer(r"\b(\d{2}/\d{2}/\d{4})\b", text):
-            raw_date = match.group(1)
-            try:
-                parsed = datetime.strptime(raw_date, "%d/%m/%Y")
-            except Exception:
-                continue
-
-            year = parsed.year
-            if year < 2000 or year > datetime.now().year + 1:
-                continue
-
-            window_start = max(0, match.start() - 80)
-            window_end = min(len(text), match.end() + 80)
-            window = text[window_start:window_end]
-            score = 0
-            if "emissao" in window:
-                score += 40
-            if "data do contrato" in window:
-                score += 40
-            if "data de liberacao" in window:
-                score += 30
-            if "vencimento" in window:
-                score -= 20
-            if "nascimento" in window:
-                score -= 30
-            if "desde" in window:
-                score -= 20
-            if "parcela" in window:
-                score -= 15
-            if score > 0:
-                candidates.append((score, parsed, raw_date, "context"))
+        candidates.extend(_valid_contract_date_candidates(text))
 
     if not candidates:
         raw_dates: list[tuple[datetime, str]] = []
@@ -329,6 +347,11 @@ def _extract_contract_reference_date(contract_text: str) -> str:
             raw_dates.append((parsed, raw_date))
         raw_months = {(item[0].year, item[0].month) for item in raw_dates}
         if len(raw_months) > 1:
+            valid_candidates = _valid_contract_date_candidates(text)
+            valid_months = {(item[1].year, item[1].month) for item in valid_candidates}
+            if len(valid_months) == 1:
+                valid_candidates.sort(key=lambda item: (-item[0], item[1]))
+                return valid_candidates[0][2]
             dates = ", ".join(sorted({item[1] for item in raw_dates}))
             raise RuntimeError(
                 "Nao foi possivel determinar com seguranca a data da contratacao. "

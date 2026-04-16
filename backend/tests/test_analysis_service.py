@@ -160,6 +160,18 @@ class AnalysisServiceTests(unittest.IsolatedAsyncioTestCase):
             "08/02/2023",
         )
 
+    def test_extract_contract_reference_date_ignores_vencimento_month_when_emissao_is_clear(self):
+        contract_text = (
+            "CCB 12345 VALOR NOMINAL R$ 10.000,00 EMISSAO 08/02/2023 "
+            "VENCIMENTO INICIAL 10/04/2023 VENCIMENTO FINAL 10/03/2026 "
+            "Valor da parcela R$ 648,91."
+        )
+
+        self.assertEqual(
+            analysis_service._extract_contract_reference_date(contract_text),
+            "08/02/2023",
+        )
+
     def test_extract_contract_reference_date_prefers_data_de_contratacao(self):
         contract_text = (
             "Data de contratacao: 12/06/2024. Data de nascimento: 10/01/1980. "
