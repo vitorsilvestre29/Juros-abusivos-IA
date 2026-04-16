@@ -55,7 +55,8 @@ CONTRACT_FIXTURES = {
     ),
     "cartao_credito": (
         "Contrato de cartao de credito. Limite de credito, fatura do cartao, pagamento minimo "
-        "e credito rotativo. Emissao 08/02/2023. Taxa mensal 15,00% a.m."
+        "e credito rotativo. Emissao 08/02/2023. Limite de credito R$ 5.000,00. "
+        "Saldo financiado no rotativo R$ 3.200,00. Taxa mensal 15,00% a.m."
     ),
 }
 
@@ -232,6 +233,12 @@ def audit_blocked_errors() -> list[dict[str, Any]]:
 
 
 async def main() -> int:
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--live-ai", action="store_true", help="Chama a IA real alem da API publica do BCB.")
     args = parser.parse_args()

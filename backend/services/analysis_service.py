@@ -1214,6 +1214,8 @@ INSTRUCOES:
 - Para consignado: verifique se o desconto respeita o limite de 35% do beneficio
 - Extraia do contrato, sempre que estiverem disponiveis: numero do contrato, data do contrato, valor total liberado,
   valor da parcela, total a pagar, CET mensal/anual, nome e CPF do contratante.
+- Para cartao de credito, quando nao houver valor liberado, use o limite de credito, saldo financiado ou saldo devedor
+  identificado no contrato/fatura como `valor_contratado`, deixando claro no resumo qual base foi usada.
 - Em cada irregularidade, inclua o trecho contratual relevante, o fundamento legal ou normativo e o valor cobrado,
   quando esses dados estiverem presentes no documento.
 - `resumo_tecnico` deve ter ao menos 2 frases completas e explicar os principais achados.
