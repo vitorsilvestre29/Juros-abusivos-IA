@@ -14,6 +14,13 @@ from models import User, LOAN_TYPES
 router = APIRouter()
 
 
+def _is_admin_bypass_payment(payment: Payment | None) -> bool:
+    if not payment:
+        return False
+    mp_payment_id = str(getattr(payment, "mp_payment_id", "") or "")
+    return mp_payment_id.startswith("admin_bypass_paid_")
+
+
 @router.get("/{analysis_id}/preview")
 async def get_report_preview(
     analysis_id: int,
@@ -130,6 +137,7 @@ async def get_full_report_json(
             analysis.report_generated_at.isoformat()
             if analysis.report_generated_at else None
         ),
+        "is_bypass": _is_admin_bypass_payment(analysis.payment),
         **ai_result,
     }
 

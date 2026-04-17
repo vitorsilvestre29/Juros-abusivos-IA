@@ -118,7 +118,7 @@ export default function Report() {
   }, [loading])
 
   useEffect(() => {
-    if (!loading && !error && report) {
+    if (!loading && !error && report && report.is_bypass !== true) {
       // Evento de compra na pagina de confirmacao do pedido (laudo liberado).
       trackPurchaseOnConfirmationPage()
     }

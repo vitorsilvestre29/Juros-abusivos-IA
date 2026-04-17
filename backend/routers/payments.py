@@ -36,6 +36,13 @@ def _is_admin_bypass_user(user: User) -> bool:
     return user_email in _admin_bypass_emails()
 
 
+def _is_admin_bypass_payment(payment: Payment | None) -> bool:
+    if not payment:
+        return False
+    mp_payment_id = str(getattr(payment, "mp_payment_id", "") or "")
+    return mp_payment_id.startswith("admin_bypass_paid_")
+
+
 @router.post("/create/{analysis_id}")
 async def create_payment(
     analysis_id: int,
@@ -72,6 +79,7 @@ async def create_payment(
             "message": "Laudo já pago",
             "payment_id": analysis.payment.id,
             "status": "paid",
+            "is_bypass": _is_admin_bypass_payment(analysis.payment),
         }
 
     # Bypass premium restrito a e-mails administrativos (whitelist via env).
@@ -100,6 +108,7 @@ async def create_payment(
                 "status": "paid",
                 "analysis_id": analysis_id,
                 "amount_brl": analysis.payment.amount_brl,
+                "is_bypass": True,
             }
 
         payment = Payment(
@@ -129,6 +138,7 @@ async def create_payment(
             "status": "paid",
             "analysis_id": analysis_id,
             "amount_brl": payment.amount_brl,
+            "is_bypass": True,
         }
 
     # Em modo teste, pulamos o PIX e liberamos o laudo automaticamente.
@@ -143,6 +153,7 @@ async def create_payment(
                 "status": "paid",
                 "analysis_id": analysis_id,
                 "amount_brl": analysis.payment.amount_brl,
+                "is_bypass": False,
             }
 
         amount = float(os.getenv("REPORT_PRICE", "9.99"))
@@ -163,6 +174,7 @@ async def create_payment(
             "status": "paid",
             "analysis_id": analysis_id,
             "amount_brl": payment.amount_brl,
+            "is_bypass": False,
         }
 
     # Verifica se já existe pagamento pendente (reutiliza o QR)
@@ -176,6 +188,7 @@ async def create_payment(
             "qr_code_base64": p.mp_qr_code_base64,
             "ticket_url": p.mp_ticket_url,
             "expires_at": p.expires_at.isoformat() if p.expires_at else None,
+            "is_bypass": False,
         }
 
     amount = float(os.getenv("REPORT_PRICE", "9.99"))
@@ -229,6 +242,7 @@ async def create_payment(
         "qr_code_base64": payment.mp_qr_code_base64,
         "ticket_url": payment.mp_ticket_url,
         "expires_at": payment.expires_at.isoformat() if payment.expires_at else None,
+        "is_bypass": False,
     }
 
 
@@ -254,6 +268,7 @@ async def check_payment_status(
         "status": payment.status,
         "analysis_id": payment.analysis_id,
         "paid_at": payment.paid_at.isoformat() if payment.paid_at else None,
+        "is_bypass": _is_admin_bypass_payment(payment),
     }
 
 

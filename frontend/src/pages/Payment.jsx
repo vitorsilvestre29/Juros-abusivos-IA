@@ -29,10 +29,12 @@ export default function Payment() {
   const [loading, setLoading] = useState(true)
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState('')
+  const [isBypassPayment, setIsBypassPayment] = useState(false)
   const purchaseTrackedRef = useRef(false)
 
   function trackPurchase() {
     if (purchaseTrackedRef.current) return
+    if (isBypassPayment) return
     trackEvent('Purchase', {
       analysis_id: analysisId,
       payment_id: payment?.payment_id,
@@ -45,14 +47,18 @@ export default function Payment() {
   useEffect(() => {
     createPayment(analysisId)
       .then(r => {
+        const bypass = r.data?.is_bypass === true
+        setIsBypassPayment(bypass)
         if (r.data?.status === 'paid') {
-          trackEvent('Purchase', {
-            analysis_id: analysisId,
-            payment_id: r.data?.payment_id,
-            value: r.data?.amount_brl ?? 9.99,
-            currency: 'BRL',
-          })
-          purchaseTrackedRef.current = true
+          if (!bypass) {
+            trackEvent('Purchase', {
+              analysis_id: analysisId,
+              payment_id: r.data?.payment_id,
+              value: r.data?.amount_brl ?? 9.99,
+              currency: 'BRL',
+            })
+            purchaseTrackedRef.current = true
+          }
           nav('/laudo/' + analysisId, { replace: true })
           return
         }
@@ -75,7 +81,7 @@ export default function Payment() {
       } catch (e) {}
     }, 4000)
     return () => clearInterval(interval)
-  }, [payment, analysisId])
+  }, [payment, analysisId, isBypassPayment])
 
   function copyCode() {
     if (payment && payment.qr_code) {
