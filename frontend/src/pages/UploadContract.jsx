@@ -112,7 +112,7 @@ export default function UploadContract() {
               transition: 'all 0.2s', marginBottom: 32
             }}
           >
-            <input ref={fileRef} type="file" accept=".pdf,application/pdf" style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
+            <input ref={fileRef} type="file" accept=".pdf,application/pdf,application/x-pdf,application/octet-stream" style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
             {file ? (
               <>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
