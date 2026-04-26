@@ -101,7 +101,7 @@ async def upload_contract(
             detail=f"Arquivo muito grande. Maximo: {MAX_FILE_MB}MB.",
         )
 
-    file_type = "pdf" if "pdf" in file.content_type else "image"
+    file_type = "pdf" if "pdf" in (file.content_type or "") else "image"
 
     contract = Contract(
         user_id=current_user.id,
@@ -219,4 +219,26 @@ async def get_analysis_status(
         response["error"] = analysis.error_message
         if analysis.error_message and "tipo de contrato selecionado nao confere" in analysis.error_message.lower():
             response["error_code"] = CONTRACT_TYPE_MISMATCH_CODE
-            response["
+            response["retryable"] = False
+        else:
+            response["retryable"] = True
+    elif analysis.error_message:
+        response["warning_message"] = (
+            "Identificamos divergencias no contrato. "
+            "O laudo tecnico completo com todos os detalhes e fundamentos fica disponivel apos o pagamento."
+        )
+
+    if analysis.status == AnalysisStatus.COMPLETED:
+        response["has_issues"] = analysis.has_issues
+        response["irregularities_count"] = analysis.irregularities_count
+        response["impact_brl"] = analysis.impact_brl
+        response["bcb_rate_pct"] = analysis.bcb_rate_pct
+
+        payment = analysis.payment
+        if payment and payment.status == "paid":
+            response["paid"] = True
+            response["payment_id"] = payment.id
+        else:
+            response["paid"] = False
+
+    return response
