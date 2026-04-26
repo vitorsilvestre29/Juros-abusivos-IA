@@ -108,7 +108,11 @@ async def upload_contract(
             detail=f"Arquivo muito grande. Maximo: {MAX_FILE_MB}MB.",
         )
 
-    file_type = "pdf" if "pdf" in (file.content_type or "") else "image"
+    # Determina file_type pelo content-type OU pela extensao do arquivo.
+    # Necessario porque Android envia PDFs como application/octet-stream.
+    _ct = (file.content_type or '').lower()
+    _ext = os.path.splitext(file.filename or '')[1].lower()
+    file_type = "pdf" if ("pdf" in _ct or _ext == ".pdf") else "image"
 
     contract = Contract(
         user_id=current_user.id,
