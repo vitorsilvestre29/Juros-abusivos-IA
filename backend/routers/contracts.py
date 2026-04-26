@@ -17,14 +17,17 @@ from services.ops_alert_service import send_ops_alert
 router = APIRouter()
 
 # Navegadores mobile (Android principalmente) costumam enviar PDFs
-# com content-type diferente de application/pdf. Aceitamos todos os
-# tipos conhecidos e validamos tambem pela extensao do arquivo.
-ALLOWED_TYPES = {
+# com content-type diferente de application/pdf.
+# Tipos inequivocamente PDF: aceitos sem checar extensao.
+# Tipos ambiguos (octet-stream, vazio): aceitos somente se extensao for .pdf.
+CLEAR_PDF_TYPES = {
     "application/pdf",
     "application/x-pdf",
     "application/acrobat",
     "application/vnd.pdf",
     "application/force-download",
+}
+AMBIGUOUS_TYPES = {
     "application/octet-stream",   # Android Chrome / Samsung Browser
     "binary/octet-stream",
     "",                            # alguns browsers nao enviam content-type
@@ -36,11 +39,15 @@ CONTRACT_TYPE_MISMATCH_CODE = "contract_type_mismatch"
 def _is_pdf_file(file: UploadFile) -> bool:
     """Valida se o arquivo e um PDF pelo content-type ou extensao."""
     ct = (file.content_type or "").lower().strip()
-    if ct in ALLOWED_TYPES:
-        return True
-    # fallback: checa extensao do nome do arquivo
     filename = file.filename or ""
     ext = os.path.splitext(filename)[1].lower()
+
+    if ct in CLEAR_PDF_TYPES:
+        return True
+    if ct in AMBIGUOUS_TYPES:
+        # Tipo generico: confia apenas na extensao
+        return ext == ".pdf"
+    # Qualquer outro tipo nao reconhecido: checa extensao como fallback
     return ext == ".pdf"
 
 
