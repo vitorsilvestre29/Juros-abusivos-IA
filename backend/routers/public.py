@@ -189,6 +189,17 @@ async def get_ai_metrics(
             "avg_input_tokens": _avg("input_tokens", rows),
             "avg_output_tokens": _avg("output_tokens", rows),
             "avg_duration_ms": _avg("duration_ms", rows),
+            # Pre-analise (chamada de IA gratuita, pre-pagamento)
+            "sum_pre_cost_brl": round(_sum("pre_estimated_cost_brl", rows), 6),
+            "sum_pre_cost_usd": round(_sum("pre_estimated_cost_usd", rows), 6),
+            "avg_pre_cost_brl": _avg("pre_estimated_cost_brl", rows),
+            # Custo TOTAL por laudo (pre-analise + analise premium)
+            "sum_total_cost_brl": round(
+                _sum("estimated_cost_brl", rows) + _sum("pre_estimated_cost_brl", rows), 6
+            ),
+            "avg_total_cost_brl": round(
+                (_avg("estimated_cost_brl", rows) + _avg("pre_estimated_cost_brl", rows)), 6
+            ),
         },
         "cohorts_by_max_output_tokens": cohorts,
     }

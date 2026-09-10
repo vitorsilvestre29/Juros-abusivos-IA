@@ -1439,17 +1439,21 @@ async def precheck_contract_has_issues(
     contract_text: str,
     loan_type: str,
     reference_rate: float,
-) -> bool:
+) -> tuple[bool, dict[str, Any]]:
     """
     Pre-analise barata para converter: responde apenas TEM/NAO irregularidades.
+
+    Retorna (has_issues, usage), onde usage traz tokens/modelo/duracao da chamada
+    de IA para registro de telemetria de custo (vazio no modo mock).
     """
     if _is_mock_ai_mode():
-        return True
+        return True, {}
 
     import anthropic
 
     client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     limited_text = (contract_text or "")[:4500]
+    precheck_max_output = _precheck_max_output_tokens()
 
     system_prompt = (
         "Voce classifica contratos de credito no Brasil.\n"
@@ -1465,20 +1469,31 @@ async def precheck_contract_has_issues(
         f"Texto do contrato:\n{limited_text}"
     )
 
+    started_at = perf_counter()
     resp = await client.messages.create(
         model=MODEL_NAME,
-        max_tokens=_precheck_max_output_tokens(),
+        max_tokens=precheck_max_output,
         system=system_prompt,
         messages=[{"role": "user", "content": user_prompt}],
     )
+    duration_ms = int((perf_counter() - started_at) * 1000)
+
+    resp_usage = getattr(resp, "usage", None)
+    usage: dict[str, Any] = {
+        "input_tokens": int(getattr(resp_usage, "input_tokens", 0) or 0),
+        "output_tokens": int(getattr(resp_usage, "output_tokens", 0) or 0),
+        "model": MODEL_NAME,
+        "max_output_tokens": precheck_max_output,
+        "duration_ms": duration_ms,
+    }
 
     raw = (resp.content[0].text or "").strip()
     try:
         data = _loads_ai_json(raw)
     except Exception:
         # Fallback conservador para nao bloquear pre-analise por JSON imperfeito.
-        return False
-    return bool(data.get("has_issues", False))
+        return False, usage
+    return bool(data.get("has_issues", False)), usage
 
 
 # ── Calculo de impacto ────────────────────────────────────────────────────────
@@ -1552,7 +1567,7 @@ async def run_pre_analysis(
     Nao gera laudo completo nem detalhes premium.
     """
     from database import AsyncSessionLocal
-    from models import Analysis
+    from models import Analysis, AnalysisTelemetry
     from sqlalchemy import select
 
     async with AsyncSessionLocal() as db:
@@ -1563,6 +1578,8 @@ async def run_pre_analysis(
 
         analysis.status = AnalysisStatus.PROCESSING
         await db.commit()
+
+        precheck_usage: dict[str, Any] = {}
 
         try:
             extracted_text = ""
@@ -1602,7 +1619,7 @@ async def run_pre_analysis(
             if reference_rate <= 0:
                 raise RuntimeError("Taxa BCB indisponivel para pre-analise.")
 
-            has_issues = await precheck_contract_has_issues(
+            has_issues, precheck_usage = await precheck_contract_has_issues(
                 contract_text=extracted_text,
                 loan_type=loan_type,
                 reference_rate=reference_rate,
@@ -1617,6 +1634,36 @@ async def run_pre_analysis(
             # Importante: detalhes premium permanecem bloqueados ate pagamento.
             analysis.ai_result_json = None
             await db.commit()
+
+            # Telemetria da chamada de IA da pre-analise (gratuita, pre-pagamento).
+            # Grava apenas os campos pre_* na mesma linha de analysis_telemetry;
+            # run_full_analysis reaproveita a linha e preenche os campos da analise premium.
+            try:
+                pre_in = int((precheck_usage or {}).get("input_tokens", 0) or 0)
+                pre_out = int((precheck_usage or {}).get("output_tokens", 0) or 0)
+                pre_usd, pre_brl = _estimate_cost(pre_in, pre_out)
+
+                telemetry_result = await db.execute(
+                    select(AnalysisTelemetry).where(AnalysisTelemetry.analysis_id == analysis_id)
+                )
+                telemetry = telemetry_result.scalar_one_or_none()
+                if telemetry is None:
+                    telemetry = AnalysisTelemetry(analysis_id=analysis_id)
+                    db.add(telemetry)
+
+                if not telemetry.model_name:
+                    telemetry.model_name = (precheck_usage or {}).get("model") or MODEL_NAME
+                telemetry.pre_input_tokens = pre_in
+                telemetry.pre_output_tokens = pre_out
+                telemetry.pre_estimated_cost_usd = pre_usd
+                telemetry.pre_estimated_cost_brl = pre_brl
+                telemetry.pre_duration_ms = int((precheck_usage or {}).get("duration_ms", 0) or 0)
+                if telemetry.status is None:
+                    telemetry.status = AnalysisStatus.COMPLETED
+                await db.commit()
+            except Exception as telemetry_err:
+                await db.rollback()
+                print(f"[analysis] aviso: telemetria de pre-analise nao salva para analise {analysis_id}: {telemetry_err}")
 
         except Exception as e:
             analysis.status = AnalysisStatus.FAILED
