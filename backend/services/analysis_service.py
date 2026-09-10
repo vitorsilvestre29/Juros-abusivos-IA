@@ -1916,17 +1916,19 @@ async def send_whatsapp_notification(phone: str, has_issues: bool, contract_id: 
         digits = "55" + digits
 
     site = os.getenv("FRONTEND_URL", "https://juros-abusivos.vercel.app")
+    _preco = float(os.getenv("REPORT_PRICE", "4.99"))
+    preco_txt = ("R$ %.2f" % _preco).replace(".", ",")
     if has_issues:
         msg = (
             "Ola, sua analise de contrato foi concluida.\n\n"
             "*Irregularidades identificadas no seu contrato.*\n\n"
-            "Acesse o laudo tecnico por apenas R$ 9,99 para ver os detalhes e agir:\n"
+            "Acesse o laudo tecnico por apenas " + preco_txt + " para ver os detalhes e agir:\n"
             + site + "/analise/" + str(contract_id)
         )
     else:
         msg = (
             "Ola, sua analise de contrato foi concluida.\n\n"
-            "Acesse o laudo tecnico por apenas R$ 9,99 para ver o resultado completo:\n"
+            "Acesse o laudo tecnico por apenas " + preco_txt + " para ver o resultado completo:\n"
             + site + "/analise/" + str(contract_id)
         )
 
