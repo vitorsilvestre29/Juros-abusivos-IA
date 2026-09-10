@@ -101,10 +101,16 @@ export default function UploadContract() {
 
         <form onSubmit={handleSubmit}>
           <div
-            onClick={() => fileRef.current.click()}
+            onClick={() => fileRef.current?.click()}
             onDragOver={e => { e.preventDefault(); setDragging(true) }}
             onDragLeave={() => setDragging(false)}
-            onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]) }}
+            onDrop={e => {
+              e.preventDefault()
+              setDragging(false)
+              const dropped = e.dataTransfer?.files?.[0]
+              if (!dropped) return
+              handleFile(dropped)
+            }}
             style={{
               border: dragging ? '2px dashed ' + O : file ? '2px dashed #1A6B3C' : '2px dashed ' + border,
               borderRadius: 16, padding: isMobile ? '32px 18px' : '48px 32px', textAlign: 'center', cursor: 'pointer',

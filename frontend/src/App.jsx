@@ -12,6 +12,7 @@ import Ranking from './pages/Ranking'
 import Blog from './pages/Blog'
 import Comparador from './pages/Comparador'
 import Privacidade from './pages/Privacidade'
+import NotFound from './pages/NotFound'
 import { initMetaPixel, trackPageView } from './lib/metaPixel'
 
 function PrivateRoute({ children }) {
@@ -55,7 +56,7 @@ export default function App() {
         {/* Privado - requer conta cadastrada */}
         <Route path="/app" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
   )

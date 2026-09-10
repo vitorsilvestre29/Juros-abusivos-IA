@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const DEFAULT_LOCAL_API_BASE = '/api'
-const DEFAULT_PROD_API_BASE = 'https://juros-abusivos-api.up.railway.app/api'
+const DEFAULT_PROD_API_BASE = 'https://api.laudojuros.com.br/api'
 
 function normalizeApiBase(rawValue) {
   const raw = String(rawValue || '').trim()
@@ -73,6 +73,8 @@ export const getMe = () => api.get('/auth/me')
 
 export const getLoanTypes = () => api.get('/public/loan-types')
 export const getPricing = () => api.get('/public/pricing')
+export const getRanking = () => api.get('/public/ranking')
+export const getStats = () => api.get('/public/stats')
 
 export const uploadContract = (file, loanType, phone) => {
   const form = new FormData()
