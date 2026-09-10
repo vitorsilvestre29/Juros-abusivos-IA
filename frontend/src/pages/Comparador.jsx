@@ -215,7 +215,7 @@ export default function Comparador() {
 
               {result.isAbusive && (
                 <Link to="/upload" style={{ display: 'block', textAlign: 'center', background: '#DC2626', color: '#FFFFFF', textDecoration: 'none', fontSize: 15, fontWeight: 700, padding: '14px', borderRadius: 12 }}>
-                  Obter laudo tecnico completo — R$ 9,99
+                  Obter laudo tecnico completo — R$ 4,99
                 </Link>
               )}
             </div>

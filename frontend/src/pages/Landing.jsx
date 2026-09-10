@@ -113,7 +113,7 @@ export default function Landing() {
             <button onClick={handleStartAnalysis} style={{ background: O, color: N, fontWeight: 700, fontSize: 16, padding: isMobile ? '14px 24px' : '14px 32px', borderRadius: 10, border: 'none', cursor: 'pointer', fontFamily: sans, boxShadow: '0 4px 16px rgba(232,146,10,0.35)', width: isMobile ? '100%' : 'auto', maxWidth: isMobile ? 320 : 'none' }}>
               Analisar meu contrato
             </button>
-            <span style={{ color: '#5E7085', fontSize: 13, alignSelf: 'center', width: isMobile ? '100%' : 'auto' }}>Laudo completo por R$ 9,99</span>
+            <span style={{ color: '#5E7085', fontSize: 13, alignSelf: 'center', width: isMobile ? '100%' : 'auto' }}>Laudo completo por <s style={{ opacity: 0.65 }}>R$ 9,99</s> <strong style={{ color: O }}>R$ 4,99</strong> · preco de lancamento</span>
           </div>
           <div style={{ background: 'rgba(255,244,229,0.95)', border: '1px solid rgba(232,146,10,0.4)', borderLeft: '5px solid ' + O, borderRadius: 10, padding: isMobile ? '14px' : '12px 16px', textAlign: 'left', maxWidth: 680, margin: '0 auto' }}>
             <p style={{ color: '#7A4300', fontSize: isMobile ? 11 : 12, lineHeight: 1.65, margin: 0 }}>
@@ -211,8 +211,10 @@ export default function Landing() {
           </p>
           <div style={{ display: 'inline-block', background: 'rgba(13,33,55,0.12)', border: '1px solid rgba(13,33,55,0.15)', borderRadius: 12, padding: '10px 24px', marginBottom: 32 }}>
             <span style={{ color: N, fontSize: 13, fontWeight: 700 }}>Pagamento unico e transparente - </span>
-            <span style={{ fontFamily: serif, fontSize: 22, fontWeight: 800, color: N }}>R$ 9,99</span>
+            <s style={{ fontFamily: serif, fontSize: 16, fontWeight: 600, color: N, opacity: 0.5 }}>R$ 9,99</s>{' '}
+            <span style={{ fontFamily: serif, fontSize: 22, fontWeight: 800, color: N }}>R$ 4,99</span>
             <span style={{ color: N, fontSize: 12, fontWeight: 600 }}> pelo laudo completo</span>
+            <span style={{ display: 'block', color: N, fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', marginTop: 4, opacity: 0.75 }}>Preco de lancamento</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, maxWidth: 480, margin: '0 auto 32px', textAlign: 'left' }}>
             {ctaItems.map(item => (

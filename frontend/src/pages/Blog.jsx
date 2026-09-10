@@ -116,7 +116,7 @@ export default function Blog() {
             <h3 style={{ fontFamily: "'Merriweather', serif", color: '#FFFFFF', fontSize: 20, fontWeight: 700, marginBottom: 12 }}>
               Verifique o seu contrato agora
             </h3>
-            <p style={{ color: '#94A3B8', fontSize: 15, marginBottom: 24 }}>Analise tecnica com base no BCB e jurisprudencia do STJ por apenas R$ 9,99</p>
+            <p style={{ color: '#94A3B8', fontSize: 15, marginBottom: 24 }}>Analise tecnica com base no BCB e jurisprudencia do STJ por apenas R$ 4,99</p>
             <Link to="/upload" style={{ background: '#FF9F1C', color: '#10233F', textDecoration: 'none', fontSize: 15, fontWeight: 700, padding: '12px 28px', borderRadius: 10, display: 'inline-block' }}>
               Analisar meu contrato
             </Link>
@@ -196,7 +196,7 @@ export default function Blog() {
             Nosso laudo tecnico com base no BCB e jurisprudencia do STJ e o primeiro passo para revisao contratual.
           </p>
           <Link to="/upload" style={{ background: '#FF9F1C', color: '#10233F', textDecoration: 'none', fontSize: 16, fontWeight: 700, padding: '14px 36px', borderRadius: 12, display: 'inline-block' }}>
-            Analisar meu contrato — R$ 9,99
+            Analisar meu contrato — R$ 4,99
           </Link>
         </div>
       </main>

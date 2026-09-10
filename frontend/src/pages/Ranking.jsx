@@ -179,7 +179,7 @@ export default function Ranking() {
             Analise agora e descubra se voce e mais um caso de juro abusivo no Brasil.
           </p>
           <Link to="/upload" style={{ background: '#FF9F1C', color: '#10233F', textDecoration: 'none', fontSize: 16, fontWeight: 700, padding: '14px 36px', borderRadius: 12, display: 'inline-block' }}>
-            Analisar meu contrato — R$ 9,99
+            Analisar meu contrato — R$ 4,99
           </Link>
         </div>
       </main>
