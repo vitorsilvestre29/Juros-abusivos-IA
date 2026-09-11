@@ -389,6 +389,102 @@ class AnalysisServiceTests(unittest.IsolatedAsyncioTestCase):
             if db_path.exists():
                 db_path.unlink()
 
+    async def test_run_pre_analysis_records_pre_telemetry_row(self):
+        from models import AnalysisTelemetry
+
+        tmp_dir = BACKEND_DIR / "tests" / ".tmp"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        db_path = tmp_dir / "pre_analysis_test.sqlite3"
+        if db_path.exists():
+            db_path.unlink()
+
+        engine = create_async_engine(f"sqlite+aiosqlite:///{db_path.as_posix()}")
+        session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(database.Base.metadata.create_all)
+
+            async with session_factory() as db:
+                user = User(name="Teste", email="pre@example.com", hashed_password="x")
+                db.add(user)
+                await db.flush()
+
+                contract = Contract(
+                    user_id=user.id,
+                    filename="contrato.pdf",
+                    file_type="pdf",
+                    file_data=b"%PDF-mock",
+                    loan_type="cdc_veiculo",
+                )
+                db.add(contract)
+                await db.flush()
+
+                analysis = Analysis(
+                    contract_id=contract.id,
+                    user_id=user.id,
+                    status=AnalysisStatus.PENDING,
+                )
+                db.add(analysis)
+                await db.commit()
+
+                analysis_id = analysis.id
+                contract_id = contract.id
+
+            async def _fake_precheck(**_kwargs):
+                return True, {
+                    "input_tokens": 1200,
+                    "output_tokens": 8,
+                    "model": "claude-sonnet-4-6",
+                    "max_output_tokens": 64,
+                    "duration_ms": 730,
+                }
+
+            with (
+                patch.object(analysis_service, "_is_mock_ai_mode", return_value=True),
+                patch.object(
+                    analysis_service,
+                    "extract_text_from_pdf",
+                    return_value=(
+                        "Contrato de CDC veiculo. Emissao 08/02/2023. Taxa acima da media. "
+                        + "Clausulas gerais do financiamento de veiculo com garantia de alienacao fiduciaria. "
+                        * 5
+                    ),
+                ),
+                patch.object(analysis_service, "precheck_contract_has_issues", side_effect=_fake_precheck),
+                patch.object(database, "AsyncSessionLocal", session_factory),
+            ):
+                await analysis_service.run_pre_analysis(
+                    contract_id=contract_id,
+                    analysis_id=analysis_id,
+                    file_bytes=b"%PDF-mock",
+                    file_type="pdf",
+                    loan_type="cdc_veiculo",
+                )
+
+            async with session_factory() as db:
+                result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
+                saved = result.scalar_one()
+                self.assertEqual(saved.status, AnalysisStatus.COMPLETED)
+                self.assertTrue(saved.has_issues)
+
+                tel_result = await db.execute(
+                    select(AnalysisTelemetry).where(AnalysisTelemetry.analysis_id == analysis_id)
+                )
+                telemetry = tel_result.scalar_one()
+                self.assertEqual(telemetry.pre_input_tokens, 1200)
+                self.assertEqual(telemetry.pre_output_tokens, 8)
+                self.assertEqual(telemetry.pre_duration_ms, 730)
+                self.assertGreater(telemetry.pre_estimated_cost_brl, 0)
+                self.assertGreater(telemetry.pre_estimated_cost_usd, 0)
+                # campos da analise premium seguem zerados ate o pagamento
+                self.assertEqual(telemetry.input_tokens, 0)
+                self.assertEqual(telemetry.output_tokens, 0)
+        finally:
+            await engine.dispose()
+            if db_path.exists():
+                db_path.unlink()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -26,7 +26,7 @@ export default function AnalysisResult() {
   const currentUser = rawUser ? JSON.parse(rawUser) : null
   const isGuest = currentUser ? currentUser.is_guest === true : true
   const [status, setStatus] = useState(null)
-  const [pricing, setPricing] = useState({ price_brl: 9.99, includes: [] })
+  const [pricing, setPricing] = useState({ price_brl: 4.99, includes: [] })
   const [dots, setDots] = useState('.')
 
   useEffect(() => {

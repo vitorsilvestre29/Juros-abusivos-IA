@@ -73,5 +73,18 @@ async def init_db():
             except Exception as e:
                 print("Aviso migracao user_phone:", e)
 
+        if "postgresql" in DATABASE_URL:
+            try:
+                for ddl in [
+                    "ALTER TABLE analysis_telemetry ADD COLUMN IF NOT EXISTS pre_input_tokens INTEGER DEFAULT 0",
+                    "ALTER TABLE analysis_telemetry ADD COLUMN IF NOT EXISTS pre_output_tokens INTEGER DEFAULT 0",
+                    "ALTER TABLE analysis_telemetry ADD COLUMN IF NOT EXISTS pre_estimated_cost_usd DOUBLE PRECISION DEFAULT 0.0",
+                    "ALTER TABLE analysis_telemetry ADD COLUMN IF NOT EXISTS pre_estimated_cost_brl DOUBLE PRECISION DEFAULT 0.0",
+                    "ALTER TABLE analysis_telemetry ADD COLUMN IF NOT EXISTS pre_duration_ms INTEGER DEFAULT 0",
+                ]:
+                    await conn.execute(text(ddl))
+            except Exception as e:
+                print("Aviso migracao pre_* telemetry:", e)
+
         await conn.run_sync(Base.metadata.create_all)
         print("Banco de dados inicializado.")

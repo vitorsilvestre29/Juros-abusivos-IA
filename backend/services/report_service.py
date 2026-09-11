@@ -28,7 +28,7 @@ COLOR_GRAY      = colors.HexColor("#718096")
 COLOR_BORDER    = colors.HexColor("#CBD5E0")
 
 WHATSAPP_NUMBER = os.getenv("WHATSAPP_NUMBER", "5511999999999")
-REPORT_PRICE    = float(os.getenv("REPORT_PRICE", "9.99"))
+REPORT_PRICE    = float(os.getenv("REPORT_PRICE", "4.99"))
 SUPPORT_EMAIL   = os.getenv("SUPPORT_EMAIL", "vitorcesarsilvestre2017@gmail.com")
 
 

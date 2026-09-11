@@ -61,7 +61,7 @@ export default function Report() {
 
     trackEvent('Purchase', {
       analysis_id: Number(analysisId),
-      value: 9.99,
+      value: 4.99,
       currency: 'BRL',
     })
     localStorage.setItem(key, '1')

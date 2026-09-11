@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { getRanking, getStats } from '../lib/api'
 
 const N = '#0D2137'
 const O = '#E8920A'
@@ -33,8 +34,6 @@ const LOAN_ICONS = {
 
 const MEDAL = ['🥇', '🥈', '🥉']
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://juros-abusivos-api.up.railway.app'
-
 export default function Ranking() {
   const [ranking, setRanking] = useState([])
   const [stats, setStats] = useState(null)
@@ -44,11 +43,11 @@ export default function Ranking() {
     async function load() {
       try {
         const [rRes, sRes] = await Promise.all([
-          fetch(API_BASE + '/api/v1/public/ranking'),
-          fetch(API_BASE + '/api/v1/public/stats'),
+          getRanking(),
+          getStats(),
         ])
-        const rData = await rRes.json()
-        const sData = await sRes.json()
+        const rData = rRes.data
+        const sData = sRes.data
         setRanking(Array.isArray(rData) ? rData : [])
         setStats(sData)
       } catch {
@@ -60,7 +59,7 @@ export default function Ranking() {
     load()
   }, [])
 
-  const maxTotal = ranking.length > 0 ? ranking[0].total : 1
+  const maxTotal = ranking.length > 0 ? ranking[0].total_issues : 1
 
   return (
     <div style={{ minHeight: '100vh', background: '#F0F4FB' }}>
@@ -99,7 +98,7 @@ export default function Ranking() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 48 }}>
             {[
               { label: 'Contratos analisados', value: stats.total_analyses || 0, suffix: '' },
-              { label: 'Com irregularidades', value: stats.with_issues || 0, suffix: '' },
+              { label: 'Com irregularidades', value: stats.total_with_issues || 0, suffix: '' },
               { label: 'Impacto total detectado', value: stats.total_impact_brl ? 'R$ ' + Number(stats.total_impact_brl).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : 'R$ 0', suffix: '' },
             ].map(s => (
               <div key={s.label} style={{ background: '#FFFFFF', border: '1px solid #E2EBF8', borderRadius: 16, padding: '24px 20px', textAlign: 'center', boxShadow: '0 2px 12px rgba(12,26,46,0.05)' }}>
@@ -131,7 +130,7 @@ export default function Ranking() {
           ) : (
             <div>
               {ranking.map((item, idx) => {
-                const pct = Math.round((item.total / maxTotal) * 100)
+                const pct = Math.round((item.total_issues / maxTotal) * 100)
                 const label = LOAN_LABELS[item.loan_type] || item.loan_type
                 const icon = LOAN_ICONS[item.loan_type] || '📄'
                 const medal = MEDAL[idx] || null
@@ -151,7 +150,7 @@ export default function Ranking() {
                     </div>
                     {/* Count */}
                     <div style={{ textAlign: 'right', minWidth: 80 }}>
-                      <div style={{ fontWeight: 700, color: '#10233F', fontSize: 18 }}>{item.total}</div>
+                      <div style={{ fontWeight: 700, color: '#10233F', fontSize: 18 }}>{item.total_issues}</div>
                       <div style={{ color: '#94A3B8', fontSize: 12 }}>casos</div>
                     </div>
                     {/* Impact */}
@@ -179,7 +178,7 @@ export default function Ranking() {
             Analise agora e descubra se voce e mais um caso de juro abusivo no Brasil.
           </p>
           <Link to="/upload" style={{ background: '#FF9F1C', color: '#10233F', textDecoration: 'none', fontSize: 16, fontWeight: 700, padding: '14px 36px', borderRadius: 12, display: 'inline-block' }}>
-            Analisar meu contrato — R$ 9,99
+            Analisar meu contrato — R$ 4,99
           </Link>
         </div>
       </main>

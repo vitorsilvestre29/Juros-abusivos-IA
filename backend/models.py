@@ -138,6 +138,14 @@ class AnalysisTelemetry(Base):
     status: Mapped[str] = mapped_column(String(20), default=AnalysisStatus.FAILED)
     error_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
 
+    # Telemetria da chamada de IA da pre-analise (gratuita, pre-pagamento).
+    # Mesma linha da analise premium; permite medir o custo TOTAL por laudo.
+    pre_input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    pre_output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    pre_estimated_cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    pre_estimated_cost_brl: Mapped[float] = mapped_column(Float, default=0.0)
+    pre_duration_ms: Mapped[int] = mapped_column(Integer, default=0)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     analysis: Mapped["Analysis"] = relationship("Analysis", back_populates="telemetry")

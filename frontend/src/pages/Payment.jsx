@@ -38,7 +38,7 @@ export default function Payment() {
     trackEvent('Purchase', {
       analysis_id: analysisId,
       payment_id: payment?.payment_id,
-      value: payment?.amount_brl ?? 9.99,
+      value: payment?.amount_brl ?? 4.99,
       currency: 'BRL',
     })
     purchaseTrackedRef.current = true
@@ -54,7 +54,7 @@ export default function Payment() {
             trackEvent('Purchase', {
               analysis_id: analysisId,
               payment_id: r.data?.payment_id,
-              value: r.data?.amount_brl ?? 9.99,
+              value: r.data?.amount_brl ?? 4.99,
               currency: 'BRL',
             })
             purchaseTrackedRef.current = true
@@ -149,7 +149,7 @@ export default function Payment() {
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 4, flexWrap: 'wrap' }}>
                 <span style={{ color: muted, fontSize: 18, marginTop: 10, fontWeight: 600 }}>R$</span>
                 <span style={{ fontFamily: serif, fontSize: isMobile ? 48 : 60, fontWeight: 800, color: N, lineHeight: 1 }}>
-                  {new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(payment.amount_brl || 9.99)}
+                  {new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(payment.amount_brl || 4.99)}
                 </span>
               </div>
             </div>

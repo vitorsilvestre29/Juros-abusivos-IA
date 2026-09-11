@@ -84,7 +84,7 @@ async def create_payment(
 
     # Bypass premium restrito a e-mails administrativos (whitelist via env).
     if admin_bypass:
-        amount = float(os.getenv("REPORT_PRICE", "9.99"))
+        amount = float(os.getenv("REPORT_PRICE", "4.99"))
 
         if analysis.payment and analysis.payment.status == PaymentStatus.PENDING:
             analysis.payment.status = PaymentStatus.PAID
@@ -156,7 +156,7 @@ async def create_payment(
                 "is_bypass": False,
             }
 
-        amount = float(os.getenv("REPORT_PRICE", "9.99"))
+        amount = float(os.getenv("REPORT_PRICE", "4.99"))
         payment = Payment(
             user_id=current_user.id,
             analysis_id=analysis_id,
@@ -191,7 +191,7 @@ async def create_payment(
             "is_bypass": False,
         }
 
-    amount = float(os.getenv("REPORT_PRICE", "9.99"))
+    amount = float(os.getenv("REPORT_PRICE", "4.99"))
 
     try:
         mp_data = await create_pix_payment(

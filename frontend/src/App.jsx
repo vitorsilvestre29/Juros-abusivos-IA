@@ -12,6 +12,7 @@ import Ranking from './pages/Ranking'
 import Blog from './pages/Blog'
 import Comparador from './pages/Comparador'
 import Privacidade from './pages/Privacidade'
+import NotFound from './pages/NotFound'
 import { initMetaPixel, trackPageView } from './lib/metaPixel'
 
 function PrivateRoute({ children }) {
@@ -64,7 +65,7 @@ export const routes = [
       // Privado - requer conta cadastrada
       { path: 'app', element: <PrivateRoute><Dashboard /></PrivateRoute> },
 
-      { path: '*', element: <Navigate to="/" replace /> },
+      { path: '*', element: <NotFound /> },
     ],
   },
 ]

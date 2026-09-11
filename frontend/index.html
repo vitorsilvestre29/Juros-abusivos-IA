@@ -8,14 +8,23 @@
     <meta name="description" content="LaudoJuros: analise tecnica de contratos de emprestimo e financiamento. Identifique irregularidades com base nas taxas do Banco Central e jurisprudencia do STJ.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;0,800;1,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;0,800;1,400;1,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       body {
+        font-family: 'Manrope', system-ui, sans-serif;
+        background: #F8F9FC;
+        color: #1C1C28;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
       }
+      h1, h2, h3, h4 { font-family: 'Merriweather', Georgia, serif; }
       a { color: inherit; }
+      button { font-family: 'Manrope', system-ui, sans-serif; }
+
+      @media (max-width: 768px) {
+        .nav-links { display: none; }
+      }
     </style>
   </head>
   <body>
