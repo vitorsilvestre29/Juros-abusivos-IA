@@ -24,7 +24,7 @@ const LOAN_LABELS = {
 export default function UploadContract() {
   const nav = useNavigate()
   const isMobile = useIsMobile()
-  const rawUser = localStorage.getItem('user')
+  const rawUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null
   const currentUser = rawUser ? JSON.parse(rawUser) : null
   const isGuest = currentUser ? currentUser.is_guest === true : true
   const [loanTypes, setLoanTypes] = useState(Object.entries(LOAN_LABELS).map(([id, label]) => ({ id, label })))

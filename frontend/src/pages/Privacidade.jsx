@@ -1,6 +1,16 @@
 import { Link } from 'react-router-dom'
 
-
+const N = '#0D2137'
+const O = '#E8920A'
+const bg = '#F8F9FC'
+const white = '#FFFFFF'
+const border = '#D5E2F2'
+const muted = '#566880'
+const mutedDark = '#8FA3B8'
+const OBorder = 'rgba(232,146,10,0.3)'
+const OPale = 'rgba(232,146,10,0.15)'
+const serif = "'Merriweather', Georgia, serif"
+const sans = "'Manrope', system-ui, sans-serif"
 
 function Section({ title, children }) {
   return (

@@ -13,5 +13,16 @@ export default defineConfig({
         changeOrigin: true,
       }
     }
-  }
+  },
+  ssgOptions: {
+    // Rotas autenticadas/dinamicas nao sao pre-renderizadas (continuam client-side-only).
+    // O filtro padrao ja remove rotas dinamicas (":contractId"/":analysisId"); aqui so
+    // removemos "/app" (privada) e o catch-all "*", que nao fazem sentido como HTML estatico.
+    includedRoutes(paths) {
+      return paths.filter(path => {
+        const normalized = path.replace(/^\/+/, '')
+        return normalized !== 'app' && normalized !== '*'
+      })
+    },
+  },
 })

@@ -4,17 +4,17 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "vite-react-ssg dev",
+    "build": "vite-react-ssg build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "axios": "^1.12.2",
+    "lucide-react": "^0.383.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.23.1",
-    "axios": "^1.12.2",
     "react-markdown": "^9.0.1",
-    "lucide-react": "^0.383.0"
+    "react-router-dom": "^6.23.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
@@ -23,6 +23,7 @@
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
-    "vite": "^5.3.1"
+    "vite": "^5.3.1",
+    "vite-react-ssg": "^0.8.9"
   }
 }

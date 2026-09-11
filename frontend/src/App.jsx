@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
@@ -15,7 +15,7 @@ import Privacidade from './pages/Privacidade'
 import { initMetaPixel, trackPageView } from './lib/metaPixel'
 
 function PrivateRoute({ children }) {
-  const token = localStorage.getItem('token')
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
   if (token === null) return <Navigate to="/login" replace />
   return children
 }
@@ -34,29 +34,37 @@ function PixelTracker() {
   return null
 }
 
-export default function App() {
+function Layout() {
   return (
-    <BrowserRouter>
+    <>
       <PixelTracker />
-      <Routes>
-        {/* Publico - sem restricao */}
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/cadastro" element={<Register />} />
-        <Route path="/upload" element={<UploadContract />} />
-        <Route path="/analise/:contractId" element={<AnalysisResult />} />
-        <Route path="/pagamento/:analysisId" element={<Payment />} />
-        <Route path="/laudo/:analysisId" element={<Report />} />
-        <Route path="/ranking" element={<Ranking />} />
-        <Route path="/blog" element={<Blog />} />
-        <Route path="/comparador" element={<Comparador />} />
-        <Route path="/privacidade" element={<Privacidade />} />
-
-        {/* Privado - requer conta cadastrada */}
-        <Route path="/app" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+      <Outlet />
+    </>
   )
 }
+
+export const routes = [
+  {
+    path: '/',
+    element: <Layout />,
+    children: [
+      // Publico - sem restricao
+      { index: true, element: <Landing /> },
+      { path: 'login', element: <Login /> },
+      { path: 'cadastro', element: <Register /> },
+      { path: 'upload', element: <UploadContract /> },
+      { path: 'analise/:contractId', element: <AnalysisResult /> },
+      { path: 'pagamento/:analysisId', element: <Payment /> },
+      { path: 'laudo/:analysisId', element: <Report /> },
+      { path: 'ranking', element: <Ranking /> },
+      { path: 'blog', element: <Blog /> },
+      { path: 'comparador', element: <Comparador /> },
+      { path: 'privacidade', element: <Privacidade /> },
+
+      // Privado - requer conta cadastrada
+      { path: 'app', element: <PrivateRoute><Dashboard /></PrivateRoute> },
+
+      { path: '*', element: <Navigate to="/" replace /> },
+    ],
+  },
+]

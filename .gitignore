@@ -14,6 +14,7 @@ env/
 node_modules/
 dist/
 build/
+vite.config.js.timestamp-*.mjs
 
 # OS/Editor
 .DS_Store

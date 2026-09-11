@@ -1,0 +1,1068 @@
+/* ==========================================================================
+   Landing.css — design tokens + estilos da landing page (LaudoJuros)
+   Paleta navy/laranja/verde mantida, com tons intermediarios (ver spec
+   redesign-landing-spec.md secao 1). Responsividade primaria via CSS fluido
+   (clamp + grid auto-fit); JS (useIsMobile) so para decisoes estruturais
+   (menu hamburguer do nav).
+   ========================================================================== */
+
+.landingPage {
+  /* Navy */
+  --navy-900: #081524;
+  --navy-800: #0D2137;
+  --navy-700: #16324F;
+  --navy-100: #E9EEF5;
+
+  /* Laranja */
+  --orange-600: #C97600;
+  --orange-500: #E8920A;
+  --orange-100: #FDF1DD;
+
+  /* Verde */
+  --green-700: #1B6B3F;
+  --green-500: #2E8B57;
+  --green-100: #E7F5EC;
+
+  /* Neutros */
+  --bg: #F8F9FC;
+  --white: #FFFFFF;
+  --border: #D5E2F2;
+  --border-strong: #B9CBE0;
+  --muted: #566880;
+  --muted-light: #7C8CA3;
+  --ink: #0A1420;
+
+  /* Tipografia */
+  --font-serif: 'Merriweather', Georgia, serif;
+  --font-sans: 'Manrope', system-ui, sans-serif;
+
+  --text-h1: clamp(2.25rem, 4.5vw + 1rem, 3.75rem);
+  --text-h2: clamp(1.75rem, 2.5vw + 1rem, 2.5rem);
+  --text-h3: clamp(1.25rem, 1vw + 1rem, 1.5rem);
+  --text-lead: clamp(1.0625rem, 0.5vw + 1rem, 1.25rem);
+  --text-body: 1rem;
+  --text-small: 0.875rem;
+  --text-micro: 0.75rem;
+
+  --leading-tight: 1.15;
+  --leading-normal: 1.6;
+
+  /* Espacamento */
+  --section-py: clamp(64px, 8vw, 128px);
+  --section-px: clamp(20px, 5vw, 24px);
+  --section-max-width: 1200px;
+  --content-max-width: 720px;
+
+  /* Raio / sombra */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-full: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(13, 33, 55, 0.06);
+  --shadow-md: 0 4px 16px rgba(13, 33, 55, 0.08);
+  --shadow-lg: 0 12px 32px rgba(13, 33, 55, 0.12);
+  --shadow-orange-glow: 0 8px 24px rgba(232, 146, 10, 0.25);
+
+  --border-width-accent: 3px;
+
+  font-family: var(--font-sans);
+  background: var(--bg);
+  min-height: 100vh;
+  color: var(--ink);
+}
+
+.landingPage h1,
+.landingPage h2,
+.landingPage h3 {
+  font-family: var(--font-serif);
+  line-height: var(--leading-tight);
+  margin: 0;
+}
+
+.landingPage p {
+  margin: 0;
+  line-height: var(--leading-normal);
+}
+
+.landingPage a {
+  color: inherit;
+}
+
+.landingPage button {
+  font-family: var(--font-sans);
+}
+
+.landingPage .container {
+  max-width: var(--section-max-width);
+  margin: 0 auto;
+  padding-left: var(--section-px);
+  padding-right: var(--section-px);
+}
+
+.landingPage .containerNarrow {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding-left: var(--section-px);
+  padding-right: var(--section-px);
+}
+
+.landingPage .section {
+  padding-top: var(--section-py);
+  padding-bottom: var(--section-py);
+}
+
+.landingPage .eyebrow {
+  color: var(--orange-500);
+  font-size: var(--text-micro);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.landingPage .sectionHead {
+  text-align: center;
+  max-width: var(--content-max-width);
+  margin: 0 auto clamp(32px, 5vw, 56px);
+}
+
+.landingPage .sectionHead h2 {
+  font-size: var(--text-h2);
+  color: var(--navy-800);
+  font-weight: 700;
+}
+
+.landingPage .sectionHeadLight h2 {
+  color: var(--white);
+}
+
+.landingPage .sectionLead {
+  color: var(--muted);
+  font-size: var(--text-lead);
+  margin-top: 14px;
+}
+
+/* ---------- Barra LGPD ---------- */
+.landingPage .lgpdBar {
+  background: var(--green-700);
+  padding: clamp(8px, 2vw, 10px) var(--section-px);
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.landingPage .lgpdBar p {
+  color: #C6E9CE;
+  font-size: var(--text-small);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: var(--leading-normal);
+}
+
+.landingPage .lgpdBar strong {
+  color: var(--white);
+}
+
+.landingPage .lgpdBar a {
+  color: #A6E6AE;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ---------- Nav ---------- */
+.landingPage .nav {
+  background: var(--navy-800);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  transition: box-shadow 0.2s ease;
+}
+
+.landingPage .nav.navScrolled {
+  box-shadow: var(--shadow-md);
+}
+
+.landingPage .navInner {
+  max-width: var(--section-max-width);
+  margin: 0 auto;
+  padding: 0 var(--section-px);
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.landingPage .logo {
+  font-family: var(--font-serif);
+  color: var(--orange-500);
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+}
+
+.landingPage .navRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.landingPage .navLinks {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.landingPage .navLink {
+  color: #9FB5C9;
+  text-decoration: none;
+  font-size: var(--text-small);
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.landingPage .navLink:hover {
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.landingPage .navEntrar {
+  color: #9FB5C9;
+  text-decoration: none;
+  font-size: var(--text-small);
+  font-weight: 500;
+  padding: 8px 12px;
+}
+
+.landingPage .navEntrar:hover {
+  color: var(--white);
+}
+
+.landingPage .navCta {
+  background: var(--orange-500);
+  color: var(--navy-900);
+  font-size: var(--text-small);
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.landingPage .navCta:hover {
+  box-shadow: var(--shadow-orange-glow);
+  transform: translateY(-1px);
+}
+
+.landingPage .navToggle {
+  display: none;
+  background: transparent;
+  border: none;
+  color: var(--white);
+  cursor: pointer;
+  padding: 8px;
+}
+
+.landingPage .navMobilePanel {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .landingPage .navLinks {
+    display: none;
+  }
+
+  .landingPage .navToggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .landingPage .navMobilePanel.navMobileOpen {
+    display: flex;
+    flex-direction: column;
+    background: var(--navy-700);
+    padding: 8px var(--section-px) 16px;
+    gap: 2px;
+  }
+
+  .landingPage .navMobilePanel.navMobileOpen .navLink {
+    color: #C7D6E4;
+    padding: 12px 8px;
+  }
+}
+
+/* ---------- Hero ---------- */
+.landingPage .hero {
+  background: linear-gradient(160deg, var(--navy-900) 0%, var(--navy-800) 55%, var(--navy-700) 100%);
+  padding: clamp(56px, 10vw, 100px) var(--section-px) clamp(56px, 8vw, 90px);
+  position: relative;
+  overflow: hidden;
+}
+
+.landingPage .heroDecor {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 82% 12%, rgba(232, 146, 10, 0.10) 0%, transparent 45%),
+    radial-gradient(circle at 15% 60%, rgba(232, 146, 10, 0.06) 0%, transparent 55%),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.025) 0px, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent 64px);
+  pointer-events: none;
+}
+
+.landingPage .heroInner {
+  max-width: var(--section-max-width);
+  margin: 0 auto;
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(40px, 6vw, 64px);
+  align-items: center;
+}
+
+@media (min-width: 1024px) {
+  .landingPage .heroInner {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  }
+
+  .landingPage .heroCopy {
+    text-align: left;
+  }
+
+  .landingPage .heroCtaRow {
+    justify-content: flex-start;
+  }
+}
+
+.landingPage .heroCopy {
+  text-align: center;
+}
+
+.landingPage .heroPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--orange-100);
+  border: 1px solid rgba(232, 146, 10, 0.35);
+  border-radius: var(--radius-full);
+  padding: 6px 16px;
+  margin-bottom: 24px;
+}
+
+.landingPage .heroPill span {
+  color: var(--orange-600);
+  font-size: var(--text-micro);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.landingPage .heroTitle {
+  font-size: var(--text-h1);
+  color: var(--white);
+  font-weight: 800;
+  line-height: 1.08;
+  margin-bottom: 20px;
+}
+
+.landingPage .heroTitle span {
+  color: var(--orange-500);
+}
+
+.landingPage .heroLead {
+  color: #A9BBCC;
+  font-size: var(--text-lead);
+  max-width: 560px;
+  margin: 0 auto 12px;
+}
+
+.landingPage .heroSub {
+  color: #7488A0;
+  font-size: var(--text-small);
+  max-width: 540px;
+  margin: 0 auto 32px;
+}
+
+@media (min-width: 1024px) {
+  .landingPage .heroLead,
+  .landingPage .heroSub {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+.landingPage .heroCtaRow {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.landingPage .heroBtnPrimary {
+  background: var(--orange-500);
+  color: var(--navy-900);
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 15px 30px;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-orange-glow);
+  transition: transform 0.15s ease;
+}
+
+.landingPage .heroBtnPrimary:hover {
+  transform: translateY(-1px);
+}
+
+.landingPage .priceCard {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  background: var(--white);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 12px 18px;
+}
+
+.landingPage .priceOld {
+  color: var(--muted-light);
+  font-size: var(--text-small);
+  text-decoration: line-through;
+}
+
+.landingPage .priceNew {
+  font-family: var(--font-serif);
+  font-size: var(--text-h3);
+  font-weight: 700;
+  color: var(--orange-500);
+}
+
+.landingPage .priceTag {
+  display: block;
+  color: var(--muted-light);
+  font-size: var(--text-micro);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.landingPage .disclaimerBox {
+  background: rgba(255, 244, 229, 0.96);
+  border: 1px solid rgba(232, 146, 10, 0.4);
+  border-left: 5px solid var(--orange-500);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  text-align: left;
+  max-width: 680px;
+  margin: 0 auto;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.landingPage .disclaimerBox svg {
+  flex-shrink: 0;
+  color: var(--orange-600);
+  margin-top: 2px;
+}
+
+.landingPage .disclaimerBox p {
+  color: #7A4300;
+  font-size: 0.8125rem;
+  line-height: 1.65;
+}
+
+@media (min-width: 1024px) {
+  .landingPage .disclaimerBox {
+    margin: 0;
+  }
+}
+
+/* Preview do laudo (mockup ilustrativo) */
+.landingPage .laudoPreview {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+.landingPage .laudoPreviewLabel {
+  background: var(--navy-100);
+  color: var(--navy-700);
+  font-size: var(--text-micro);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+  padding: 6px;
+}
+
+.landingPage .laudoPreviewHeader {
+  background: var(--navy-800);
+  color: var(--white);
+  padding: 18px 20px;
+}
+
+.landingPage .laudoPreviewHeader .kicker {
+  font-size: var(--text-micro);
+  color: #7E9BB5;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.landingPage .laudoPreviewHeader h4 {
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.landingPage .laudoPreviewBody {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.landingPage .laudoRateRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.landingPage .laudoRateRow:last-of-type {
+  border-bottom: none;
+}
+
+.landingPage .laudoRateLabel {
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+
+.landingPage .laudoRateValue {
+  font-size: var(--text-small);
+  font-weight: 700;
+  color: var(--navy-800);
+}
+
+.landingPage .laudoRateValue.alert {
+  color: #B3261E;
+}
+
+.landingPage .laudoClause {
+  background: var(--orange-100);
+  border-left: 3px solid var(--orange-500);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+
+.landingPage .laudoClause p {
+  font-size: 0.8125rem;
+  color: #6B4100;
+  line-height: 1.6;
+}
+
+.landingPage .laudoClause strong {
+  color: var(--orange-600);
+}
+
+/* ---------- Como funciona ---------- */
+.landingPage .stepsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: clamp(16px, 3vw, 28px);
+  position: relative;
+}
+
+@media (min-width: 1024px) {
+  .landingPage .stepsGrid::before {
+    content: '';
+    position: absolute;
+    top: 34px;
+    left: 16%;
+    right: 16%;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(232, 146, 10, 0.35), rgba(232, 146, 10, 0.05));
+    z-index: 0;
+  }
+}
+
+.landingPage .stepCard {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: clamp(22px, 3vw, 28px) clamp(20px, 3vw, 26px);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.landingPage .stepCard:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.landingPage .stepNumber {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--navy-800);
+  color: var(--white);
+  font-weight: 700;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.landingPage .stepCard h3 {
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--navy-800);
+  margin-bottom: 8px;
+}
+
+.landingPage .stepCard p {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+/* ---------- O que identificamos ---------- */
+.landingPage .issuesSection {
+  background: var(--navy-800);
+}
+
+.landingPage .issuesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4, 16px);
+}
+
+.landingPage .issuePill {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.landingPage .issuePill svg {
+  color: var(--orange-500);
+  flex-shrink: 0;
+}
+
+.landingPage .issuePill span {
+  color: #CBD5E1;
+  font-size: var(--text-small);
+}
+
+/* ---------- Metodologia / confianca ---------- */
+.landingPage .methodGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.landingPage .methodCard {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.landingPage .methodCard svg {
+  color: var(--navy-700);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.landingPage .methodCard p {
+  color: var(--ink);
+  font-size: var(--text-small);
+  line-height: 1.6;
+}
+
+/* ---------- Nossa diferenca ---------- */
+.landingPage .diffGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: clamp(16px, 2.5vw, 24px);
+}
+
+.landingPage .diffCard {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-top: var(--border-width-accent) solid var(--orange-500);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  padding: clamp(22px, 3vw, 28px) clamp(20px, 3vw, 24px);
+  box-shadow: var(--shadow-sm);
+}
+
+.landingPage .diffCard svg {
+  color: var(--navy-800);
+  margin-bottom: 14px;
+}
+
+.landingPage .diffCard h3 {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--navy-800);
+  margin-bottom: 8px;
+}
+
+.landingPage .diffCard p {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+/* ---------- Quando vale a pena verificar ---------- */
+.landingPage .signalsSection {
+  background: var(--navy-100);
+}
+
+.landingPage .signalsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.landingPage .signalCard {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.landingPage .signalCard svg {
+  color: var(--orange-600);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.landingPage .signalCard p {
+  color: var(--ink);
+  font-size: var(--text-small);
+}
+
+/* ---------- Secao verde LGPD ---------- */
+.landingPage .lgpdSection {
+  background: var(--green-100);
+}
+
+.landingPage .lgpdBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--white);
+  border: 1px solid #A5D6A7;
+  border-radius: var(--radius-full);
+  padding: 5px 14px;
+  margin-bottom: 18px;
+}
+
+.landingPage .lgpdBadge svg {
+  color: var(--green-700);
+}
+
+.landingPage .lgpdBadge span {
+  color: var(--green-700);
+  font-size: var(--text-micro);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.landingPage .lgpdGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.landingPage .lgpdCard {
+  background: var(--white);
+  border: 1px solid #C8E6C9;
+  border-radius: var(--radius-md);
+  padding: 20px 18px;
+  text-align: left;
+  box-shadow: var(--shadow-sm);
+}
+
+.landingPage .lgpdCard svg {
+  color: var(--green-700);
+  margin-bottom: 10px;
+}
+
+.landingPage .lgpdCard p:first-of-type {
+  font-weight: 700;
+  color: var(--navy-800);
+  font-size: var(--text-small);
+  margin-bottom: 6px;
+}
+
+.landingPage .lgpdCard p:last-of-type {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.landingPage .btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--navy-700);
+  color: var(--navy-700);
+  font-size: var(--text-small);
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.landingPage .btnSecondary:hover {
+  background: rgba(22, 50, 79, 0.06);
+}
+
+/* ---------- FAQ ---------- */
+.landingPage .faqList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+}
+
+.landingPage .faqItem {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 4px 20px;
+}
+
+.landingPage .faqItem summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 16px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 700;
+  color: var(--navy-800);
+  font-size: var(--text-small);
+}
+
+.landingPage .faqItem summary::-webkit-details-marker {
+  display: none;
+}
+
+.landingPage .faqIcon {
+  flex-shrink: 0;
+  color: var(--orange-500);
+  transition: transform 0.2s ease;
+}
+
+.landingPage .faqItem[open] .faqIcon {
+  transform: rotate(45deg);
+}
+
+.landingPage .faqAnswer {
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: 1.7;
+  padding-bottom: 16px;
+}
+
+/* ---------- CTA final ---------- */
+.landingPage .ctaFinal {
+  background: linear-gradient(135deg, var(--orange-500) 0%, #D97D00 100%);
+  text-align: center;
+}
+
+.landingPage .ctaFinal h2 {
+  font-size: var(--text-h2);
+  color: var(--navy-900);
+  font-weight: 800;
+  margin-bottom: 16px;
+}
+
+.landingPage .ctaFinal > .container > p {
+  color: #6B3F00;
+  font-size: var(--text-lead);
+  margin-bottom: 12px;
+}
+
+.landingPage .ctaPriceTag {
+  display: inline-block;
+  background: rgba(13, 33, 55, 0.12);
+  border: 1px solid rgba(13, 33, 55, 0.15);
+  border-radius: var(--radius-md);
+  padding: 10px 24px;
+  margin-bottom: 32px;
+}
+
+.landingPage .ctaChecklist {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  max-width: 520px;
+  margin: 0 auto 32px;
+  text-align: left;
+}
+
+.landingPage .ctaChecklistItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.landingPage .ctaCheckIcon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.landingPage .ctaCheckIcon svg {
+  color: var(--navy-800);
+}
+
+.landingPage .ctaChecklistItem span {
+  color: var(--navy-900);
+  font-size: var(--text-small);
+  font-weight: 500;
+}
+
+.landingPage .ctaBtn {
+  background: var(--navy-800);
+  color: var(--white);
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 16px 40px;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.landingPage .ctaBtn:hover {
+  background: var(--navy-900);
+  transform: translateY(-1px);
+}
+
+.landingPage .ctaFootnote {
+  color: #6B3F00;
+  font-size: var(--text-small);
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* ---------- Rodape ---------- */
+.landingPage .footer {
+  background: var(--navy-800);
+  padding: clamp(32px, 5vw, 48px) var(--section-px) 24px;
+}
+
+.landingPage .footerGrid {
+  max-width: var(--section-max-width);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 28px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 20px;
+}
+
+@media (min-width: 1024px) {
+  .landingPage .footerGrid {
+    grid-template-columns: 1.3fr 1fr 1.2fr;
+  }
+}
+
+.landingPage .footerBrand p {
+  color: var(--muted-light);
+  font-size: var(--text-small);
+  margin-top: 10px;
+  max-width: 320px;
+}
+
+.landingPage .footerCol h4 {
+  font-family: var(--font-sans);
+  color: var(--white);
+  font-size: var(--text-small);
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.landingPage .footerCol a {
+  display: block;
+  color: var(--muted-light);
+  font-size: var(--text-small);
+  text-decoration: none;
+  margin-bottom: 8px;
+}
+
+.landingPage .footerCol a:hover {
+  color: var(--white);
+}
+
+.landingPage .footerLegal p {
+  color: var(--muted-light);
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+
+.landingPage .footerBottom {
+  max-width: var(--section-max-width);
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.landingPage .footerBottom p {
+  color: #3B4D63;
+  font-size: 0.8125rem;
+}
